@@ -1,0 +1,7 @@
+# Bu dosyayı 'key.properties' olarak kopyalayın ve kendi oluşturduğunuz keystore şifrelerini yazın.
+# NOT: 'key.properties' ve '.jks' dosyalarını kesinlikle Git'e göndermeyiniz (.gitignore'a eklenmiştir).
+
+storePassword=KENDI_ANAHTAR_SIFRENIZ
+keyPassword=KENDI_ANAHTAR_SIFRENIZ
+keyAlias=upload
+storeFile=../app/upload-keystore.jks
