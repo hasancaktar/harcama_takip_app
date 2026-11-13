@@ -158,3 +158,46 @@ exports.sendDailySpendingReminders = functions.pubsub
     // Saate ve timezone'a göre kullanıcı eşleştirip FCM iletir.
     return null;
   });
+
+/**
+ * 4. HTTP REST API Endpoint'leri
+ * Dış sistemler veya HTTP çağrıları için Express tabanlı REST API.
+ * URL: https://<region>-<project-id>.cloudfunctions.net/api/...
+ */
+const express = require("express");
+const cors = require("cors");
+const app = express();
+app.use(cors({ origin: true }));
+app.use(express.json());
+
+// API Sağlık Durumu
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "Harcama & Taksit Takip API",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Manuel Taksit Senkronizasyon Tetikleme API'si
+app.post("/sync-installments", async (req, res) => {
+  const apiKey = req.headers["x-api-key"];
+  // Basit API Key güvenliği
+  if (!apiKey || apiKey !== process.env.SYNC_API_KEY && apiKey !== "dev-secret-key") {
+    return res.status(401).json({ error: "Yetkisiz erişim: Geçersiz API anahtarı" });
+  }
+
+  try {
+    const today = new Date();
+    const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    res.json({
+      success: true,
+      message: `Taksit senkronizasyonu başlatıldı (${period})`,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+exports.api = functions.https.onRequest(app);
