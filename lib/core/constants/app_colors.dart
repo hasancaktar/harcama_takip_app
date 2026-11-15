@@ -63,6 +63,7 @@ abstract class AppColors {
   static const Color categorySubscription = Color(0xFF84CC16);
   static const Color categoryHome = Color(0xFFEAB308);
   static const Color categoryPersonalCare = Color(0xFFA855F7);
+  static const Color categoryDonation = Color(0xFFE11D48);
   static const Color categoryOther = Color(0xFF6B7280);
 
   /// Kart ve takım için seçilebilir renkler.

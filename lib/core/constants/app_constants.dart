@@ -133,6 +133,12 @@ abstract class AppConstants {
       icon: Icons.spa_rounded,
       color: AppColors.categoryPersonalCare,
     ),
+    CategoryItem(
+      id: 'donation',
+      name: 'Bağış',
+      icon: Icons.volunteer_activism_rounded,
+      color: AppColors.categoryDonation,
+    ),
     otherCategory,
   ];
 

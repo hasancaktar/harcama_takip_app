@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harcama_takip/application/providers/budget_providers.dart';
 import 'package:harcama_takip/application/providers/expense_providers.dart';
 import 'package:harcama_takip/application/services/installment_posting_service.dart';
+import 'package:harcama_takip/core/constants/app_constants.dart';
 import 'package:harcama_takip/core/errors/error_messages.dart';
 import 'package:harcama_takip/core/utils/statement_calculator.dart';
 import 'package:harcama_takip/core/utils/stream_utils.dart';
@@ -492,6 +493,13 @@ void main() {
         await b.close();
       },
     );
+  });
+
+  test('Bağış kategorisi tanımlı ve "Diğer"den önce listelenir', () {
+    final donation = AppConstants.getCategoryById('donation');
+    expect(donation.name, 'Bağış');
+    final ids = AppConstants.defaultCategories.map((c) => c.id).toList();
+    expect(ids.indexOf('donation'), ids.indexOf('other') - 1);
   });
 
   test('AppUser baş harfleri', () {
