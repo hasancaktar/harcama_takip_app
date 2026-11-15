@@ -1,1 +1,67 @@
-{"firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},"functions":[{"source":"functions","codebase":"default","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log"]}],"emulators":{"auth":{"port":9099},"functions":{"port":5001},"firestore":{"port":8080},"ui":{"enabled":true,"port":4000}},"flutter":{"platforms":{"android":{"default":{"projectId":"harcama-takip-app-7ff66","appId":"1:359504482936:android:d54e6f66297d3a1882938d","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"harcama-takip-app-7ff66","configurations":{"android":"1:359504482936:android:d54e6f66297d3a1882938d","web":"1:359504482936:web:76062f89d434770482938d"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ]
+    }
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "harcama-takip-app-7ff66",
+          "appId": "1:359504482936:android:d54e6f66297d3a1882938d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "harcama-takip-app-7ff66",
+          "configurations": {
+            "android": "1:359504482936:android:d54e6f66297d3a1882938d",
+            "web": "1:359504482936:web:76062f89d434770482938d"
+          }
+        }
+      }
+    }
+  }
+}

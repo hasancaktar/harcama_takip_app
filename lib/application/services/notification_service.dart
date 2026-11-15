@@ -14,6 +14,10 @@ class NotificationService {
 
   Future<void> initialize() async {
     if (_isInitialized) return;
+    if (kIsWeb) {
+      _isInitialized = true;
+      return;
+    }
 
     try {
       // Timezone başlat
@@ -64,6 +68,7 @@ class NotificationService {
   }
 
   Future<bool> requestPermissions() async {
+    if (kIsWeb) return false;
     final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     final bool? androidGranted = await androidPlugin?.requestNotificationsPermission();
@@ -85,6 +90,7 @@ class NotificationService {
     required int minute,
     required List<int> days,
   }) async {
+    if (kIsWeb) return;
     if (!_isInitialized) await initialize();
 
     // Önceki günlük bildirimleri iptal et (ID: 100 - 107)
@@ -136,6 +142,7 @@ class NotificationService {
   }
 
   Future<void> cancelAll() async {
+    if (kIsWeb) return;
     await _localNotifications.cancelAll();
   }
 }
