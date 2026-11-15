@@ -1,71 +1,101 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../widgets/app_card.dart';
 
-final appThemeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+import '../../../application/providers/settings_providers.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/common.dart';
 
 class ThemeLanguageScreen extends ConsumerWidget {
   const ThemeLanguageScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(appThemeModeProvider);
+    final mode = ref.watch(themeModeProvider);
+    final scheme = context.colors;
+
+    Widget option(
+      ThemeMode value,
+      IconData icon,
+      String title,
+      String subtitle,
+    ) {
+      final selected = mode == value;
+      return ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        selected: selected,
+        trailing: selected
+            ? Icon(
+                Icons.check_circle_rounded,
+                color: scheme.primary,
+                semanticLabel: 'Seçili',
+              )
+            : const Icon(Icons.circle_outlined),
+        onTap: () => ref.read(themeModeProvider.notifier).set(value),
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tema ve Dil')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      appBar: AppBar(title: const Text('Görünüm')),
+      body: PageListView(
+        maxWidth: AppSpacing.maxFormWidth,
         children: [
-          const Text(
-            'Görünüm Teması',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          const SectionHeader(
+            title: 'Tema',
+            padding: EdgeInsets.only(bottom: AppSpacing.xs),
           ),
-          const SizedBox(height: 12),
           AppCard(
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
             child: Column(
               children: [
-                RadioListTile<ThemeMode>(
-                  title: const Text('Sistem Teması'),
-                  subtitle: const Text('Cihazınızın açık/koyu mod ayarını takip eder'),
-                  value: ThemeMode.system,
-                  groupValue: themeMode,
-                  onChanged: (val) => ref.read(appThemeModeProvider.notifier).state = val!,
+                option(
+                  ThemeMode.system,
+                  Icons.brightness_auto_outlined,
+                  'Sistem',
+                  'Cihazın açık/koyu ayarını izler',
                 ),
-                const Divider(height: 1),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Açık Tema (Emerald & Slate Trust)'),
-                  subtitle: const Text('Açık ve sakin zümrüt yeşili finans teması'),
-                  value: ThemeMode.light,
-                  groupValue: themeMode,
-                  onChanged: (val) => ref.read(appThemeModeProvider.notifier).state = val!,
+                const Divider(indent: 56),
+                option(
+                  ThemeMode.light,
+                  Icons.light_mode_outlined,
+                  'Açık',
+                  'Aydınlık ortamlar için',
                 ),
-                const Divider(height: 1),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Koyu Tema'),
-                  subtitle: const Text('Gözü yormayan antrasit gece teması'),
-                  value: ThemeMode.dark,
-                  groupValue: themeMode,
-                  onChanged: (val) => ref.read(appThemeModeProvider.notifier).state = val!,
+                const Divider(indent: 56),
+                option(
+                  ThemeMode.dark,
+                  Icons.dark_mode_outlined,
+                  'Koyu',
+                  'Göz yorgunluğunu azaltır',
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Para Birimi & Dil',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 12),
-          const AppCard(
+          const SectionHeader(title: 'Bölge'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Varsayılan Para Birimi: Türk Lirası (₺ / TRY)', style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('Varsayılan Dil: Türkçe (tr_TR)', style: TextStyle(fontSize: 13, color: Colors.grey)),
-                SizedBox(height: 4),
-                Text('Saat Dilimi: Europe/Istanbul', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              children: const [
+                ListTile(
+                  leading: Icon(Icons.translate_rounded),
+                  title: Text('Dil'),
+                  trailing: Text('Türkçe'),
+                ),
+                Divider(indent: 56),
+                ListTile(
+                  leading: Icon(Icons.currency_lira_rounded),
+                  title: Text('Para birimi'),
+                  trailing: Text('TRY (₺)'),
+                ),
+                Divider(indent: 56),
+                ListTile(
+                  leading: Icon(Icons.public_rounded),
+                  title: Text('Saat dilimi'),
+                  trailing: Text('Cihaz saati'),
+                ),
               ],
             ),
           ),

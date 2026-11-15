@@ -1,102 +1,85 @@
-# Backend ve API Yayınlama Rehberi (Step-by-Step Backend Guide)
+# Backend Yayınlama Rehberi
 
-Bu rehber, **Harcama ve Taksit Takip** uygulamasının backend altyapısını, veritabanı servislerini ve HTTP API'lerini canlıya nasıl alacağınızı adım adım açıklar.
+Uygulama sunucusuz çalışır: Firebase Authentication + Cloud Firestore + Firebase Hosting (web)
+ve isteğe bağlı Cloud Functions. Bu sürümle gelen kural ve dizin değişiklikleri **yayınlanmadan
+uygulamanın yeni sürümü canlıda doğru çalışmaz.**
 
----
+## 1. Ön koşullar
 
-## 💡 1. Firebase Mimarisi: "Neden Ayrı Bir Sunucu Kiralamıyorsunuz?"
+```bash
+npm install -g firebase-tools
+```
 
-Geleneksel mimarilerde (Node.js/Express, Python/Django vb.) bir Linux sunucu (VPS) kiralar, Nginx kurar, port açar ve REST API yazarsınız. 
-
-**Firebase (Serverless / BaaS) mimarisinde ise sunucu bakımı tamamen ortadan kalkar:**
-- **Kimlik Doğrulama API'niz:** `Firebase Authentication` (Kullanıcı kaydı, şifre sıfırlama, JWT token üretimi).
-- **Veritabanı API'niz:** `Cloud Firestore` (Flutter uygulaması doğrudan şifreli gRPC/HTTPS protokolüyle bağlanır).
-- **API Middleware & Güvenlik Katmanı:** `firestore.rules` (Yetkisiz hiç kimse başkasının verisini okuyamaz veya değiştiremez).
-- **Özel HTTP REST API & Arka Plan Görevleri:** `Firebase Cloud Functions` (`functions/index.js`).
-
----
-
-## 🚀 2. Backend'i Canlıya Alma: Adım Adım
-
-### 1. Adım: Firebase CLI Girişi Yapın
-Terminalde (PowerShell) Firebase CLI hesabınıza giriş yapın:
 ```bash
 firebase login
 ```
-*(Tarayıcınız açılacak; Google hesabınızı seçip "İzin Ver"e tıklayın).*
 
----
+Firestore emülatörü ve kural testleri için JDK 21 veya üzeri gerekir.
 
-### 2. Adım: Firebase Console'da Projenizi Açın
-1. **[https://console.firebase.google.com/](https://console.firebase.google.com/)** adresine gidin.
-2. **"Proje Ekle" (Add project)** butonuna tıklayın.
-   - Proje adı belirleyin (Örn: `harcama-takip-backend`).
-   - "Spark (Ücretsiz)" planda başlayın (kredi kartı istemez).
-3. Sol menüden şu 2 servisi açın:
-   - **Authentication:** *Oturum Açma Yöntemi* > **E-posta/Şifre** ve **Google**'ı etkinleştirin.
-   - **Firestore Database:** *Veritabanı Oluştur* > Konum olarak `europe-west3` (Frankfurt) veya `europe-west1` seçin.
+## 2. Firebase Console ayarları
 
----
+1. **Authentication > Sign-in method:** E-posta/Şifre etkin olmalı.
+2. **Authentication > Templates:** Şablon dilini Türkçe yapın; "Email address verification" ve
+   "Password reset" e-postalarının gönderici adını ve metnini düzenleyin.
+3. **Authentication > Settings > Authorized domains:** Web uygulamasının yayınlandığı alan
+   adlarını ekleyin (ör. `harcama-takip-app-7ff66.web.app`).
+4. **Authentication > Settings > User account management:** "Email enumeration protection"
+   açık kalmalı (şifre sıfırlama ekranı buna göre tasarlandı).
+5. **Google Cloud Console > APIs & Services > Credentials:** Web API anahtarını HTTP referrer
+   (alan adı) ile, Android anahtarını paket adı + SHA-1 ile kısıtlayın. Firebase istemci anahtarları
+   gizli değildir; erişim güvenliği kurallarla sağlanır, kısıtlama kötüye kullanımı azaltır.
+6. (Önerilen) **App Check:** Android için Play Integrity, web için reCAPTCHA Enterprise etkinleştirip
+   Firestore'da zorunlu kılın.
 
-### 3. Adım: Güvenlik Kurallarını ve API İndekslerini Yayına Alın
-Proje klasörünüzde (`d:\Hasan\Proje\harcama_takip`) hazırladığımız Firestore kurallarını ve indekslerini buluta göndermek için tek bir komut yeterlidir:
+## 3. Kurallar ve dizinler (zorunlu)
+
 ```bash
 firebase deploy --only firestore:rules,firestore:indexes
 ```
-✅ **Bu komutla birlikte veritabanı API'niz ve güvenlik duvarınız (RBAC kuralları) anında canlıya geçer.**
 
----
+Dizinlerin oluşması birkaç dakika sürebilir. Takım davetleri için `invites` koleksiyon grubu
+dizini (`invitedEmail`, `status`) gereklidir.
 
-### 4. Adım: Flutter Mobil Uygulamasını Backend'e Bağlayın
-Uygulamanın bu canlı backend ile konuşabilmesi için yapılandırma dosyasını otomatik üretin:
+## 4. Web uygulaması
+
 ```bash
-dart pub global activate flutterfire_cli
-flutterfire configure
-```
-- Ekranda çıkan listeden az önce oluşturduğunuz Firebase projesini seçin.
-- Platformlar olarak `android` ve `web`'i işaretleyin (boşluk tuşu ile seçilir, Enter ile onaylanır).
-- Bu işlem `lib/firebase_options.dart` dosyasını otomatik üreterek mobil uygulamanızı canlı backend'e bağlar.
-
----
-
-## 🌐 3. Özel HTTP REST API ve Cloud Functions'ı Açma
-
-Eğer dış sistemlerden veya tarayıcıdan çağrılabilecek HTTP REST API endpoint'leri (`GET /health`, `POST /sync-installments`) ve zamanlanmış gece cron'larını çalıştırmak isterseniz:
-
-### 1. Bağımlılıkları Yükleyin:
-```bash
-cd functions
-npm install
-cd ..
+flutter build web --release
 ```
 
-### 2. Fonksiyonları ve REST API'yi Canlıya Gönderin:
+```bash
+firebase deploy --only hosting
+```
+
+`firebase.json` SPA yönlendirmesini, güvenlik başlıklarını (X-Frame-Options, nosniff,
+Referrer-Policy, Permissions-Policy) ve önbellek kurallarını içerir.
+
+## 5. Cloud Functions (isteğe bağlı, Blaze planı gerekir)
+
+| Fonksiyon | Tetikleyici | Görev |
+|---|---|---|
+| `postDueInstallments` | Her gece 00:10 (Europe/Istanbul) | Vadesi gelen taksitleri idempotent olarak harcamalara işler (uygulama açılmasa da). |
+| `notifyTeamOnExpense` | `expenses/{id}` oluşturulduğunda | Takım harcamasında diğer üyelere FCM bildirimi gönderir, geçersiz cihaz anahtarlarını temizler. |
+
+```bash
+cd functions && npm install && npm test
+```
+
 ```bash
 firebase deploy --only functions
 ```
 
-### 3. Canlı API Endpoint'iniz Hazır:
-Deploy bittiğinde terminal size canlı HTTP URL'inizi verecektir:
-```text
-✔ functions[api(us-central1)]: Successful create operation.
-Function URL (api): https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/api
-```
+Fonksiyonlar yayınlanmasa da uygulama çalışır: taksitler uygulama açılışında istemci tarafından
+işlenir; yalnızca takım push bildirimleri olmaz.
 
-Artık API'niz dünyaya açıktır:
-- **Sağlık Kontrolü:** `GET https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/api/health`
-- **Taksit Tetikleme:** `POST https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/api/sync-installments`
+> Önceki sürümdeki `api` HTTP fonksiyonu (sabit `dev-secret-key` yedek anahtarıyla herkese açıktı
+> ve hiçbir iş yapmıyordu) ve boş çalışan saatlik hatırlatıcı kaldırıldı. Daha önce yayınlandıysa
+> `firebase functions:delete api sendDailySpendingReminders postScheduledInstallments onExpenseCreated`
+> ile silin.
 
----
+## 6. Mevcut veriler hakkında
 
-## 💰 4. 0 TL (Sıfır Masraf) Güvencesi: Hangi Yolu Seçmelisiniz?
-
-İki seçeneğiniz bulunmaktadır:
-
-### Seçenek A (Tavsiye Edilen - Kredi Kartsız, %100 Ücretsiz Spark Planı):
-- Yalnızca **Firestore + Authentication + Security Rules** kullanılır (`firebase deploy --only firestore`).
-- Kredi kartı eklemenize **kesinlikle gerek yoktur**.
-- Geliştirdiğimiz [`InstallmentReconciliationService`](../lib/application/services/installment_reconciliation_service.dart) ve [`NotificationService`](../lib/application/services/notification_service.dart) motorları sayesinde sunucu/cron fonksiyonlarına ihtiyaç duymadan uygulama içinde otomatik ve ücretsiz çalışır.
-
-### Seçenek B (Cloud Functions ile REST API - Blaze Planı):
-- Google Cloud hesabınıza bir banka/kredi kartı tanımlarsınız.
-- Firebase aylık **ilk 2 milyon API çağrısını tamamen ücretsiz** verir. Harcama takip gibi bir uygulamada ayda 2 milyon çağrıya ulaşmak neredeyse imkansız olduğundan **faturanız yine 0 TL** gelir.
+- Eski sürüm nakit/banka kartı harcamalarını, ayın 1'inden sonra girildiyse **bir sonraki aya**
+  yazıyordu. Bu kayıtlar silinmedi; düzenlenip kaydedildiklerinde doğru aya taşınır.
+- Eski sürümün rastgele kimlikle yazdığı bütçeler okunmaya devam eder; yeni kayıtlar
+  `user_{uid}_{dönem}` / `team_{teamId}_{dönem}` kimliğiyle yazılır.
+- Mevcut kullanıcılar bir sonraki girişte e-posta doğrulama ekranını görür.

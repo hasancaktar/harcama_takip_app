@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../application/providers/repository_providers.dart';
+import '../../../core/errors/error_messages.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/validators.dart';
+import '../../widgets/common.dart';
+import '../../widgets/state_views.dart';
+import 'auth_scaffold.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +23,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _obscurePassword = true;
   String? _errorMessage;
 
   @override
@@ -26,161 +33,107 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-
     try {
-      final authRepo = ref.read(authRepositoryProvider);
-      await authRepo.signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-      if (mounted) {
-        context.go('/dashboard');
-      }
+      await ref
+          .read(authRepositoryProvider)
+          .signIn(
+            email: _emailController.text,
+            password: _passwordController.text,
+          );
+      // Yönlendirme, oturum durumu değişince router tarafından yapılır.
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Giriş yapılamadı: ${e.toString().replaceAll('Exception:', '').trim()}';
-      });
+      if (mounted) setState(() => _errorMessage = ErrorMessages.from(e));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Icon(
-                        Icons.lock_outline_rounded,
-                        size: 48,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Hoş Geldiniz',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Harcama ve taksitlerinizi güvenle takip edin',
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                  if (_errorMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.error.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.colorScheme.error),
-                      ),
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+    final scheme = context.colors;
+    return AuthScaffold(
+      title: 'Tekrar hoş geldiniz',
+      subtitle: 'Harcama, kart ve taksitlerinizi takip etmek için giriş yapın.',
+      children: [
+        if (_errorMessage != null) ...[
+          InlineMessage(message: _errorMessage!, tone: MessageTone.error),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        AutofillGroup(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [
+                    AutofillHints.email,
+                    AutofillHints.username,
                   ],
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'E-posta',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'E-posta boş bırakılamaz';
-                      if (!val.contains('@')) return 'Geçerli bir e-posta giriniz';
-                      return null;
-                    },
+                  autocorrect: false,
+                  validator: Validators.email,
+                  decoration: const InputDecoration(
+                    labelText: 'E-posta',
+                    prefixIcon: Icon(Icons.alternate_email_rounded),
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Şifre',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.isEmpty) return 'Şifre boş bırakılamaz';
-                      if (val.length < 6) return 'Şifre en az 6 karakter olmalıdır';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => context.push('/forgot-password'),
-                      child: const Text('Şifremi Unuttum'),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('Giriş Yap'),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Hesabınız yok mu?'),
-                      TextButton(
-                        onPressed: () => context.push('/register'),
-                        child: const Text('Kayıt Ol'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                PasswordField(
+                  controller: _passwordController,
+                  validator: Validators.loginPassword,
+                  onSubmitted: (_) => _handleLogin(),
+                ),
+              ],
             ),
           ),
         ),
-      ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () {
+              final email = _emailController.text.trim();
+              context.push(
+                Uri(
+                  path: '/forgot-password',
+                  queryParameters: email.isEmpty ? null : {'email': email},
+                ).toString(),
+              );
+            },
+            child: const Text('Şifremi unuttum'),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        AppButton(
+          label: 'Giriş yap',
+          onPressed: _handleLogin,
+          isLoading: _isLoading,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Hesabınız yok mu?',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            TextButton(
+              onPressed: () => context.push('/register'),
+              child: const Text('Hesap oluştur'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

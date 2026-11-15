@@ -1,55 +1,40 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../widgets/app_card.dart';
 
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/common.dart';
+
+/// Harcama kategorileri. Kategori limitleri Bütçe ekranından yönetilir.
 class CategoriesScreen extends StatelessWidget {
   const CategoriesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kategori Yönetimi')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      appBar: AppBar(title: const Text('Kategoriler')),
+      body: PageListView(
         children: [
-          const Text(
-            'Ön Tanımlı ve Özel Kategoriler',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          Text(
+            'Harcamalarınızı aşağıdaki kategorilerle sınıflandırabilirsiniz. Kategori bazlı limitleri Bütçe ekranından belirleyebilirsiniz.',
+            style: context.textStyles.bodyMedium?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Harcamalarınızı sınıflandırabileceğiniz aktif kategoriler:',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+            child: Column(
+              children: [
+                for (final c in AppConstants.defaultCategories)
+                  ListTile(
+                    leading: CategoryIcon(categoryId: c.id, size: 36),
+                    title: Text(c.name),
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          ...AppConstants.defaultCategories.map((cat) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: AppCard(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: cat.color.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(cat.icon, color: cat.color, size: 20),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        cat.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                    ),
-                    const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 20),
-                  ],
-                ),
-              ),
-            );
-          }),
         ],
       ),
     );

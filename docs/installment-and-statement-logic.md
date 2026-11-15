@@ -1,5 +1,24 @@
 # Kredi Kartı Kesim Tarihi ve Taksit Motoru Mantığı (Installment & Statement Logic)
 
+> **Güncel kurallar (v1.1)** — Bu belgenin geri kalanından önce okunmalıdır:
+>
+> 1. **Dönem ataması:** Yalnızca *kredi kartı* harcamaları kesim gününe göre ekstre dönemine yazılır.
+>    Nakit, banka kartı, havale vb. harcamalar harcamanın yapıldığı **takvim ayına** yazılır
+>    (`StatementCalculator.periodForExpense`). Önceki sürüm bunları kesim günü 1 varsayımıyla
+>    hesaplıyor, ayın 1'inden sonraki tüm nakit harcamaları bir sonraki aya yazıyordu.
+> 2. **Taksit işleme zamanı:** Bir taksit, ait olduğu ekstre döneminin takvim ayı geldiğinde
+>    harcama olarak işlenir (`InstallmentPostingPolicy.isDue`: `statementPeriod <= içinde bulunulan ay`).
+>    Böylece içinde bulunulan ayın ekstresi kesimden önce de doğru toplamı gösterir. Geçmiş tarihli
+>    planlarda vadesi gelmiş tüm taksitler plan oluşturulurken tek atomik yığında eklenir.
+> 3. **Harcama tarihi:** 1. taksit alışveriş tarihinde, sonrakiler bankanın işlediği kesim tarihinde görünür.
+> 4. **Idempotens:** Harcama kimliği `planId_taksitNo_dönem`; istemci ve Cloud Function aynı kuralı
+>    (`functions/lib/installments.js`) uygular. İşlenen taksit planda `posted` olarak işaretlenir.
+> 5. **Takvim:** `generateSchedule` tüm taksitleri `upcoming` üretir; son ödeme tarihi kesim gününden
+>    `paymentDueDaysAfterCutoff` gün sonrasıdır (saat bilgisi olmadan, yaz saati etkisiz).
+> 6. **Tutar girişi:** Türkçe biçim esas alınır: nokta binlik, virgül ondalık ayırıcıdır
+>    (`1.250` = 1.250 TL, `1.250,50` = 1.250,50 TL, `12.5` = 12,50 TL). Virgülden sonra 3+ hane reddedilir.
+
+
 Bu doküman, kredi kartı ekstre dönemlerinin hesaplanması, taksit tutarlarının kuruş hassasiyetinde bölünmesi, kenar durumların (Şubat ayı, 30/31 çeken aylar, yıl geçişi) çözümü ve otomatik taksit ekleme/senkronizasyon kurallarını açıklar.
 
 ---

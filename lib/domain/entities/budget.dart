@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/utils/json_parsers.dart';
+
 @immutable
 class Budget {
   final String id;
@@ -9,8 +11,6 @@ class Budget {
   final String period; // 'YYYY-MM'
   final int totalBudgetInCents;
   final Map<String, int> categoryBudgetsInCents;
-  final bool rolloverRemaining;
-  final List<int> alertThresholds; // [50, 75, 90, 100]
   final String currency;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -23,41 +23,21 @@ class Budget {
     required this.period,
     required this.totalBudgetInCents,
     this.categoryBudgetsInCents = const {},
-    this.rolloverRemaining = false,
-    this.alertThresholds = const [50, 75, 90, 100],
     this.currency = 'TRY',
     required this.createdAt,
     required this.updatedAt,
   });
 
-  Budget copyWith({
-    String? id,
-    String? ownerUid,
+  /// Her çalışma alanı + dönem için tek bir bütçe belgesi olmasını garanti eden kimlik.
+  /// (Önceki sürüm her kayıtta rastgele kimlik üretiyor, aynı aya birden fazla bütçe yazıyordu.)
+  static String idFor({
+    required String ownerUid,
     String? teamId,
-    String? visibility,
-    String? period,
-    int? totalBudgetInCents,
-    Map<String, int>? categoryBudgetsInCents,
-    bool? rolloverRemaining,
-    List<int>? alertThresholds,
-    String? currency,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    required String period,
   }) {
-    return Budget(
-      id: id ?? this.id,
-      ownerUid: ownerUid ?? this.ownerUid,
-      teamId: teamId ?? this.teamId,
-      visibility: visibility ?? this.visibility,
-      period: period ?? this.period,
-      totalBudgetInCents: totalBudgetInCents ?? this.totalBudgetInCents,
-      categoryBudgetsInCents: categoryBudgetsInCents ?? this.categoryBudgetsInCents,
-      rolloverRemaining: rolloverRemaining ?? this.rolloverRemaining,
-      alertThresholds: alertThresholds ?? this.alertThresholds,
-      currency: currency ?? this.currency,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
+    return teamId != null
+        ? 'team_${teamId}_$period'
+        : 'user_${ownerUid}_$period';
   }
 
   Map<String, dynamic> toMap() {
@@ -69,8 +49,6 @@ class Budget {
       'period': period,
       'totalBudgetInCents': totalBudgetInCents,
       'categoryBudgetsInCents': categoryBudgetsInCents,
-      'rolloverRemaining': rolloverRemaining,
-      'alertThresholds': alertThresholds,
       'currency': currency,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -78,22 +56,21 @@ class Budget {
   }
 
   factory Budget.fromMap(Map<String, dynamic> map) {
-    final catRaw = map['categoryBudgetsInCents'] as Map<String, dynamic>? ?? {};
-    final catMap = catRaw.map((k, v) => MapEntry(k, v as int));
-
+    final createdAt = JsonParsers.date(
+      map['createdAt'],
+      fallback: DateTime.now(),
+    );
     return Budget(
-      id: map['id'] as String? ?? '',
-      ownerUid: map['ownerUid'] as String? ?? '',
-      teamId: map['teamId'] as String?,
-      visibility: map['visibility'] as String? ?? 'personal',
-      period: map['period'] as String? ?? '',
-      totalBudgetInCents: map['totalBudgetInCents'] as int? ?? 0,
-      categoryBudgetsInCents: catMap,
-      rolloverRemaining: map['rolloverRemaining'] as bool? ?? false,
-      alertThresholds: List<int>.from(map['alertThresholds'] ?? [50, 75, 90, 100]),
-      currency: map['currency'] as String? ?? 'TRY',
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt'].toString()) : DateTime.now(),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt'].toString()) : DateTime.now(),
+      id: JsonParsers.string(map['id']),
+      ownerUid: JsonParsers.string(map['ownerUid']),
+      teamId: JsonParsers.stringOrNull(map['teamId']),
+      visibility: JsonParsers.string(map['visibility'], fallback: 'personal'),
+      period: JsonParsers.string(map['period']),
+      totalBudgetInCents: JsonParsers.intValue(map['totalBudgetInCents']),
+      categoryBudgetsInCents: JsonParsers.intMap(map['categoryBudgetsInCents']),
+      currency: JsonParsers.string(map['currency'], fallback: 'TRY'),
+      createdAt: createdAt,
+      updatedAt: JsonParsers.date(map['updatedAt'], fallback: createdAt),
     );
   }
 }

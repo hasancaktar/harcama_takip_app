@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/repository_providers.dart';
+import '../../../application/providers/team_providers.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/validators.dart';
 import '../../../domain/entities/team.dart';
 import '../../../domain/entities/team_member.dart';
+import '../../widgets/common.dart';
+import '../../widgets/dialogs.dart';
 
 class CreateTeamScreen extends ConsumerStatefulWidget {
   const CreateTeamScreen({super.key});
@@ -18,17 +28,8 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  String _selectedColorHex = '#0F5132';
-  bool _isLoading = false;
-
-  final List<String> _colors = [
-    '#0F5132', // Zümrüt Yeşili
-    '#1E3A8A', // Derin Gece Mavisi
-    '#7C3AED', // Mor
-    '#B91C1C', // Kırmızı
-    '#D97706', // Turuncu
-    '#0D9488', // Teal
-  ];
+  String _colorHex = AppColors.pickerHexColors[1];
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -37,121 +38,103 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
     super.dispose();
   }
 
-  Future<void> _handleCreate() async {
+  Future<void> _create() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    setState(() => _saving = true);
+    final now = DateTime.now();
+    final teamId = const Uuid().v4();
     try {
-      final user = ref.read(authStateProvider).value!;
-      final teamRepo = ref.read(teamRepositoryProvider);
-      final teamId = const Uuid().v4();
-
-      final newTeam = Team(
-        id: teamId,
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isNotEmpty
-            ? _descriptionController.text.trim()
-            : null,
-        colorHex: _selectedColorHex,
-        ownerUid: user.uid,
-        memberCount: 1,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+      await ref
+          .read(teamRepositoryProvider)
+          .createTeam(
+            Team(
+              id: teamId,
+              name: _nameController.text.trim(),
+              description: _descriptionController.text.trim().isEmpty
+                  ? null
+                  : _descriptionController.text.trim(),
+              colorHex: _colorHex,
+              ownerUid: user.uid,
+              memberUids: [user.uid],
+              createdAt: now,
+              updatedAt: now,
+            ),
+            TeamMember(
+              uid: user.uid,
+              teamId: teamId,
+              displayName: user.displayName,
+              email: user.email.toLowerCase(),
+              role: 'owner',
+              joinedAt: now,
+              invitedBy: user.uid,
+            ),
+          );
+      await ref.read(workspaceControllerProvider).select(teamId);
+      if (!mounted) return;
+      context.showSuccess(
+        'Takım oluşturuldu. Şimdi üyeleri davet edebilirsiniz.',
       );
-
-      final ownerMember = TeamMember(
-        uid: user.uid,
-        teamId: teamId,
-        displayName: user.displayName ?? 'Kullanıcı',
-        email: user.email ?? '',
-        role: 'owner',
-        status: 'accepted',
-        joinedAt: DateTime.now(),
-        invitedBy: user.uid,
-      );
-
-      await teamRepo.createTeam(newTeam, ownerMember);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Takım başarıyla oluşturuldu.')),
-        );
-        context.pop();
-      }
+      context.pushReplacement('/teams/$teamId');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        context.showError(e);
+        setState(() => _saving = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Yeni Takım Oluştur')),
+      appBar: AppBar(title: const Text('Yeni takım')),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
+        child: PageListView(
+          maxWidth: AppSpacing.maxFormWidth,
           children: [
             TextFormField(
               controller: _nameController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(AppConstants.maxNameLength),
+              ],
+              validator: Validators.requiredText(
+                'Takım adı',
+                maxLength: AppConstants.maxNameLength,
+              ),
               decoration: const InputDecoration(
-                labelText: 'Takım Adı',
-                hintText: 'Örn: Evimiz / Aile Bütçesi / Tatil Grubu',
+                labelText: 'Takım adı',
+                hintText: 'Örn. Evimiz, Aile bütçesi',
                 prefixIcon: Icon(Icons.groups_rounded),
               ),
-              validator: (val) {
-                if (val == null || val.trim().isEmpty) return 'Takım adını giriniz';
-                return null;
-              },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _descriptionController,
               maxLines: 2,
+              inputFormatters: [LengthLimitingTextInputFormatter(200)],
               decoration: const InputDecoration(
-                labelText: 'Açıklama (İsteğe bağlı)',
-                prefixIcon: Icon(Icons.description_outlined),
+                labelText: 'Açıklama (isteğe bağlı)',
+                prefixIcon: Icon(Icons.notes_rounded),
               ),
             ),
-            const SizedBox(height: 20),
-            Text('Takım Rengi', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Row(
-              children: _colors.map((hex) {
-                final color = Color(int.parse(hex.replaceFirst('#', '0xFF')));
-                final isSelected = _selectedColorHex == hex;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: InkWell(
-                    onTap: () => setState(() => _selectedColorHex = hex),
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
-                      ),
-                      child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
-                    ),
-                  ),
-                );
-              }).toList(),
+            const SizedBox(height: AppSpacing.md),
+            Text('Takım rengi', style: context.textStyles.titleSmall),
+            const SizedBox(height: AppSpacing.xs),
+            ColorPickerRow(
+              selectedHex: _colorHex,
+              onSelected: (h) => setState(() => _colorHex = h),
             ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _handleCreate,
-              child: _isLoading
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Takımı Başlat'),
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: 'Takımı oluştur',
+              icon: Icons.check_rounded,
+              onPressed: _create,
+              isLoading: _saving,
             ),
           ],
         ),

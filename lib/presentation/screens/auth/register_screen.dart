@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../application/providers/repository_providers.dart';
-import '../../../domain/entities/user_profile.dart';
+
+import '../../../application/services/account_service.dart';
+import '../../../core/errors/error_messages.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/validators.dart';
+import '../../widgets/common.dart';
+import '../../widgets/state_views.dart';
+import 'auth_scaffold.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -16,8 +23,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
+  bool _acceptedPolicy = false;
   bool _isLoading = false;
-  bool _obscurePassword = true;
   String? _errorMessage;
 
   @override
@@ -25,160 +33,141 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
   Future<void> _handleRegister() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedPolicy) {
+      setState(
+        () =>
+            _errorMessage = 'Devam etmek için gizlilik politikasını onaylayın.',
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-
     try {
-      final authRepo = ref.read(authRepositoryProvider);
-      final userRepo = ref.read(userRepositoryProvider);
-
-      final cred = await authRepo.registerWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-        displayName: _nameController.text,
-      );
-
-      if (cred.user != null) {
-        // Profil oluştur
-        final profile = UserProfile(
-          uid: cred.user!.uid,
-          email: _emailController.text.trim(),
-          displayName: _nameController.text.trim(),
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-        await userRepo.saveProfile(profile);
-
-        if (mounted) {
-          context.go('/dashboard');
-        }
-      }
+      await ref
+          .read(accountServiceProvider)
+          .register(
+            email: _emailController.text,
+            password: _passwordController.text,
+            displayName: _nameController.text,
+          );
+      // Router, doğrulanmamış kullanıcıyı otomatik olarak doğrulama ekranına yönlendirir.
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Kayıt başarısız: ${e.toString().replaceAll('Exception:', '').trim()}';
-      });
+      if (mounted) setState(() => _errorMessage = ErrorMessages.from(e));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Yeni Hesap Oluştur',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
+    final scheme = context.colors;
+    return AuthScaffold(
+      showBack: true,
+      title: 'Hesap oluşturun',
+      subtitle: 'Kayıttan sonra e-posta adresinize bir doğrulama bağlantısı göndereceğiz.',
+      children: [
+        if (_errorMessage != null) ...[
+          InlineMessage(message: _errorMessage!, tone: MessageTone.error),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        AutofillGroup(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  autofillHints: const [AutofillHints.name],
+                  validator: Validators.displayName,
+                  decoration: const InputDecoration(
+                    labelText: 'Ad soyad',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Bireysel ve ortak harcamalarınızı yönetmeye başlayın',
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
-                    textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  autocorrect: false,
+                  validator: Validators.email,
+                  decoration: const InputDecoration(
+                    labelText: 'E-posta',
+                    prefixIcon: Icon(Icons.alternate_email_rounded),
                   ),
-                  const SizedBox(height: 32),
-                  if (_errorMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.error.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.colorScheme.error),
-                      ),
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Ad Soyad',
-                      prefixIcon: Icon(Icons.person_outline_rounded),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Ad soyad boş bırakılamaz';
-                      return null;
-                    },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                PasswordField(
+                  controller: _passwordController,
+                  validator: Validators.newPassword,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.newPassword],
+                  helperText: 'En az 8 karakter; harf ve rakam içermeli',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                PasswordField(
+                  controller: _confirmController,
+                  label: 'Şifre (tekrar)',
+                  validator: Validators.confirmPassword(
+                    () => _passwordController.text,
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'E-posta',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'E-posta boş bırakılamaz';
-                      if (!val.contains('@')) return 'Geçerli bir e-posta giriniz';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Şifre',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.isEmpty) return 'Şifre boş bırakılamaz';
-                      if (val.length < 6) return 'Şifre en az 6 karakter olmalıdır';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _handleRegister,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('Hesap Oluştur'),
-                  ),
-                ],
-              ),
+                  autofillHints: const [AutofillHints.newPassword],
+                  onSubmitted: (_) => _handleRegister(),
+                ),
+              ],
             ),
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.sm),
+        CheckboxListTile(
+          value: _acceptedPolicy,
+          onChanged: (v) => setState(() => _acceptedPolicy = v ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            'Verilerimin gizlilik politikasında açıklandığı şekilde işlenmesini kabul ediyorum.',
+            style: context.textStyles.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppButton(
+          label: 'Hesap oluştur',
+          onPressed: _handleRegister,
+          isLoading: _isLoading,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Zaten hesabınız var mı?',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            TextButton(
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.go('/login'),
+              child: const Text('Giriş yap'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

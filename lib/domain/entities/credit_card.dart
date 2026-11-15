@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/utils/json_parsers.dart';
+
 @immutable
 class CreditCard {
   final String id;
@@ -12,7 +14,7 @@ class CreditCard {
   final String colorHex;
   final int limitInCents;
   final int cutoffDay; // 1 - 31
-  final int paymentDueDaysAfterCutoff; // örn: 10 gün
+  final int paymentDueDaysAfterCutoff;
   final String currency;
   final bool isActive;
   final DateTime createdAt;
@@ -36,41 +38,7 @@ class CreditCard {
     required this.updatedAt,
   });
 
-  CreditCard copyWith({
-    String? id,
-    String? ownerUid,
-    String? teamId,
-    bool? isSharedWithTeam,
-    String? name,
-    String? bankName,
-    String? last4Digits,
-    String? colorHex,
-    int? limitInCents,
-    int? cutoffDay,
-    int? paymentDueDaysAfterCutoff,
-    String? currency,
-    bool? isActive,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return CreditCard(
-      id: id ?? this.id,
-      ownerUid: ownerUid ?? this.ownerUid,
-      teamId: teamId ?? this.teamId,
-      isSharedWithTeam: isSharedWithTeam ?? this.isSharedWithTeam,
-      name: name ?? this.name,
-      bankName: bankName ?? this.bankName,
-      last4Digits: last4Digits ?? this.last4Digits,
-      colorHex: colorHex ?? this.colorHex,
-      limitInCents: limitInCents ?? this.limitInCents,
-      cutoffDay: cutoffDay ?? this.cutoffDay,
-      paymentDueDaysAfterCutoff: paymentDueDaysAfterCutoff ?? this.paymentDueDaysAfterCutoff,
-      currency: currency ?? this.currency,
-      isActive: isActive ?? this.isActive,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
+  String get displayName => '$name •••• $last4Digits';
 
   Map<String, dynamic> toMap() {
     return {
@@ -93,22 +61,30 @@ class CreditCard {
   }
 
   factory CreditCard.fromMap(Map<String, dynamic> map) {
+    final createdAt = JsonParsers.date(
+      map['createdAt'],
+      fallback: DateTime.now(),
+    );
+    final cutoff = JsonParsers.intValue(map['cutoffDay'], fallback: 1);
     return CreditCard(
-      id: map['id'] as String? ?? '',
-      ownerUid: map['ownerUid'] as String? ?? '',
-      teamId: map['teamId'] as String?,
-      isSharedWithTeam: map['isSharedWithTeam'] as bool? ?? false,
-      name: map['name'] as String? ?? '',
-      bankName: map['bankName'] as String? ?? '',
-      last4Digits: map['last4Digits'] as String? ?? '',
-      colorHex: map['colorHex'] as String? ?? '#1E3A8A',
-      limitInCents: map['limitInCents'] as int? ?? 0,
-      cutoffDay: map['cutoffDay'] as int? ?? 1,
-      paymentDueDaysAfterCutoff: map['paymentDueDaysAfterCutoff'] as int? ?? 10,
-      currency: map['currency'] as String? ?? 'TRY',
-      isActive: map['isActive'] as bool? ?? true,
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt'].toString()) : DateTime.now(),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt'].toString()) : DateTime.now(),
+      id: JsonParsers.string(map['id']),
+      ownerUid: JsonParsers.string(map['ownerUid']),
+      teamId: JsonParsers.stringOrNull(map['teamId']),
+      isSharedWithTeam: JsonParsers.boolValue(map['isSharedWithTeam']),
+      name: JsonParsers.string(map['name']),
+      bankName: JsonParsers.string(map['bankName']),
+      last4Digits: JsonParsers.string(map['last4Digits']),
+      colorHex: JsonParsers.string(map['colorHex'], fallback: '#1E3A8A'),
+      limitInCents: JsonParsers.intValue(map['limitInCents']),
+      cutoffDay: cutoff.clamp(1, 31),
+      paymentDueDaysAfterCutoff: JsonParsers.intValue(
+        map['paymentDueDaysAfterCutoff'],
+        fallback: 10,
+      ),
+      currency: JsonParsers.string(map['currency'], fallback: 'TRY'),
+      isActive: JsonParsers.boolValue(map['isActive'], fallback: true),
+      createdAt: createdAt,
+      updatedAt: JsonParsers.date(map['updatedAt'], fallback: createdAt),
     );
   }
 }

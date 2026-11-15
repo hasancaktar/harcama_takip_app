@@ -1,193 +1,203 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/repository_providers.dart';
-import '../../../application/services/notification_service.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../domain/entities/user_profile.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/common.dart';
+import '../../widgets/dialogs.dart';
+import '../../widgets/state_views.dart';
 
-class NotificationSettingsScreen extends ConsumerStatefulWidget {
+class NotificationSettingsScreen extends ConsumerWidget {
   const NotificationSettingsScreen({super.key});
 
   @override
-  ConsumerState<NotificationSettingsScreen> createState() => _NotificationSettingsScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(userProfileProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Hatırlatıcılar')),
+      body: AsyncValueView<UserProfile?>(
+        value: profileAsync,
+        onRetry: () => ref.invalidate(userProfileProvider),
+        data: (profile) =>
+            _ReminderForm(key: ValueKey(profile?.updatedAt), profile: profile),
+      ),
+    );
+  }
 }
 
-class _NotificationSettingsScreenState extends ConsumerState<NotificationSettingsScreen> {
-  bool _enabled = true;
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 21, minute: 0);
-  List<int> _selectedDays = [1, 2, 3, 4, 5, 6, 7]; // Pazartesi(1) - Pazar(7)
-  bool _isLoading = false;
-
-  final List<String> _dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+class _ReminderForm extends ConsumerStatefulWidget {
+  final UserProfile? profile;
+  const _ReminderForm({super.key, required this.profile});
 
   @override
-  void initState() {
-    super.initState();
-    final profile = ref.read(userProfileProvider).value;
-    if (profile != null) {
-      _enabled = profile.dailyReminderEnabled;
-      _selectedTime = TimeOfDay(hour: profile.dailyReminderHour, minute: profile.dailyReminderMinute);
-      _selectedDays = List.from(profile.dailyReminderDays);
-    }
-  }
+  ConsumerState<_ReminderForm> createState() => _ReminderFormState();
+}
 
-  Future<void> _handleSave() async {
-    setState(() => _isLoading = true);
+class _ReminderFormState extends ConsumerState<_ReminderForm> {
+  static const _dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  static const _dayFullNames = [
+    'Pazartesi',
+    'Salı',
+    'Çarşamba',
+    'Perşembe',
+    'Cuma',
+    'Cumartesi',
+    'Pazar',
+  ];
 
+  late bool _enabled = widget.profile?.dailyReminderEnabled ?? false;
+  late TimeOfDay _time = TimeOfDay(
+    hour: widget.profile?.dailyReminderHour ?? 21,
+    minute: widget.profile?.dailyReminderMinute ?? 0,
+  );
+  late final Set<int> _days = {
+    ...(widget.profile?.dailyReminderDays ?? const [1, 2, 3, 4, 5, 6, 7]),
+  };
+  bool _saving = false;
+
+  Future<void> _save() async {
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return;
+    final service = ref.read(notificationServiceProvider);
+    setState(() => _saving = true);
     try {
-      final uid = ref.read(currentUserIdProvider)!;
-      final userRepo = ref.read(userRepositoryProvider);
-
-      await userRepo.updateReminderSettings(
-        uid: uid,
-        enabled: _enabled,
-        hour: _selectedTime.hour,
-        minute: _selectedTime.minute,
-        days: _selectedDays,
-      );
-
-      // Yerel bildirimleri güncelle
-      if (_enabled) {
-        await NotificationService().scheduleDailyReminder(
-          hour: _selectedTime.hour,
-          minute: _selectedTime.minute,
-          days: _selectedDays,
-        );
-      } else {
-        await NotificationService().cancelAll();
+      if (_enabled && service.isSupported) {
+        final granted = await service.requestPermission();
+        if (!granted && mounted) {
+          context.showInfo(
+            'Bildirim izni verilmedi. Hatırlatıcılar için cihaz ayarlarından izin verin.',
+          );
+        }
       }
-
+      final days = _days.toList()..sort();
+      // Profil güncellenince AppShell hatırlatıcıları otomatik olarak yeniden planlar.
+      await ref
+          .read(userRepositoryProvider)
+          .updateReminderSettings(
+            uid: uid,
+            enabled: _enabled,
+            hour: _time.hour,
+            minute: _time.minute,
+            days: days,
+          );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bildirim tercihleri güncellendi.')),
+        context.showSuccess(
+          _enabled ? 'Hatırlatıcı kaydedildi.' : 'Hatırlatıcı kapatıldı.',
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e')),
-      );
+      if (mounted) context.showError(e);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final supported = ref.watch(notificationServiceProvider).isSupported;
+    final scheme = context.colors;
+    final timeLabel =
+        '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}';
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Bildirim Ayarları')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Ana Bildirim Aç/Kapa
-          AppCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _enabled,
-              title: const Text('Günlük Harcama Hatırlatıcısı', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Günün harcamalarını girmeniz için her gün bildirim alın.'),
-              onChanged: (val) => setState(() => _enabled = val),
+    return PageListView(
+      maxWidth: AppSpacing.maxFormWidth,
+      children: [
+        if (!supported) ...[
+          const InlineMessage(
+            tone: MessageTone.info,
+            message: 'Zamanlanmış hatırlatıcılar yalnızca mobil uygulamada çalışır. Buradaki ayar hesabınıza kaydedilir ve telefonunuzda uygulanır.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        AppCard(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xxs,
+          ),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _enabled,
+            onChanged: (v) => setState(() => _enabled = v),
+            title: const Text('Günlük harcama hatırlatıcısı'),
+            subtitle: const Text(
+              'Günün harcamalarını girmeyi unutmamanız için bildirim gönderir.',
             ),
           ),
-          const SizedBox(height: 20),
-
-          if (_enabled) ...[
-            Text('Hatırlatma Saati', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            AppCard(
-              onTap: () async {
-                final time = await showTimePicker(
-                  context: context,
-                  initialTime: _selectedTime,
-                );
-                if (time != null) {
-                  setState(() => _selectedTime = time);
-                }
-              },
-              child: Row(
-                children: [
-                  const Icon(Icons.access_time_rounded),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Bildirim Zamanı', style: TextStyle(fontWeight: FontWeight.w500)),
-                        Text(
-                          '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')} (Europe/Istanbul)',
-                          style: TextStyle(fontSize: 12, color: theme.hintColor),
-                        ),
-                      ],
+        ),
+        AnimatedCrossFade(
+          duration: const Duration(milliseconds: 200),
+          crossFadeState: _enabled
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          secondChild: const SizedBox(width: double.infinity),
+          firstChild: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SectionHeader(title: 'Saat'),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  leading: const Icon(Icons.schedule_rounded),
+                  title: const Text('Bildirim saati'),
+                  trailing: Text(
+                    timeLabel,
+                    style: context.textStyles.titleLarge?.copyWith(
+                      color: scheme.primary,
                     ),
                   ),
-                  Text(
-                    '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            Text('Hatırlatma Günleri', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(7, (index) {
-                final dayNumber = index + 1;
-                final isSelected = _selectedDays.contains(dayNumber);
-
-                return InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (isSelected) {
-                        if (_selectedDays.length > 1) {
-                          _selectedDays.remove(dayNumber);
-                        }
-                      } else {
-                        _selectedDays.add(dayNumber);
-                        _selectedDays.sort();
-                      }
-                    });
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: _time,
+                    );
+                    if (picked != null) setState(() => _time = picked);
                   },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isSelected ? theme.colorScheme.primary : theme.colorScheme.surfaceVariant,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      _dayNames[index],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: isSelected ? Colors.white : theme.hintColor,
+                ),
+              ),
+              const SectionHeader(title: 'Günler'),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  for (var i = 0; i < 7; i++)
+                    Semantics(
+                      label: _dayFullNames[i],
+                      child: FilterChip(
+                        label: Text(_dayNames[i]),
+                        selected: _days.contains(i + 1),
+                        onSelected: (s) => setState(() {
+                          if (s) {
+                            _days.add(i + 1);
+                          } else if (_days.length > 1) {
+                            _days.remove(i + 1);
+                          }
+                        }),
                       ),
                     ),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 24),
-          ],
-
-          ElevatedButton(
-            onPressed: _isLoading ? null : _handleSave,
-            child: _isLoading
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Tercihleri Kaydet'),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'En az bir gün seçili olmalıdır.',
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppButton(
+          label: 'Kaydet',
+          icon: Icons.check_rounded,
+          onPressed: _save,
+          isLoading: _saving,
+        ),
+      ],
     );
   }
 }

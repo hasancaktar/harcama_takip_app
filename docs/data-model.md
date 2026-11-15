@@ -1,5 +1,20 @@
 # Firestore Veri Modeli ve Sorgu Desenleri (Data Model)
 
+> **Şema güncellemeleri (v1.1)**
+>
+> - `teams/{teamId}`: `memberUids` (string[]) üyelik ve güvenlik kurallarının tek kaynağıdır;
+>   takımlar silinmez, `isArchived: true` ile kapatılır.
+> - `teams/{teamId}/members/{uid}`: roller `owner` | `member`; davetle katılan üyenin belgesi
+>   `inviteId` alanını taşır (kural bu daveti doğrular). Ayrılan/çıkarılan üyenin belgesi silinir.
+> - `teams/{teamId}/invites/{kod}`: belge kimliği 8 karakterlik koddur (`[A-Z2-9]`), `invitedEmail`
+>   küçük harfli e-posta, `createdAt`/`expiresAt` **Timestamp** (7 gün), `status`
+>   `pending | accepted | declined | revoked`, kabulde `acceptedBy`, `acceptedAt`.
+> - `budgets/{id}`: kimlik kanoniktir — kişisel `user_{uid}_{YYYY-MM}`, takım `team_{teamId}_{YYYY-MM}`;
+>   kategori limitleri `categoryBudgetsInCents` haritasındadır.
+> - `users/{uid}`: `fcmTokens` (string[], en fazla 20) eklendi; `dailyReminderEnabled` varsayılanı `false`.
+> - Tarih alanları ISO-8601 metin olarak yazılır; okuma tarafı Timestamp ve milisaniyeyi de kabul eder.
+
+
 Bu doküman, Firestore veritabanı koleksiyon yapısını, doküman şemalarını, alan tiplerini, denormalizasyon stratejilerini ve composite index gereksinimlerini tanımlar.
 
 ---

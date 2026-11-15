@@ -1,36 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/card_providers.dart';
 import '../../../application/providers/repository_providers.dart';
 import '../../../application/providers/team_providers.dart';
+import '../../../application/services/installment_posting_service.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/date_formats.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../core/utils/statement_calculator.dart';
-import '../../../domain/entities/expense.dart';
+import '../../../core/utils/validators.dart';
+import '../../../domain/entities/credit_card.dart';
 import '../../../domain/entities/installment_plan.dart';
+import '../../widgets/amount_field.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/common.dart';
+import '../../widgets/dialogs.dart';
+import '../../widgets/state_views.dart';
 
 class AddInstallmentPlanScreen extends ConsumerStatefulWidget {
   const AddInstallmentPlanScreen({super.key});
 
   @override
-  ConsumerState<AddInstallmentPlanScreen> createState() => _AddInstallmentPlanScreenState();
+  ConsumerState<AddInstallmentPlanScreen> createState() =>
+      _AddInstallmentPlanScreenState();
 }
 
-class _AddInstallmentPlanScreenState extends ConsumerState<AddInstallmentPlanScreen> {
+class _AddInstallmentPlanScreenState
+    extends ConsumerState<AddInstallmentPlanScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _titleController = TextEditingController();
 
-  int _installmentsCount = 6;
-  String? _selectedCardId;
-  String _selectedCategory = 'home';
-  String _visibility = 'personal';
-  final DateTime _startDate = DateTime.now();
-  bool _isLoading = false;
+  int _count = 6;
+  String? _cardId;
+  String _category = 'shopping';
+  late String _visibility = ref.read(activeTeamProvider) != null
+      ? 'team'
+      : 'personal';
+  DateTime _startDate = DateTime.now();
+  bool _saving = false;
+
+  static const _countOptions = [2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 18, 24, 36];
 
   @override
   void dispose() {
@@ -39,311 +56,360 @@ class _AddInstallmentPlanScreenState extends ConsumerState<AddInstallmentPlanScr
     super.dispose();
   }
 
-  Future<void> _handleSave() async {
+  CreditCard? _card(List<CreditCard> cards) {
+    for (final c in cards) {
+      if (c.id == _cardId) return c;
+    }
+    return null;
+  }
+
+  InstallmentPlan? _buildPlan(List<CreditCard> cards, {String? id}) {
+    final card = _card(cards);
+    final total = MoneyFormatter.parseToCents(_amountController.text);
+    final uid = ref.read(currentUserIdProvider);
+    if (card == null || total <= 0 || uid == null) return null;
+    final team = ref.read(activeTeamProvider);
+    final schedule = StatementCalculator.generateSchedule(
+      startDate: _startDate,
+      cutoffDay: card.cutoffDay,
+      totalInstallments: _count,
+      installmentCentsList: MoneyFormatter.divideInstallmentCents(
+        total,
+        _count,
+      ),
+      paymentDueDaysAfterCutoff: card.paymentDueDaysAfterCutoff,
+    );
+    final now = DateTime.now();
+    final isTeam = _visibility == 'team' && team != null;
+    return InstallmentPlan(
+      id: id ?? 'preview',
+      ownerUid: uid,
+      teamId: isTeam ? team.id : null,
+      visibility: isTeam ? 'team' : 'personal',
+      title: _titleController.text.trim(),
+      totalAmountInCents: total,
+      totalInstallments: _count,
+      cardId: card.id,
+      cardLast4: card.last4Digits,
+      category: _category,
+      startDate: _startDate,
+      installmentSchedule: schedule,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(now.year - 3),
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Alışveriş tarihi',
+    );
+    if (picked != null && mounted) {
+      setState(
+        () => _startDate = DateTime(picked.year, picked.month, picked.day, 12),
+      );
+    }
+  }
+
+  Future<void> _save(List<CreditCard> cards) async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
-
-    final totalCents = MoneyFormatter.parseToCents(_amountController.text);
-    if (totalCents <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen geçerli bir toplam tutar giriniz.')),
-      );
+    final uid = ref.read(currentUserIdProvider);
+    final plan = _buildPlan(cards, id: const Uuid().v4());
+    if (plan == null || uid == null) {
+      context.showInfo('Lütfen bir kredi kartı seçin.');
       return;
     }
-
-    if (_selectedCardId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen bir kredi kartı seçiniz.')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
+    setState(() => _saving = true);
     try {
-      final uid = ref.read(currentUserIdProvider)!;
-      final activeTeam = ref.read(activeTeamProvider);
-      final cards = ref.read(creditCardsProvider).value ?? [];
-      final selectedCard = cards.firstWhere((c) => c.id == _selectedCardId);
-
-      // Kuruş bölme
-      final dividedCents = MoneyFormatter.divideInstallmentCents(totalCents, _installmentsCount);
-
-      // Plan oluştur
-      final schedule = StatementCalculator.generateSchedule(
-        startDate: _startDate,
-        cutoffDay: selectedCard.cutoffDay,
-        totalInstallments: _installmentsCount,
-        installmentCentsList: dividedCents,
-        paymentDueDaysAfterCutoff: selectedCard.paymentDueDaysAfterCutoff,
+      final result = InstallmentPostingService.applyDuePostings(
+        plan,
+        now: DateTime.now(),
+        actorUid: uid,
       );
-
-      final planId = const Uuid().v4();
-      final plan = InstallmentPlan(
-        id: planId,
-        ownerUid: uid,
-        teamId: _visibility == 'team' ? activeTeam?.id : null,
-        visibility: _visibility,
-        title: _titleController.text.trim(),
-        totalAmountInCents: totalCents,
-        totalInstallments: _installmentsCount,
-        cardId: selectedCard.id,
-        cardLast4: selectedCard.last4Digits,
-        category: _selectedCategory,
-        startDate: _startDate,
-        installmentSchedule: schedule,
-        status: 'active',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+      await ref
+          .read(installmentRepositoryProvider)
+          .savePlanWithPostings(result.plan, result.postings);
+      if (!mounted) return;
+      context.showSuccess(
+        result.postings.isEmpty
+            ? 'Taksit planı oluşturuldu.'
+            : 'Taksit planı oluşturuldu; ${result.postings.length} taksit harcamalara eklendi.',
       );
-
-      final installmentRepo = ref.read(installmentRepositoryProvider);
-      final expenseRepo = ref.read(expenseRepositoryProvider);
-
-      await installmentRepo.createInstallmentPlan(plan);
-
-      // İlk taksit hareketini doğrudan bu dönemin harcaması olarak oluştur
-      final firstItem = schedule.first;
-      final firstExpenseId = '${planId}_1_${firstItem.statementPeriod}';
-      final firstExpense = Expense(
-        id: firstExpenseId,
-        teamId: plan.teamId,
-        ownerUid: uid,
-        visibility: plan.visibility,
-        title: '${plan.title} (Taksit 1/${plan.totalInstallments})',
-        amountInCents: firstItem.amountInCents,
-        currency: 'TRY',
-        category: _selectedCategory,
-        date: _startDate,
-        paymentMethod: 'credit_card',
-        cardId: selectedCard.id,
-        cardLast4: selectedCard.last4Digits,
-        isInstallment: true,
-        installmentPlanId: planId,
-        installmentNumber: 1,
-        totalInstallments: plan.totalInstallments,
-        statementPeriod: firstItem.statementPeriod,
-        createdBy: uid,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      await expenseRepo.createExpense(firstExpense);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Taksit planı başarıyla oluşturuldu.')),
-        );
-        context.pop();
-      }
+      context.pop();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        context.showError(e);
+        setState(() => _saving = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cards = ref.watch(creditCardsProvider).value ?? [];
-    final activeTeam = ref.watch(activeTeamProvider);
+    final cardsAsync = ref.watch(availableCardsProvider);
+    final cards = cardsAsync.value ?? const [];
+    final team = ref.watch(activeTeamProvider);
+    final scheme = context.colors;
 
-    if (_selectedCardId == null && cards.isNotEmpty) {
-      _selectedCardId = cards.first.id;
-    }
-
-    // Taksit önizleme hesapları
-    final parsedTotal = MoneyFormatter.parseToCents(_amountController.text);
-    final dividedPreview = parsedTotal > 0
-        ? MoneyFormatter.divideInstallmentCents(parsedTotal, _installmentsCount)
-        : <int>[];
+    if (_cardId == null && cards.isNotEmpty) _cardId = cards.first.id;
+    final preview = _buildPlan(cards);
+    final now = DateTime.now();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Yeni Taksit Planı'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            // Toplam Tutar
-            AppCard(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(title: const Text('Yeni taksit planı')),
+      body: cardsAsync.isLoading && cards.isEmpty
+          ? const LoadingView()
+          : cards.isEmpty
+          ? EmptyStateView(
+              icon: Icons.credit_card_off_rounded,
+              title: 'Önce bir kart ekleyin',
+              message:
+                  'Taksitler kartın kesim gününe göre ekstrelere dağıtılır.',
+              actionLabel: 'Kart ekle',
+              actionIcon: Icons.add_card_rounded,
+              onAction: () => context.push('/cards/new'),
+            )
+          : Form(
+              key: _formKey,
+              child: PageListView(
+                maxWidth: AppSpacing.maxFormWidth,
                 children: [
-                  Text('Toplam Alışveriş Tutarı', style: TextStyle(color: theme.hintColor, fontSize: 13)),
-                  const SizedBox(height: 8),
+                  AmountField(
+                    controller: _amountController,
+                    label: 'Toplam alışveriş tutarı',
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextFormField(
+                    controller: _titleController,
+                    textCapitalization: TextCapitalization.sentences,
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(
+                        AppConstants.maxTitleLength,
+                      ),
+                    ],
+                    validator: Validators.requiredText(
+                      'Ürün / açıklama',
+                      maxLength: AppConstants.maxTitleLength,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Ürün / açıklama',
+                      hintText: 'Örn. Buzdolabı',
+                      prefixIcon: Icon(Icons.shopping_bag_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  DropdownButtonFormField<String>(
+                    initialValue: _cardId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Kredi kartı',
+                      prefixIcon: Icon(Icons.credit_card_rounded),
+                    ),
+                    items: [
+                      for (final c in cards)
+                        DropdownMenuItem(
+                          value: c.id,
+                          child: Text(
+                            '${c.name} •••• ${c.last4Digits} (kesim ${c.cutoffDay})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _cardId = v),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
-                      Text('₺', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
-                      const SizedBox(width: 12),
                       Expanded(
-                        child: TextFormField(
-                          controller: _amountController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                        child: DropdownButtonFormField<int>(
+                          initialValue: _count,
                           decoration: const InputDecoration(
-                            hintText: '0,00',
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            fillColor: Colors.transparent,
-                            contentPadding: EdgeInsets.zero,
+                            labelText: 'Taksit sayısı',
                           ),
-                          onChanged: (_) => setState(() {}),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) return 'Tutar giriniz';
-                            return null;
-                          },
+                          items: [
+                            for (final c in _countOptions)
+                              DropdownMenuItem(
+                                value: c,
+                                child: Text('$c taksit'),
+                              ),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _count = v ?? _count),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _pickDate,
+                          icon: const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 18,
+                          ),
+                          label: Text(DateFormats.dayShort(_startDate)),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Plan Başlığı
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Plan Başlığı / Ürün Adı',
-                hintText: 'Örn: Çamaşır Makinesi / Telefon',
-                prefixIcon: Icon(Icons.shopping_bag_outlined),
-              ),
-              validator: (val) {
-                if (val == null || val.trim().isEmpty) return 'Plan başlığı giriniz';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Kart Seçimi
-            if (cards.isEmpty)
-              AppCard(
-                color: Colors.amber.withOpacity(0.1),
-                child: const Text('Taksit tanımlamak için önce bir kredi kartı eklemelisiniz.'),
-              )
-            else
-              DropdownButtonFormField<String>(
-                value: _selectedCardId,
-                decoration: const InputDecoration(
-                  labelText: 'Kredi Kartı',
-                  prefixIcon: Icon(Icons.credit_card_rounded),
-                ),
-                items: cards.map((c) {
-                  return DropdownMenuItem(
-                    value: c.id,
-                    child: Text('${c.name} (•••• ${c.last4Digits}) - Kesim: ${c.cutoffDay}. gün'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedCardId = val),
-              ),
-            const SizedBox(height: 16),
-
-            // Taksit Sayısı Seçimi (2 - 36)
-            Text(
-              'Taksit Sayısı: $_installmentsCount Taksit',
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            Slider(
-              value: _installmentsCount.toDouble(),
-              min: 2,
-              max: 24,
-              divisions: 22,
-              label: '$_installmentsCount Taksit',
-              onChanged: (val) => setState(() => _installmentsCount = val.toInt()),
-            ),
-            const SizedBox(height: 8),
-
-            // Kategori
-            DropdownButtonFormField<String>(
-              value: _selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Kategori',
-                prefixIcon: Icon(Icons.category_rounded),
-              ),
-              items: AppConstants.defaultCategories.map((c) {
-                return DropdownMenuItem(value: c.id, child: Text(c.name));
-              }).toList(),
-              onChanged: (val) => setState(() => _selectedCategory = val!),
-            ),
-            const SizedBox(height: 16),
-
-            // Görünürlük
-            if (activeTeam != null) ...[
-              SegmentedButton<String>(
-                segments: [
-                  const ButtonSegment(value: 'personal', label: Text('Bireysel Taksit')),
-                  ButtonSegment(value: 'team', label: Text('${activeTeam.name} Takımı')),
-                ],
-                selected: {_visibility},
-                onSelectionChanged: (val) => setState(() => _visibility = val.first),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // Taksit Planı Önizleme Tablosu
-            if (dividedPreview.isNotEmpty) ...[
-              Text(
-                'Ödeme Planı Önizlemesi',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              AppCard(
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('İlk Taksit:', style: TextStyle(fontWeight: FontWeight.w600)),
-                        Text(
-                          MoneyFormatter.formatCents(dividedPreview.first),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                  const SizedBox(height: AppSpacing.md),
+                  DropdownButtonFormField<String>(
+                    initialValue: _category,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Kategori',
+                      prefixIcon: Icon(Icons.category_outlined),
+                    ),
+                    items: [
+                      for (final c in AppConstants.defaultCategories)
+                        DropdownMenuItem(
+                          value: c.id,
+                          child: Row(
+                            children: [
+                              Icon(c.icon, size: 18, color: c.color),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(c.name),
+                            ],
+                          ),
+                        ),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _category = v ?? _category),
+                  ),
+                  if (team != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: [
+                        const ButtonSegment(
+                          value: 'personal',
+                          icon: Icon(Icons.person_rounded),
+                          label: Text('Bireysel'),
+                        ),
+                        ButtonSegment(
+                          value: 'team',
+                          icon: const Icon(Icons.groups_rounded),
+                          label: Text(
+                            team.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
+                      selected: {_visibility},
+                      onSelectionChanged: (v) =>
+                          setState(() => _visibility = v.first),
                     ),
-                    if (dividedPreview.length > 1) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  ],
+                  if (preview != null) ...[
+                    const SectionHeader(title: 'Ödeme planı önizlemesi'),
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text('Sonraki ${_installmentsCount - 1} Taksit:', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          for (final item in preview.installmentSchedule.take(
+                            4,
+                          ))
+                            _ScheduleRow(
+                              label: '${item.installmentNumber}. taksit',
+                              period: DateFormats.period(item.statementPeriod),
+                              amount: MoneyFormatter.formatCents(
+                                item.amountInCents,
+                              ),
+                              willPost: InstallmentPostingPolicy.isDue(
+                                item,
+                                now,
+                              ),
+                            ),
+                          if (preview.installmentSchedule.length > 4) ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Text(
+                                '…',
+                                textAlign: TextAlign.center,
+                                style: context.textStyles.bodyMedium,
+                              ),
+                            ),
+                            _ScheduleRow(
+                              label:
+                                  '${preview.installmentSchedule.last.installmentNumber}. taksit',
+                              period: DateFormats.period(
+                                preview
+                                    .installmentSchedule
+                                    .last
+                                    .statementPeriod,
+                              ),
+                              amount: MoneyFormatter.formatCents(
+                                preview.installmentSchedule.last.amountInCents,
+                              ),
+                              willPost: false,
+                            ),
+                          ],
+                          const Divider(height: AppSpacing.lg),
                           Text(
-                            MoneyFormatter.formatCents(dividedPreview[1]),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            'Her taksit, ait olduğu ekstre ayı geldiğinde harcamalarınıza otomatik eklenir. '
+                            'Kuruş farkı ilk taksite yansıtılır.',
+                            style: context.textStyles.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
-                    ],
-                    const Divider(height: 16),
-                    Text(
-                      'Tüm taksitler kart kesim tarihlerinde otomatik olarak ekstreye eklenecektir.',
-                      style: TextStyle(fontSize: 11, color: theme.hintColor),
                     ),
                   ],
-                ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AppButton(
+                    label: 'Taksit planını oluştur',
+                    icon: Icons.check_rounded,
+                    onPressed: () => _save(cards),
+                    isLoading: _saving,
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-            ],
-
-            ElevatedButton(
-              onPressed: _isLoading ? null : _handleSave,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Taksit Planını Başlat'),
             ),
-            const SizedBox(height: 32),
-          ],
-        ),
+    );
+  }
+}
+
+class _ScheduleRow extends StatelessWidget {
+  final String label;
+  final String period;
+  final String amount;
+  final bool willPost;
+
+  const _ScheduleRow({
+    required this.label,
+    required this.period,
+    required this.amount,
+    required this.willPost,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: context.textStyles.titleSmall),
+                Text(
+                  willPost ? '$period · hemen eklenecek' : period,
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(amount, style: context.textStyles.titleSmall),
+        ],
       ),
     );
   }

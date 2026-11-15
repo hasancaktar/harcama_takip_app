@@ -1,53 +1,25 @@
-# Bildirim Sistemi Mimarisi (Notifications Guide)
+# Bildirimler
 
-Bu doküman, yerel bildirimler (Local Notifications) ve Firebase Cloud Messaging (FCM) altyapısını, zamanlanmış günlük hatırlatma mantığını, izin yönetimini ve çoklu cihaz senkronizasyonunu tanımlar.
+## 1. Günlük harcama hatırlatıcısı (yerel, Android/iOS)
 
----
+- `NotificationService` (`flutter_local_notifications`) seçilen gün ve saatte tekrarlayan bildirim planlar.
+- Ayar profil belgesinde saklanır (`dailyReminderEnabled`, `dailyReminderHour`,
+  `dailyReminderMinute`, `dailyReminderDays`); uygulama açıldığında ve ayar değiştiğinde
+  `AppShellScreen` hatırlatıcıları profille senkronlar (cihaz değişse de ayar korunur).
+- Varsayılan **kapalıdır**; kullanıcı açtığında Android 13+ bildirim izni bağlamsal olarak istenir.
+- Kesin alarm izni (`SCHEDULE_EXACT_ALARM`) gerektirmemek için `inexactAllowWhileIdle` kullanılır
+  (Play Store politikası ve Android 14 varsayılan reddi nedeniyle). Bildirim birkaç dakika gecikebilir.
+- Cihaz yeniden başlatıldığında hatırlatıcılar `ScheduledNotificationBootReceiver` ile geri yüklenir
+  (alıcılar `AndroidManifest.xml` içinde tanımlıdır; önceki sürümde eksikti ve bildirimler hiç tetiklenmiyordu).
+- Bildirime dokunmak "Yeni harcama" ekranını açar.
+- Web'de zamanlanmış yerel bildirim yoktur; ayar ekranı bunu açıkça belirtir.
 
-## 1. İki Katmanlı Bildirim Mimarisi
+## 2. Takım harcaması bildirimi (FCM, Android)
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   BİLDİRİM SİSTEMİ                     │
-├──────────────────────────┬─────────────────────────────┤
-│   1. YEREL BİLDİRİMLER   │    2. FIREBASE PUSH (FCM)   │
-│ (flutter_local_notif)    │    (firebase_messaging)     │
-├──────────────────────────┼─────────────────────────────┤
-│ • Günlük Harcama Girişi  │ • Takıma Yeni Üye Katılımı  │
-│   Hatırlatıcısı (Çevrim- │ • Takım Harcaması Eklendi/  │
-│   dışı çalışabilir)      │   Güncellendi               │
-│ • Yaklaşan Kart Kesim    │ • Bütçe Aşım Uyarısı        │
-│   Tarihi Hatırlatıcısı   │ • Taksit Planı Tamamlandı   │
-│ • Son Ödeme Vadesi       │ • Davet Kabul Edildi        │
-└──────────────────────────┴─────────────────────────────┘
-```
-
----
-
-## 2. Günlük Harcama Hatırlatması Mantığı
-
-1. **Kullanıcı Ayarı:**
-   - Kullanıcı dilediği saatte (varsayılan: `21:00`) ve dilediği günlerde bildirim alma seçeneğine sahiptir.
-   - Takım üyeliğinden tamamen bağımsızdır; bireysel kullanıcılar da faydalanır.
-2. **Saat Dilimi Desteği:**
-   - Bildirimler `timezone` ve `flutter_timezone` paketleriyle cihazın IANA saat dilimine (`Europe/Istanbul`) kilitlenir.
-   - Yaz/kış saati veya saat dilimi değiştiğinde yerel bildirimler yeniden planlanır (`rescheduleLocalReminders()`).
-3. **Deep Linking:**
-   - Bildirime tıklandığında doğrudan `/expenses/add` (Hızlı Harcama Ekle) veya `/dashboard` ekranı açılır.
-
----
-
-## 3. FCM ve Çoklu Cihaz Stratejisi
-
-- Her kullanıcı cihazı `users/{uid}/devices/{deviceId}` altında FCM token'ı ile kaydedilir.
-- Kullanıcı logout olduğunda token silinir.
-- Cloud Functions takım etkinliklerinde (yeni harcama, üye katılımı) ilgili takım üyelerinin aktif cihazlarına FCM bildirimi gönderir. İşlemi yapan kullanıcının kendi cihazına bildirim gönderilmez (self-suppression).
-
----
-
-## 4. İzin Yönetimi (Android & iOS)
-
-- **Android 13+ (API 33+):** `POST_NOTIFICATIONS` runtime izni istenir.
-- **Android Alarmlar:** `SCHEDULE_EXACT_ALARM` veya `USE_EXACT_ALARM` izni ekstre ve günlük hatırlatıcılar için tanımlanır.
-- **iOS:** `UNUserNotificationCenter` ile alert, badge ve sound izinleri talep edilir.
-- Kullanıcı bildirim iznini reddetmişse, ayarlar ekranında kırmızı bir uyarı çubuğu ve doğrudan sistem ayarlarına yönlendiren buton gösterilir.
+- `PushTokenService` giriş sonrası cihaz anahtarını `users/{uid}.fcmTokens` dizisine ekler,
+  anahtar yenilenince günceller, çıkışta siler. İzin istemez.
+- `notifyTeamOnExpense` Cloud Function'ı yeni takım harcamasında diğer üyelere bildirim gönderir
+  (`team_expenses` kanalı) ve geçersiz anahtarları temizler. Sistem tarafından işlenen aylık
+  taksitler için bildirim gönderilmez.
+- Bu özellik Cloud Functions'ın yayınlanmasını (Blaze planı) gerektirir.
+- Web için FCM etkin değildir (VAPID anahtarı ve servis çalışanı yapılandırması gerekir).

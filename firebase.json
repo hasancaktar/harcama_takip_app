@@ -1,1 +1,66 @@
-{"firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]},"functions":[{"source":"functions","codebase":"default","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log"]}],"emulators":{"auth":{"port":9099},"functions":{"port":5001},"firestore":{"port":8080},"ui":{"enabled":true,"port":4000}},"flutter":{"platforms":{"android":{"default":{"projectId":"harcama-takip-app-7ff66","appId":"1:359504482936:android:946569ca00dcb6f782938d","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"harcama-takip-app-7ff66","configurations":{"android":"1:359504482936:android:946569ca00dcb6f782938d","web":"1:359504482936:web:76062f89d434770482938d"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "cleanUrls": true,
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "X-Frame-Options", "value": "DENY" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+        ]
+      },
+      {
+        "source": "**/*.@(js|wasm|json|otf|ttf|woff|woff2|png|jpg|svg|ico)",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+      },
+      {
+        "source": "/@(index.html|flutter_service_worker.js|flutter_bootstrap.js|version.json)",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      }
+    ]
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "test", "firebase-debug.log", "firebase-debug.*.log"]
+    }
+  ],
+  "emulators": {
+    "auth": { "port": 9099 },
+    "functions": { "port": 5001 },
+    "firestore": { "port": 8080 },
+    "hosting": { "port": 5000 },
+    "ui": { "enabled": true, "port": 4000 },
+    "singleProjectMode": true
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "harcama-takip-app-7ff66",
+          "appId": "1:359504482936:android:946569ca00dcb6f782938d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "harcama-takip-app-7ff66",
+          "configurations": {
+            "android": "1:359504482936:android:946569ca00dcb6f782938d",
+            "web": "1:359504482936:web:76062f89d434770482938d"
+          }
+        }
+      }
+    }
+  }
+}

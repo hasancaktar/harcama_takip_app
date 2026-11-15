@@ -1,375 +1,545 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/budget_providers.dart';
 import '../../../application/providers/card_providers.dart';
 import '../../../application/providers/expense_providers.dart';
-import '../../../application/providers/repository_providers.dart';
+import '../../../application/providers/installment_providers.dart';
 import '../../../application/providers/team_providers.dart';
-import '../../../application/services/installment_reconciliation_service.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/color_utils.dart';
+import '../../../core/utils/date_formats.dart';
 import '../../../core/utils/money_formatter.dart';
+import '../../../core/utils/statement_calculator.dart';
+import '../../../domain/entities/credit_card.dart';
 import '../../widgets/app_card.dart';
-import '../../widgets/category_badge.dart';
-import '../../widgets/period_selector_widget.dart';
-import '../../widgets/team_selector_widget.dart';
+import '../../widgets/common.dart';
+import '../../widgets/expense_tile.dart';
+import '../../widgets/state_views.dart';
+import '../../widgets/workspace_selector.dart';
 
-class DashboardScreen extends ConsumerStatefulWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
-  @override
-  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _runReconciliation();
-    });
-  }
-
-  Future<void> _runReconciliation() async {
-    final uid = ref.read(currentUserIdProvider);
-    if (uid != null) {
-      final reconciliationService = InstallmentReconciliationService(
-        expenseRepo: ref.read(expenseRepositoryProvider),
-        installmentRepo: ref.read(installmentRepositoryProvider),
-      );
-      final team = ref.read(activeTeamProvider);
-      await reconciliationService.reconcileDueInstallments(uid: uid, teamId: team?.id);
-    }
+  Future<void> _refresh(WidgetRef ref) async {
+    ref.invalidate(installmentSyncProvider);
+    await ref.read(installmentSyncProvider.future);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final stats = ref.watch(monthlyStatsProvider);
-    final budget = ref.watch(currentBudgetProvider).value;
-    final expenses = ref.watch(expensesStreamProvider).value ?? [];
-    final cards = ref.watch(creditCardsProvider).value ?? [];
-    final filter = ref.watch(expenseFilterProvider);
-
-    // Bütçe hesabı
-    final budgetCents = budget?.totalBudgetInCents ?? 0;
-    final remainingBudgetCents = budgetCents > 0 ? (budgetCents - stats.totalCents) : null;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final expensesAsync = ref.watch(visibleExpensesProvider);
+    final isTeam = ref.watch(activeTeamProvider) != null;
+    final invites = ref.watch(myPendingInvitesProvider).value ?? const [];
+    final firstName = (user?.displayName ?? '').split(' ').first;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Özet'),
-        actions: const [
-          TeamSelectorWidget(),
-          SizedBox(width: 8),
-          PeriodSelectorWidget(),
-          SizedBox(width: 12),
+        title: Text(firstName.isEmpty ? 'Özet' : 'Merhaba, $firstName'),
+        actions: [
+          IconButton(
+            tooltip: 'Bütçe',
+            icon: const Icon(Icons.savings_outlined),
+            onPressed: () => context.push('/budgets'),
+          ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/expenses/new'),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Harcama ekle'),
+      ),
       body: RefreshIndicator(
-        onRefresh: _runReconciliation,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        onRefresh: () => _refresh(ref),
+        child: PageListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+            96,
+          ),
           children: [
-            // Filtre Seçici (Tüm Harcamalar, Takım, Benim Harcamalarım)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  ChoiceChip(
-                    label: const Text('Tüm Harcamalar'),
-                    selected: filter == 'all',
-                    onSelected: (val) => ref.read(expenseFilterProvider.notifier).state = 'all',
-                  ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    label: const Text('Takım Toplamı'),
-                    selected: filter == 'team',
-                    onSelected: (val) => ref.read(expenseFilterProvider.notifier).state = 'team',
-                  ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    label: const Text('Benim Harcamalarım'),
-                    selected: filter == 'personal',
-                    onSelected: (val) => ref.read(expenseFilterProvider.notifier).state = 'personal',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Ana Toplam Kartı (Seçili Ay Toplamı)
-            AppCard(
-              color: theme.colorScheme.primary,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Aylık Toplam Harcama',
-                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text('TRY', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    MoneyFormatter.formatCents(stats.totalCents),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(color: Colors.white24),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _StatColumn(
-                        label: 'Bireysel',
-                        value: MoneyFormatter.formatCents(stats.personalCents),
-                      ),
-                      _StatColumn(
-                        label: 'Takım',
-                        value: MoneyFormatter.formatCents(stats.teamCents),
-                      ),
-                      _StatColumn(
-                        label: 'Kredi Kartı',
-                        value: MoneyFormatter.formatCents(stats.creditCardCents),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Bütçe Durumu
-            if (remainingBudgetCents != null)
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Aylık Bütçe Durumu',
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          MoneyFormatter.formatCents(budgetCents),
-                          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: (budgetCents > 0) ? (stats.totalCents / budgetCents).clamp(0.0, 1.0) : 0,
-                      backgroundColor: theme.colorScheme.surfaceVariant,
-                      valueColor: AlwaysStoppedAnimation(
-                        stats.totalCents > budgetCents ? AppColors.error : AppColors.primary,
-                      ),
-                      minHeight: 8,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      remainingBudgetCents >= 0
-                          ? 'Kalan Bütçe: ${MoneyFormatter.formatCents(remainingBudgetCents)}'
-                          : 'Bütçe Aşımı: ${MoneyFormatter.formatCents(remainingBudgetCents.abs())}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: remainingBudgetCents >= 0 ? AppColors.success : AppColors.error,
-                      ),
-                    ),
-                  ],
+            const ContextBar(),
+            if (invites.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              InlineMessage(
+                tone: MessageTone.info,
+                title: 'Takım davetiniz var',
+                message: invites.length == 1
+                    ? '"${invites.first.teamName}" takımına davet edildiniz.'
+                    : '${invites.length} takım davetiniz bekliyor.',
+                action: TextButton(
+                  onPressed: () => context.push('/teams'),
+                  child: const Text('Davetleri görüntüle'),
                 ),
               ),
-
-            const SizedBox(height: 16),
-
-            // Yaklaşan Kart Kesim ve Ödeme Tarihleri
-            if (cards.isNotEmpty) ...[
-              Text(
-                'Yaklaşan Kart Tarihleri',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 100,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: cards.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    final card = cards[index];
-                    return AppCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      color: Color(int.parse(card.colorHex.replaceFirst('#', '0xFF'))).withOpacity(0.1),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(card.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Kesim Günü: ${card.cutoffDay}. gün',
-                            style: TextStyle(fontSize: 12, color: theme.hintColor),
-                          ),
-                          Text(
-                            'Vade: Kesimden ${card.paymentDueDaysAfterCutoff} gün sonra',
-                            style: TextStyle(fontSize: 11, color: theme.hintColor),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
             ],
-
-            // Kategori Bazlı Dağılım Özeti
-            if (stats.categoryTotalsCents.isNotEmpty) ...[
-              Text(
-                'Kategori Dağılımı',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              AppCard(
-                child: Column(
-                  children: stats.categoryTotalsCents.entries.map((entry) {
-                    final catItem = AppConstants.getCategoryById(entry.key);
-                    final percent = stats.totalCents > 0
-                        ? ((entry.value / stats.totalCents) * 100).toStringAsFixed(1)
-                        : '0';
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          CategoryBadge(categoryId: entry.key, showLabel: false),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(catItem.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                                Text('%$percent', style: TextStyle(fontSize: 11, color: theme.hintColor)),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            MoneyFormatter.formatCents(entry.value),
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
+            if (isTeam) ...[
+              const SizedBox(height: AppSpacing.md),
+              const _TeamFilterChips(),
             ],
-
-            // Son Harcamalar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Son Harcamalar',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            const SizedBox(height: AppSpacing.md),
+            expensesAsync.when(
+              skipLoadingOnReload: false,
+              loading: () => const SizedBox(
+                height: 320,
+                child: SkeletonList(
+                  itemCount: 4,
+                  padding: EdgeInsets.zero,
+                  itemHeight: 72,
                 ),
-                TextButton(
-                  onPressed: () => context.go('/expenses'),
-                  child: const Text('Tümünü Gör'),
-                ),
-              ],
+              ),
+              error: (e, _) => ErrorStateView(
+                error: e,
+                onRetry: () => ref.invalidate(periodExpensesProvider),
+              ),
+              data: (expenses) =>
+                  _DashboardContent(hasExpenses: expenses.isNotEmpty),
             ),
-            const SizedBox(height: 8),
-            if (expenses.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('Bu ay henüz harcama kaydı bulunmuyor.'),
-                ),
-              )
-            else
-              ...expenses.take(5).map((exp) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    onTap: () => context.push('/expenses/detail/${exp.id}'),
-                    child: Row(
-                      children: [
-                        CategoryBadge(categoryId: exp.category, showLabel: false),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(exp.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${exp.visibility == 'team' ? 'Takım' : 'Bireysel'} • ${exp.paymentMethod == 'credit_card' ? 'Kredi Kartı' : 'Nakit'}',
-                                style: TextStyle(fontSize: 11, color: theme.hintColor),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          MoneyFormatter.formatCents(exp.amountInCents, currency: exp.currency),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            const SizedBox(height: 80),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/expenses/add'),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Harcama Ekle'),
       ),
     );
   }
 }
 
-class _StatColumn extends StatelessWidget {
-  final String label;
-  final String value;
+class _TeamFilterChips extends ConsumerWidget {
+  const _TeamFilterChips();
 
-  const _StatColumn({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(teamExpenseFilterProvider);
+    return Wrap(
+      spacing: AppSpacing.xs,
+      children: [
+        ChoiceChip(
+          label: const Text('Tüm takım'),
+          selected: filter == TeamExpenseFilter.all,
+          onSelected: (_) =>
+              ref.read(teamExpenseFilterProvider.notifier).state =
+                  TeamExpenseFilter.all,
+        ),
+        ChoiceChip(
+          label: const Text('Benim eklediklerim'),
+          selected: filter == TeamExpenseFilter.mine,
+          onSelected: (_) =>
+              ref.read(teamExpenseFilterProvider.notifier).state =
+                  TeamExpenseFilter.mine,
+        ),
+      ],
+    );
+  }
+}
+
+class _DashboardContent extends ConsumerWidget {
+  final bool hasExpenses;
+  const _DashboardContent({required this.hasExpenses});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(visibleStatsProvider);
+    final expenses = ref.watch(visibleExpensesProvider).value ?? const [];
+    final cards = ref.watch(availableCardsProvider).value ?? const [];
+    final memberNames = ref.watch(memberNamesProvider);
+    final isTeam = ref.watch(activeTeamProvider) != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SummaryHeroCard(),
+        const SizedBox(height: AppSpacing.md),
+        _QuickStats(stats: stats),
+        if (cards.isNotEmpty) ...[
+          SectionHeader(
+            title: 'Yaklaşan kart tarihleri',
+            actionLabel: 'Kartlar',
+            onAction: () => context.go('/cards'),
+          ),
+          _UpcomingCardDates(cards: cards),
+        ],
+        if (stats.byCategory.isNotEmpty) ...[
+          SectionHeader(
+            title: 'Kategoriler',
+            actionLabel: 'Raporlar',
+            onAction: () => context.go('/reports'),
+          ),
+          AppCard(
+            child: Column(
+              children: [
+                for (final share in stats.byCategory.take(5))
+                  _CategoryRow(share: share, total: stats.totalCents),
+              ],
+            ),
+          ),
+        ],
+        SectionHeader(
+          title: 'Son harcamalar',
+          actionLabel: hasExpenses ? 'Tümünü gör' : null,
+          onAction: hasExpenses ? () => context.go('/expenses') : null,
+        ),
+        if (!hasExpenses)
+          AppCard(
+            child: EmptyStateView(
+              compact: true,
+              icon: Icons.receipt_long_outlined,
+              title: 'Bu dönem harcama yok',
+              message:
+                  'İlk harcamanızı ekleyerek bütçenizi takip etmeye başlayın.',
+              actionLabel: 'Harcama ekle',
+              onAction: () => context.push('/expenses/new'),
+            ),
+          )
+        else
+          AppCard(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.xs,
+              horizontal: AppSpacing.xxs,
+            ),
+            child: Column(
+              children: [
+                for (final e in expenses.take(5))
+                  ExpenseTile(
+                    expense: e,
+                    showDate: true,
+                    memberName: isTeam ? memberNames[e.ownerUid] : null,
+                    onTap: () => context.push('/expenses/${e.id}'),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SummaryHeroCard extends ConsumerWidget {
+  const _SummaryHeroCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(visibleStatsProvider);
+    final period = ref.watch(selectedPeriodProvider);
+    final budget = ref.watch(budgetStatusProvider);
+    final filter = ref.watch(teamExpenseFilterProvider);
+    final isTeam = ref.watch(activeTeamProvider) != null;
+    final scheme = context.colors;
+    final onHero = scheme.onPrimary;
+
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          scheme.primary,
+          Color.lerp(scheme.primary, scheme.secondary, 0.45)!,
+        ],
+      ),
+      semanticLabel:
+          '${DateFormats.period(period)} toplam harcama ${MoneyFormatter.formatCents(stats.totalCents)}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isTeam && filter == TeamExpenseFilter.mine
+                ? '${DateFormats.period(period)} · eklediklerim'
+                : '${DateFormats.period(period)} toplamı',
+            style: context.textStyles.titleSmall?.copyWith(
+              color: onHero.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              MoneyFormatter.formatCents(stats.totalCents),
+              style: context.textStyles.displaySmall?.copyWith(color: onHero),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            stats.count == 0
+                ? 'Henüz harcama yok'
+                : '${stats.count} harcama · ortalama ${MoneyFormatter.formatCents(stats.averageCents)}',
+            style: context.textStyles.bodySmall?.copyWith(
+              color: onHero.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (budget != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: budget.ratio.clamp(0.0, 1.0),
+                minHeight: 8,
+                color: budget.level == BudgetLevel.exceeded
+                    ? const Color(0xFFFFB4AB)
+                    : budget.level == BudgetLevel.safe
+                    ? onHero
+                    : const Color(0xFFFDE68A),
+                backgroundColor: onHero.withValues(alpha: 0.25),
+                semanticsLabel: 'Bütçe kullanımı',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              budget.remainingCents >= 0
+                  ? 'Bütçenin %${(budget.ratio * 100).round()} kullanıldı · ${MoneyFormatter.formatCents(budget.remainingCents)} kaldı'
+                  : 'Bütçe ${MoneyFormatter.formatCents(-budget.remainingCents)} aşıldı',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: onHero,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ] else
+            TextButton.icon(
+              onPressed: () => context.push('/budgets'),
+              style: TextButton.styleFrom(
+                foregroundColor: onHero,
+                backgroundColor: onHero.withValues(alpha: 0.15),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              ),
+              icon: const Icon(Icons.savings_outlined, size: 18),
+              label: const Text('Aylık bütçe belirle'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickStats extends StatelessWidget {
+  final ExpenseStats stats;
+  const _QuickStats({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-        const SizedBox(height: 2),
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-      ],
+    final topCategory = stats.byCategory.isNotEmpty
+        ? AppConstants.getCategoryById(stats.byCategory.first.key)
+        : null;
+    final items = [
+      _StatItem(
+        Icons.credit_card_rounded,
+        'Kredi kartı',
+        MoneyFormatter.formatCents(stats.creditCardCents),
+      ),
+      _StatItem(
+        Icons.splitscreen_rounded,
+        'Taksitler',
+        MoneyFormatter.formatCents(stats.installmentCents),
+      ),
+      _StatItem(
+        Icons.local_fire_department_outlined,
+        'En çok',
+        topCategory?.name ?? '—',
+      ),
+      _StatItem(
+        Icons.arrow_upward_rounded,
+        'En büyük',
+        stats.largest != null
+            ? MoneyFormatter.formatCents(stats.largest!.amountInCents)
+            : '—',
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 560 ? 4 : 2;
+        final itemWidth =
+            (constraints.maxWidth - (columns - 1) * AppSpacing.sm) / columns;
+        return Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final item in items)
+              SizedBox(
+                width: itemWidth,
+                child: _StatTile(item: item),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StatItem {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _StatItem(this.icon, this.label, this.value);
+}
+
+class _StatTile extends StatelessWidget {
+  final _StatItem item;
+  const _StatTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.sm + 2),
+      child: Row(
+        children: [
+          Icon(item.icon, size: 20, color: scheme.primary),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: context.textStyles.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  item.value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.titleSmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingCardDates extends StatelessWidget {
+  final List<CreditCard> cards;
+  const _UpcomingCardDates({required this.cards});
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final entries = cards.map((card) {
+      final cutoff = StatementCalculator.nextCutoffDate(now, card.cutoffDay);
+      final due = StatementCalculator.calculateDueDate(
+        statementPeriod: StatementCalculator.periodOf(cutoff),
+        cutoffDay: card.cutoffDay,
+        paymentDueDaysAfterCutoff: card.paymentDueDaysAfterCutoff,
+      );
+      return (card: card, cutoff: cutoff, due: due);
+    }).toList()..sort((a, b) => a.cutoff.compareTo(b.cutoff));
+
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
+        children: [
+          for (final e in entries.take(4))
+            ListTile(
+              onTap: () => context.push('/cards/${e.card.id}'),
+              leading: Container(
+                width: 40,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: ColorUtils.fromHex(e.card.colorHex),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  e.card.last4Digits,
+                  style: TextStyle(
+                    color: ColorUtils.onColor(
+                      ColorUtils.fromHex(e.card.colorHex),
+                    ),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              title: Text(
+                e.card.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                'Kesim ${DateFormats.dayShort(e.cutoff)} · Son ödeme ${DateFormats.dayShort(e.due)}',
+              ),
+              trailing: Text(
+                DateFormats.daysUntil(e.cutoff, now: now),
+                style: context.textStyles.labelLarge?.copyWith(
+                  color: context.colors.primary,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryRow extends StatelessWidget {
+  final AmountShare share;
+  final int total;
+  const _CategoryRow({required this.share, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final category = AppConstants.getCategoryById(share.key);
+    final ratio = share.ratioOf(total);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        children: [
+          CategoryIcon(categoryId: share.key, size: 36),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        category.name,
+                        style: context.textStyles.titleSmall,
+                      ),
+                    ),
+                    Text(
+                      MoneyFormatter.formatCents(share.cents),
+                      style: context.textStyles.titleSmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: UsageBar(
+                        ratio: ratio,
+                        color: category.color,
+                        height: 6,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    SizedBox(
+                      width: 40,
+                      child: Text(
+                        '%${(ratio * 100).round()}',
+                        textAlign: TextAlign.end,
+                        style: context.textStyles.labelSmall?.copyWith(
+                          color: context.colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

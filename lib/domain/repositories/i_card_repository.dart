@@ -1,9 +1,11 @@
 import '../entities/credit_card.dart';
 
 abstract class ICardRepository {
-  Stream<List<CreditCard>> watchCards({required String ownerUid, String? teamId});
-  Future<void> createCard(CreditCard card);
-  Future<void> updateCard(CreditCard card);
-  Future<void> deleteCard(String cardId);
-  Future<CreditCard?> getCardById(String cardId);
+  Stream<List<CreditCard>> watchOwnCards(String uid);
+  Stream<List<CreditCard>> watchTeamSharedCards(String teamId);
+  Stream<CreditCard?> watchCard(String cardId);
+  Future<void> saveCard(CreditCard card);
+
+  /// Kartı pasifleştirir; geçmiş harcamalar korunur.
+  Future<void> deactivateCard(String cardId);
 }

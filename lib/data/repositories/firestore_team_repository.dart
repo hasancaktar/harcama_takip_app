@@ -1,168 +1,258 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uuid/uuid.dart';
+
+import '../../core/errors/error_messages.dart';
+import '../../domain/entities/app_user.dart';
 import '../../domain/entities/team.dart';
+import '../../domain/entities/team_invite.dart';
 import '../../domain/entities/team_member.dart';
 import '../../domain/repositories/i_team_repository.dart';
 
 class FirestoreTeamRepository implements ITeamRepository {
   final FirebaseFirestore _firestore;
+  final Random _random;
 
-  FirestoreTeamRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreTeamRepository({FirebaseFirestore? firestore, Random? random})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _random = random ?? Random.secure();
 
-  CollectionReference<Map<String, dynamic>> get _teamsCol =>
+  static const Duration inviteValidity = Duration(days: 7);
+  static const String _codeAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  CollectionReference<Map<String, dynamic>> get _teams =>
       _firestore.collection('teams');
+  DocumentReference<Map<String, dynamic>> _team(String id) => _teams.doc(id);
+  CollectionReference<Map<String, dynamic>> _members(String teamId) =>
+      _team(teamId).collection('members');
+  CollectionReference<Map<String, dynamic>> _invites(String teamId) =>
+      _team(teamId).collection('invites');
+
+  String get _now => DateTime.now().toIso8601String();
+
+  static Team _teamFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
+    data['id'] = doc.id;
+    return Team.fromMap(data);
+  }
+
+  static TeamInvite _inviteFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
+    data['inviteId'] = doc.id;
+    return TeamInvite.fromMap(data);
+  }
+
+  String _generateCode() => List.generate(
+    8,
+    (_) => _codeAlphabet[_random.nextInt(_codeAlphabet.length)],
+  ).join();
 
   @override
   Stream<List<Team>> watchUserTeams(String uid) {
-    // Kullanıcının üye olduğu veya sahibi olduğu takımları izler
-    return _teamsCol
-        .where('ownerUid', isEqualTo: uid)
-        .where('isArchived', isEqualTo: false)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return Team.fromMap(data);
-      }).toList();
+    // Sahibi olunan VE davetle katılınan takımlar (önceki sürüm yalnızca sahip olunanları getiriyordu).
+    return _teams.where('memberUids', arrayContains: uid).snapshots().map((s) {
+      final teams =
+          s.docs.map(_teamFromDoc).where((t) => !t.isArchived).toList()..sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
+      return teams;
     });
   }
 
   @override
-  Stream<List<TeamMember>> watchTeamMembers(String teamId) {
-    return _teamsCol
-        .doc(teamId)
-        .collection('members')
-        .where('status', isEqualTo: 'accepted')
+  Stream<Team?> watchTeam(String teamId) {
+    return _team(teamId)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['uid'] = doc.id;
-        return TeamMember.fromMap(data);
-      }).toList();
+        .map((doc) => doc.exists ? _teamFromDoc(doc) : null);
+  }
+
+  @override
+  Stream<List<TeamMember>> watchMembers(String teamId) {
+    return _members(teamId).snapshots().map((s) {
+      final members =
+          s.docs
+              .map((doc) {
+                final data = doc.data();
+                data['uid'] = doc.id;
+                return TeamMember.fromMap(data);
+              })
+              .where((m) => m.status == 'accepted')
+              .toList()
+            ..sort((a, b) {
+              if (a.isOwner != b.isOwner) return a.isOwner ? -1 : 1;
+              return a.joinedAt.compareTo(b.joinedAt);
+            });
+      return members;
     });
+  }
+
+  @override
+  Stream<List<TeamInvite>> watchPendingTeamInvites(String teamId) {
+    return _invites(teamId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map(
+          (s) =>
+              s.docs.map(_inviteFromDoc).where((i) => i.isUsable()).toList()
+                ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+        );
+  }
+
+  @override
+  Stream<List<TeamInvite>> watchMyPendingInvites(String email) {
+    return _firestore
+        .collectionGroup('invites')
+        .where('invitedEmail', isEqualTo: email.trim().toLowerCase())
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map(
+          (s) => s.docs.map(_inviteFromDoc).where((i) => i.isUsable()).toList(),
+        );
   }
 
   @override
   Future<void> createTeam(Team team, TeamMember ownerMember) async {
     final batch = _firestore.batch();
-    final teamRef = _teamsCol.doc(team.id);
-    final memberRef = teamRef.collection('members').doc(ownerMember.uid);
-
-    final teamData = team.toMap();
-    teamData['memberUids'] = [ownerMember.uid];
-
-    batch.set(teamRef, teamData);
-    batch.set(memberRef, ownerMember.toMap());
+    final data = team.toMap()
+      ..['memberUids'] = [ownerMember.uid]
+      ..['memberCount'] = 1;
+    batch.set(_team(team.id), data);
+    batch.set(_members(team.id).doc(ownerMember.uid), ownerMember.toMap());
     await batch.commit();
   }
 
   @override
-  Future<void> updateTeam(Team team) async {
-    await _teamsCol.doc(team.id).update(team.toMap());
-  }
-
-  @override
-  Future<void> inviteMember({
+  Future<void> updateTeam({
     required String teamId,
-    required String teamName,
-    required String email,
-    required String invitedByUid,
-    String role = 'member',
-  }) async {
-    final inviteId = const Uuid().v4().substring(0, 8).toUpperCase();
-    final inviteRef = _teamsCol.doc(teamId).collection('invites').doc(inviteId);
-
-    await inviteRef.set({
-      'inviteId': inviteId,
-      'teamId': teamId,
-      'teamName': teamName,
-      'invitedEmail': email.trim().toLowerCase(),
-      'inviteCode': inviteId,
-      'role': role,
-      'status': 'pending',
-      'createdBy': invitedByUid,
-      'createdAt': DateTime.now().toIso8601String(),
-      'expiresAt': DateTime.now().add(const Duration(days: 7)).toIso8601String(),
+    required String name,
+    String? description,
+    required String colorHex,
+  }) {
+    return _team(teamId).update({
+      'name': name,
+      'description': description,
+      'colorHex': colorHex,
+      'updatedAt': _now,
     });
   }
 
   @override
-  Future<void> acceptInvite(
-    String inviteCode,
-    String uid,
-    String displayName,
-    String email,
-  ) async {
-    // Davet kodunu sorgula (collectionGroup)
-    final inviteQuery = await _firestore
-        .collectionGroup('invites')
-        .where('inviteCode', isEqualTo: inviteCode.trim().toUpperCase())
-        .where('status', isEqualTo: 'pending')
-        .limit(1)
-        .get();
-
-    if (inviteQuery.docs.isEmpty) {
-      throw Exception('Geçersiz veya süresi dolmuş davet kodu');
+  Future<TeamInvite> createInvite({
+    required Team team,
+    required String email,
+    required AppUser invitedBy,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail == invitedBy.email.toLowerCase()) {
+      throw const AppException('Kendinizi davet edemezsiniz.');
     }
 
-    final inviteDoc = inviteQuery.docs.first;
-    final inviteData = inviteDoc.data();
-    final teamId = inviteData['teamId'] as String;
-    final role = inviteData['role'] as String? ?? 'member';
+    final existing = await _invites(team.id)
+        .where('invitedEmail', isEqualTo: normalizedEmail)
+        .where('status', isEqualTo: 'pending')
+        .get();
+    for (final doc in existing.docs) {
+      final invite = _inviteFromDoc(doc);
+      if (invite.isUsable()) return invite; // Aynı kişiye ikinci kod üretme.
+    }
 
+    final code = _generateCode();
+    final now = DateTime.now();
+    final expiresAt = now.add(inviteValidity);
+    await _invites(team.id).doc(code).set({
+      'inviteId': code,
+      'teamId': team.id,
+      'teamName': team.name,
+      'invitedEmail': normalizedEmail,
+      'role': 'member',
+      'status': 'pending',
+      'createdBy': invitedBy.uid,
+      'createdByName': invitedBy.displayName,
+      'createdAt': Timestamp.fromDate(now),
+      'expiresAt': Timestamp.fromDate(expiresAt),
+    });
+    return TeamInvite(
+      id: code,
+      teamId: team.id,
+      teamName: team.name,
+      invitedEmail: normalizedEmail,
+      createdBy: invitedBy.uid,
+      createdByName: invitedBy.displayName,
+      createdAt: now,
+      expiresAt: expiresAt,
+    );
+  }
+
+  @override
+  Future<void> revokeInvite({
+    required String teamId,
+    required String inviteId,
+  }) {
+    return _invites(teamId).doc(inviteId).update({'status': 'revoked'});
+  }
+
+  @override
+  Future<void> acceptInvite({
+    required TeamInvite invite,
+    required AppUser user,
+  }) async {
+    if (!invite.isUsable()) {
+      throw const AppException('Bu davetin süresi dolmuş veya geçersiz.');
+    }
     final batch = _firestore.batch();
-
-    // Üye olarak ekle
-    final memberRef = _teamsCol.doc(teamId).collection('members').doc(uid);
-    batch.set(memberRef, {
-      'uid': uid,
-      'teamId': teamId,
-      'displayName': displayName,
-      'email': email,
-      'role': role,
+    batch.set(_members(invite.teamId).doc(user.uid), {
+      'uid': user.uid,
+      'teamId': invite.teamId,
+      'displayName': user.displayName,
+      'email': user.email.toLowerCase(),
+      'role': 'member',
       'status': 'accepted',
-      'joinedAt': DateTime.now().toIso8601String(),
-      'invitedBy': inviteData['createdBy'],
+      'joinedAt': _now,
+      'invitedBy': invite.createdBy,
+      'inviteId': invite.id,
     });
-
-    // Davet durumunu güncelle
-    batch.update(inviteDoc.reference, {'status': 'accepted'});
-
-    // Takım üye sayısını artır ve memberUids listesine ekle
-    batch.update(_teamsCol.doc(teamId), {
+    batch.update(_invites(invite.teamId).doc(invite.id), {
+      'status': 'accepted',
+      'acceptedBy': user.uid,
+      'acceptedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(_team(invite.teamId), {
+      'memberUids': FieldValue.arrayUnion([user.uid]),
       'memberCount': FieldValue.increment(1),
-      'memberUids': FieldValue.arrayUnion([uid]),
+      'updatedAt': _now,
     });
-
     await batch.commit();
   }
 
   @override
-  Future<void> removeMember(String teamId, String memberUid) async {
-    await _teamsCol
-        .doc(teamId)
-        .collection('members')
-        .doc(memberUid)
-        .update({'status': 'removed'});
-    await _teamsCol.doc(teamId).update({
-      'memberCount': FieldValue.increment(-1),
-      'memberUids': FieldValue.arrayRemove([memberUid]),
+  Future<void> declineInvite(TeamInvite invite) {
+    return _invites(invite.teamId).doc(invite.id).update({
+      'status': 'declined',
+      'acceptedAt': FieldValue.serverTimestamp(),
     });
   }
 
   @override
-  Future<void> leaveTeam(String teamId, String uid) async {
-    await _teamsCol
-        .doc(teamId)
-        .collection('members')
-        .doc(uid)
-        .update({'status': 'left'});
-    await _teamsCol.doc(teamId).update({
+  Future<void> removeMember({
+    required String teamId,
+    required String memberUid,
+  }) async {
+    final batch = _firestore.batch();
+    batch.delete(_members(teamId).doc(memberUid));
+    batch.update(_team(teamId), {
+      'memberUids': FieldValue.arrayRemove([memberUid]),
       'memberCount': FieldValue.increment(-1),
-      'memberUids': FieldValue.arrayRemove([uid]),
+      'updatedAt': _now,
     });
+    await batch.commit();
+  }
+
+  @override
+  Future<void> leaveTeam({required String teamId, required String uid}) =>
+      removeMember(teamId: teamId, memberUid: uid);
+
+  @override
+  Future<void> archiveTeam(String teamId) {
+    return _team(teamId).update({'isArchived': true, 'updatedAt': _now});
   }
 }

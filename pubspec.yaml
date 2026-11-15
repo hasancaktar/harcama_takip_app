@@ -1,5 +1,5 @@
 name: harcama_takip
-description: "Aile ve Bireysel Harcama, Kredi Karti ve Taksit Takip Uygulamasi"
+description: "Aile ve bireysel harcama, kredi kartı ve taksit takip uygulaması"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -12,6 +12,8 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
 
   # State Yönetimi & Navigasyon
   flutter_riverpod: ^2.6.1
@@ -21,7 +23,6 @@ dependencies:
   firebase_core: ^3.10.0
   firebase_auth: ^5.4.0
   cloud_firestore: ^5.6.0
-  firebase_storage: ^12.3.0
   firebase_messaging: ^15.2.0
 
   # Grafikler ve Görselleştirme
@@ -32,16 +33,13 @@ dependencies:
   timezone: ^0.9.4
   flutter_timezone: ^3.0.1
 
-  # Depolama & Ağ Durumu
+  # Yerel tercih & Ağ Durumu
   shared_preferences: ^2.3.3
-  flutter_secure_storage: ^9.2.2
   connectivity_plus: ^6.1.1
 
   # Yardımcı Paketler
   intl: ^0.20.3
   uuid: ^4.5.1
-  image_picker: ^1.1.2
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
