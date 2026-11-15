@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "359504482936",
+    "project_id": "harcama-takip-app-7ff66",
+    "storage_bucket": "harcama-takip-app-7ff66.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:359504482936:android:d54e6f66297d3a1882938d",
+        "android_client_info": {
+          "package_name": "com.harcamatakip.harcama_takip"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "359504482936-0is2tmvjgdkmtj96b5j5oe221q1danpp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBagcxzpVE4QCn9yJZhFdcA7HjD_MoxllU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "359504482936-0is2tmvjgdkmtj96b5j5oe221q1danpp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

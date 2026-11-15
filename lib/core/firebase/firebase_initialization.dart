@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import '../../firebase_options.dart';
 
 class FirebaseInitResult {
   final bool isSuccess;
@@ -11,7 +12,9 @@ class FirebaseInitResult {
 abstract class FirebaseInitialization {
   static Future<FirebaseInitResult> initialize() async {
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       debugPrint('[FirebaseInit] Firebase başarıyla başlatıldı.');
       return const FirebaseInitResult(isSuccess: true);
     } catch (e) {
