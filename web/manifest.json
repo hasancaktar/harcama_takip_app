@@ -1,11 +1,11 @@
 {
-    "name": "harcama_takip",
-    "short_name": "harcama_takip",
+    "name": "Harcama Takip",
+    "short_name": "Harcama Takip",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F5132",
+    "theme_color": "#0F5132",
+    "description": "Kişisel ve Aile Harcama, Kredi Kartı ve Taksit Takip Uygulaması",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

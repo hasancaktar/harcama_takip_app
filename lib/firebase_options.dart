@@ -61,7 +61,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBagcxzpVE4QCn9yJZhFdcA7HjD_MoxllU',
-    appId: '1:359504482936:android:d54e6f66297d3a1882938d',
+    appId: '1:359504482936:android:946569ca00dcb6f782938d',
     messagingSenderId: '359504482936',
     projectId: 'harcama-takip-app-7ff66',
     storageBucket: 'harcama-takip-app-7ff66.firebasestorage.app',

@@ -1,4 +1,4 @@
-package com.harcamatakip.harcama_takip
+package com.faydalab.harcama_takip
 
 import io.flutter.embedding.android.FlutterActivity
 

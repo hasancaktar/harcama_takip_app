@@ -29,7 +29,7 @@ class ExpenseTrackerApp extends ConsumerWidget {
     // Firebase yapılandırılmamışsa rehber ekranı göster
     if (!initResult.isSuccess) {
       return MaterialApp(
-        title: 'Harcama & Taksit Takip',
+        title: 'Harcama Takip',
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         home: FirebaseSetupGuideScreen(errorMessage: initResult.errorMessage),
@@ -41,7 +41,7 @@ class ExpenseTrackerApp extends ConsumerWidget {
     final themeMode = ref.watch(appThemeModeProvider);
 
     return MaterialApp.router(
-      title: 'Harcama & Taksit Takip',
+      title: 'Harcama Takip',
       routerConfig: router,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
