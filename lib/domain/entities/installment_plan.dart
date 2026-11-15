@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+
+import '../../core/utils/json_parsers.dart';
 import '../../core/utils/statement_calculator.dart';
 
 @immutable
@@ -39,40 +41,41 @@ class InstallmentPlan {
     required this.updatedAt,
   });
 
+  int get postedCount => installmentSchedule.where((s) => s.isPosted).length;
+  int get remainingCount => totalInstallments - postedCount;
+  int get remainingAmountInCents => installmentSchedule
+      .where((s) => !s.isPosted)
+      .fold(0, (sum, s) => sum + s.amountInCents);
+  bool get isActive => status == 'active';
+
+  StatementInstallmentScheduleItem? get nextInstallment {
+    for (final item in installmentSchedule) {
+      if (!item.isPosted) return item;
+    }
+    return null;
+  }
+
   InstallmentPlan copyWith({
-    String? id,
-    String? ownerUid,
-    String? teamId,
-    String? visibility,
-    String? title,
-    int? totalAmountInCents,
-    int? totalInstallments,
-    String? cardId,
-    String? cardLast4,
-    String? category,
-    DateTime? startDate,
-    String? currency,
     List<StatementInstallmentScheduleItem>? installmentSchedule,
     String? status,
-    DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return InstallmentPlan(
-      id: id ?? this.id,
-      ownerUid: ownerUid ?? this.ownerUid,
-      teamId: teamId ?? this.teamId,
-      visibility: visibility ?? this.visibility,
-      title: title ?? this.title,
-      totalAmountInCents: totalAmountInCents ?? this.totalAmountInCents,
-      totalInstallments: totalInstallments ?? this.totalInstallments,
-      cardId: cardId ?? this.cardId,
-      cardLast4: cardLast4 ?? this.cardLast4,
-      category: category ?? this.category,
-      startDate: startDate ?? this.startDate,
-      currency: currency ?? this.currency,
+      id: id,
+      ownerUid: ownerUid,
+      teamId: teamId,
+      visibility: visibility,
+      title: title,
+      totalAmountInCents: totalAmountInCents,
+      totalInstallments: totalInstallments,
+      cardId: cardId,
+      cardLast4: cardLast4,
+      category: category,
+      startDate: startDate,
+      currency: currency,
       installmentSchedule: installmentSchedule ?? this.installmentSchedule,
       status: status ?? this.status,
-      createdAt: createdAt ?? this.createdAt,
+      createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -99,36 +102,52 @@ class InstallmentPlan {
   }
 
   factory InstallmentPlan.fromMap(Map<String, dynamic> map) {
-    final scheduleRaw = (map['installmentSchedule'] as List<dynamic>?) ?? [];
-    final schedule = scheduleRaw.map((item) {
-      final iMap = item as Map<String, dynamic>;
-      return StatementInstallmentScheduleItem(
-        installmentNumber: iMap['installmentNumber'] as int? ?? 1,
-        amountInCents: iMap['amountInCents'] as int? ?? 0,
-        statementPeriod: iMap['statementPeriod'] as String? ?? '',
-        statementCutoffDate: DateTime.parse(iMap['statementCutoffDate'].toString()),
-        dueDate: DateTime.parse(iMap['dueDate'].toString()),
-        status: iMap['status'] as String? ?? 'upcoming',
-      );
-    }).toList();
-
+    final scheduleRaw = map['installmentSchedule'];
+    final schedule = <StatementInstallmentScheduleItem>[];
+    if (scheduleRaw is Iterable) {
+      for (final raw in scheduleRaw) {
+        final item = JsonParsers.map(raw);
+        final cutoff = JsonParsers.dateOrNull(item['statementCutoffDate']);
+        if (cutoff == null) continue;
+        schedule.add(
+          StatementInstallmentScheduleItem(
+            installmentNumber: JsonParsers.intValue(
+              item['installmentNumber'],
+              fallback: schedule.length + 1,
+            ),
+            amountInCents: JsonParsers.intValue(item['amountInCents']),
+            statementPeriod: JsonParsers.string(item['statementPeriod']),
+            statementCutoffDate: cutoff,
+            dueDate: JsonParsers.date(item['dueDate'], fallback: cutoff),
+            status: JsonParsers.string(item['status'], fallback: 'upcoming'),
+          ),
+        );
+      }
+    }
+    final createdAt = JsonParsers.date(
+      map['createdAt'],
+      fallback: DateTime.now(),
+    );
     return InstallmentPlan(
-      id: map['id'] as String? ?? '',
-      ownerUid: map['ownerUid'] as String? ?? '',
-      teamId: map['teamId'] as String?,
-      visibility: map['visibility'] as String? ?? 'personal',
-      title: map['title'] as String? ?? '',
-      totalAmountInCents: map['totalAmountInCents'] as int? ?? 0,
-      totalInstallments: map['totalInstallments'] as int? ?? 1,
-      cardId: map['cardId'] as String? ?? '',
-      cardLast4: map['cardLast4'] as String? ?? '',
-      category: map['category'] as String? ?? 'other',
-      startDate: map['startDate'] != null ? DateTime.parse(map['startDate'].toString()) : DateTime.now(),
-      currency: map['currency'] as String? ?? 'TRY',
+      id: JsonParsers.string(map['id']),
+      ownerUid: JsonParsers.string(map['ownerUid']),
+      teamId: JsonParsers.stringOrNull(map['teamId']),
+      visibility: JsonParsers.string(map['visibility'], fallback: 'personal'),
+      title: JsonParsers.string(map['title']),
+      totalAmountInCents: JsonParsers.intValue(map['totalAmountInCents']),
+      totalInstallments: JsonParsers.intValue(
+        map['totalInstallments'],
+        fallback: schedule.length,
+      ).clamp(1, 120),
+      cardId: JsonParsers.string(map['cardId']),
+      cardLast4: JsonParsers.string(map['cardLast4']),
+      category: JsonParsers.string(map['category'], fallback: 'other'),
+      startDate: JsonParsers.date(map['startDate'], fallback: createdAt),
+      currency: JsonParsers.string(map['currency'], fallback: 'TRY'),
       installmentSchedule: schedule,
-      status: map['status'] as String? ?? 'active',
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt'].toString()) : DateTime.now(),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt'].toString()) : DateTime.now(),
+      status: JsonParsers.string(map['status'], fallback: 'active'),
+      createdAt: createdAt,
+      updatedAt: JsonParsers.date(map['updatedAt'], fallback: createdAt),
     );
   }
 }

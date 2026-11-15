@@ -1,55 +1,34 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/utils/json_parsers.dart';
+
 @immutable
 class TeamMember {
   final String uid;
   final String teamId;
   final String displayName;
   final String email;
-  final String? photoUrl;
-  final String role; // 'owner' | 'admin' | 'member' | 'viewer'
-  final String status; // 'invited' | 'accepted' | 'left' | 'removed'
+  final String role; // 'owner' | 'admin' | 'member'
+  final String status; // 'accepted' | 'left' | 'removed'
   final DateTime joinedAt;
   final String invitedBy;
+  final String? inviteId;
 
   const TeamMember({
     required this.uid,
     required this.teamId,
     required this.displayName,
     required this.email,
-    this.photoUrl,
     required this.role,
     this.status = 'accepted',
     required this.joinedAt,
     required this.invitedBy,
+    this.inviteId,
   });
 
   bool get isOwner => role == 'owner';
   bool get isAdminOrOwner => role == 'owner' || role == 'admin';
-
-  TeamMember copyWith({
-    String? uid,
-    String? teamId,
-    String? displayName,
-    String? email,
-    String? photoUrl,
-    String? role,
-    String? status,
-    DateTime? joinedAt,
-    String? invitedBy,
-  }) {
-    return TeamMember(
-      uid: uid ?? this.uid,
-      teamId: teamId ?? this.teamId,
-      displayName: displayName ?? this.displayName,
-      email: email ?? this.email,
-      photoUrl: photoUrl ?? this.photoUrl,
-      role: role ?? this.role,
-      status: status ?? this.status,
-      joinedAt: joinedAt ?? this.joinedAt,
-      invitedBy: invitedBy ?? this.invitedBy,
-    );
-  }
+  String get label => displayName.isNotEmpty ? displayName : email;
 
   Map<String, dynamic> toMap() {
     return {
@@ -57,25 +36,25 @@ class TeamMember {
       'teamId': teamId,
       'displayName': displayName,
       'email': email,
-      'photoUrl': photoUrl,
       'role': role,
       'status': status,
       'joinedAt': joinedAt.toIso8601String(),
       'invitedBy': invitedBy,
+      if (inviteId != null) 'inviteId': inviteId,
     };
   }
 
   factory TeamMember.fromMap(Map<String, dynamic> map) {
     return TeamMember(
-      uid: map['uid'] as String? ?? '',
-      teamId: map['teamId'] as String? ?? '',
-      displayName: map['displayName'] as String? ?? '',
-      email: map['email'] as String? ?? '',
-      photoUrl: map['photoUrl'] as String?,
-      role: map['role'] as String? ?? 'member',
-      status: map['status'] as String? ?? 'accepted',
-      joinedAt: map['joinedAt'] != null ? DateTime.parse(map['joinedAt'].toString()) : DateTime.now(),
-      invitedBy: map['invitedBy'] as String? ?? '',
+      uid: JsonParsers.string(map['uid']),
+      teamId: JsonParsers.string(map['teamId']),
+      displayName: JsonParsers.string(map['displayName']),
+      email: JsonParsers.string(map['email']),
+      role: JsonParsers.string(map['role'], fallback: 'member'),
+      status: JsonParsers.string(map['status'], fallback: 'accepted'),
+      joinedAt: JsonParsers.date(map['joinedAt'], fallback: DateTime.now()),
+      invitedBy: JsonParsers.string(map['invitedBy']),
+      inviteId: JsonParsers.stringOrNull(map['inviteId']),
     );
   }
 }

@@ -1,107 +1,151 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:flutter_timezone/flutter_timezone.dart';
 
+/// Günlük harcama hatırlatıcılarını yöneten yerel bildirim servisi (Android/iOS).
+/// Web'de yerel zamanlanmış bildirim desteklenmez; tüm çağrılar güvenle yok sayılır.
 class NotificationService {
-  static final NotificationService _instance = NotificationService._internal();
-  factory NotificationService() => _instance;
   NotificationService._internal();
+  static final NotificationService instance = NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
-  bool _isInitialized = false;
+  /// Testlerde alt sınıf oluşturmak için.
+  @visibleForTesting
+  NotificationService.forTesting();
+
+  static const String _channelId = 'daily_expense_reminders';
+  static const String _channelName = 'Günlük Harcama Hatırlatıcıları';
+  static const int _baseId = 100;
+
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
+  final StreamController<String> _tapController =
+      StreamController<String>.broadcast();
+  bool _initialized = false;
+
+  bool get isSupported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  /// Bildirime dokunulduğunda yönlendirilecek rota (ör. "/expenses/add").
+  Stream<String> get onNotificationTap => _tapController.stream;
 
   Future<void> initialize() async {
-    if (_isInitialized) return;
-    if (kIsWeb) {
-      _isInitialized = true;
-      return;
-    }
+    if (_initialized || !isSupported) return;
 
+    tz.initializeTimeZones();
     try {
-      // Timezone başlat
-      tz.initializeTimeZones();
-      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      final timeZone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZone));
     } catch (e) {
-      debugPrint('[NotificationService] Timezone başlatma hatası, Europe/Istanbul kullanılıyor: $e');
-      try {
-        tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
-      } catch (_) {}
+      debugPrint(
+        '[NotificationService] Saat dilimi alınamadı, Europe/Istanbul kullanılıyor: $e',
+      );
+      tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
     }
 
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
+    const settings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
     );
 
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-
-    await _localNotifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        debugPrint('[NotificationService] Bildirime tıklandı: ${response.payload}');
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload != null && payload.startsWith('/')) {
+          _tapController.add(payload);
+        }
       },
     );
 
-    // Android bildirim kanalı oluştur
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'daily_expense_reminders',
-      'Günlük Harcama Hatırlatıcıları',
-      description: 'Günün harcamalarını girmeniz için size hatırlatma gönderir',
-      importance: Importance.high,
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _channelId,
+        _channelName,
+        description: 'Günün harcamalarını girmeniz için hatırlatma gönderir',
+        importance: Importance.defaultImportance,
+      ),
+    );
+    // Cloud Functions'ın gönderdiği takım harcaması bildirimleri bu kanalı kullanır.
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'team_expenses',
+        'Takım harcamaları',
+        description:
+            'Takım üyeleri ortak harcama eklediğinde bildirim gönderir',
+        importance: Importance.high,
+      ),
     );
 
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
-
-    _isInitialized = true;
+    _initialized = true;
   }
 
-  Future<bool> requestPermissions() async {
-    if (kIsWeb) return false;
-    final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    final bool? androidGranted = await androidPlugin?.requestNotificationsPermission();
-
-    final iosPlugin = _localNotifications.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
-    final bool? iosGranted = await iosPlugin?.requestPermissions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    return (androidGranted ?? false) || (iosGranted ?? false);
+  /// Uygulama bir bildirime dokunularak açıldıysa ilgili rotayı döner.
+  Future<String?> launchRoute() async {
+    if (!isSupported) return null;
+    await initialize();
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    final payload = details?.notificationResponse?.payload;
+    if ((details?.didNotificationLaunchApp ?? false) &&
+        payload != null &&
+        payload.startsWith('/')) {
+      return payload;
+    }
+    return null;
   }
 
-  /// Kullanıcının seçtiği saatte günlük yerel bildirim planlar.
+  /// Bildirim izni ister. İzin verilirse `true` döner.
+  Future<bool> requestPermission() async {
+    if (!isSupported) return false;
+    await initialize();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) {
+      return await android.requestNotificationsPermission() ?? false;
+    }
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    return await ios?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        ) ??
+        false;
+  }
+
+  /// Seçilen günlerde ve saatte tekrarlayan hatırlatıcıları planlar.
+  ///
+  /// Kesin alarm izni (Android 12+) gerektirmemek için "inexact" planlama kullanılır;
+  /// hatırlatıcı birkaç dakika gecikebilir, bu kullanım için yeterlidir.
   Future<void> scheduleDailyReminder({
     required int hour,
     required int minute,
     required List<int> days,
   }) async {
-    if (kIsWeb) return;
-    if (!_isInitialized) await initialize();
-
-    // Önceki günlük bildirimleri iptal et (ID: 100 - 107)
-    for (int i = 1; i <= 7; i++) {
-      await _localNotifications.cancel(100 + i);
-    }
+    if (!isSupported) return;
+    await initialize();
+    await cancelReminders();
 
     final now = tz.TZDateTime.now(tz.local);
-
-    for (final day in days) {
-      var scheduledDate = tz.TZDateTime(
+    for (final day in days.toSet()) {
+      var scheduled = tz.TZDateTime(
         tz.local,
         now.year,
         now.month,
@@ -109,40 +153,42 @@ class NotificationService {
         hour,
         minute,
       );
-
-      // İlgili haftanın gününe ayarla
-      while (scheduledDate.weekday != day || scheduledDate.isBefore(now)) {
-        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      while (scheduled.weekday != day || !scheduled.isAfter(now)) {
+        scheduled = scheduled.add(const Duration(days: 1));
       }
 
-      await _localNotifications.zonedSchedule(
-        100 + day,
-        'Günün Harcamalarını Eklemeyi Unutma',
-        'Bugün yaptığın harcamaları kaydederek bütçeni kontrol altında tut.',
-        scheduledDate,
+      await _plugin.zonedSchedule(
+        _baseId + day,
+        'Bugünkü harcamalarınızı eklediniz mi?',
+        'Harcamalarınızı kaydederek bütçenizi kontrol altında tutun.',
+        scheduled,
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'daily_expense_reminders',
-            'Günlük Harcama Hatırlatıcıları',
+            _channelId,
+            _channelName,
             channelDescription: 'Harcama girişi hatırlatması',
-            importance: Importance.high,
-            priority: Priority.high,
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
         payload: '/expenses/add',
       );
     }
-
-    debugPrint('[NotificationService] Günlük hatırlatıcı saat $hour:$minute için planlandı.');
+    debugPrint(
+      '[NotificationService] Hatırlatıcı planlandı: $hour:$minute, günler: $days',
+    );
   }
 
-  Future<void> cancelAll() async {
-    if (kIsWeb) return;
-    await _localNotifications.cancelAll();
+  Future<void> cancelReminders() async {
+    if (!isSupported) return;
+    await initialize();
+    for (var day = 1; day <= 7; day++) {
+      await _plugin.cancel(_baseId + day);
+    }
   }
 }

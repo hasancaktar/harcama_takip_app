@@ -2,40 +2,87 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harcama_takip/core/utils/money_formatter.dart';
 
 void main() {
-  group('MoneyFormatter Tests', () {
-    test('formatCents formats correctly in Turkish Lira', () {
+  group('MoneyFormatter.formatCents', () {
+    test('Türk lirası biçiminde gösterir', () {
       expect(MoneyFormatter.formatCents(12550), contains('125,50'));
       expect(MoneyFormatter.formatCents(0), contains('0,00'));
-      expect(MoneyFormatter.formatCents(100), contains('1,00'));
       expect(MoneyFormatter.formatCents(50), contains('0,50'));
+      expect(MoneyFormatter.formatCents(123456789), contains('1.234.567,89'));
     });
 
-    test('parseToCents parses string inputs correctly', () {
-      expect(MoneyFormatter.parseToCents('125,50'), equals(12550));
-      expect(MoneyFormatter.parseToCents('125.50'), equals(12550));
-      expect(MoneyFormatter.parseToCents('100'), equals(10000));
-      expect(MoneyFormatter.parseToCents('0,99'), equals(99));
-      expect(MoneyFormatter.parseToCents(''), equals(0));
-      expect(MoneyFormatter.parseToCents('geçersiz'), equals(0));
+    test('form alanı için sembolsüz biçim üretir ve geri çözülebilir', () {
+      expect(MoneyFormatter.formatForInput(125050), '1.250,50');
+      expect(
+        MoneyFormatter.parseToCents(MoneyFormatter.formatForInput(125050)),
+        125050,
+      );
+      expect(MoneyFormatter.formatForInput(0), '');
+    });
+  });
+
+  group('MoneyFormatter.parseToCents', () {
+    test('yaygın girdileri doğru çözer', () {
+      expect(MoneyFormatter.parseToCents('125,50'), 12550);
+      expect(MoneyFormatter.parseToCents('125.50'), 12550);
+      expect(MoneyFormatter.parseToCents('125,5'), 12550);
+      expect(MoneyFormatter.parseToCents('100'), 10000);
+      expect(MoneyFormatter.parseToCents('0,99'), 99);
+      expect(MoneyFormatter.parseToCents('1.250,50'), 125050);
+      expect(MoneyFormatter.parseToCents('1.250.000'), 125000000);
+      // Türkçe binlik ayırıcı: "10.000" on bin liradır (1,25 / 10,00 değil)
+      expect(MoneyFormatter.parseToCents('10.000'), 1000000);
+      expect(MoneyFormatter.parseToCents('1.250'), 125000);
+      expect(MoneyFormatter.parseToCents('12.5'), 1250);
+      expect(MoneyFormatter.parseToCents('₺ 1 250,50'), 125050);
     });
 
-    test('divideInstallmentCents divides without loss and gives remainder to first installment', () {
-      // 100 TL / 3 taksit = 10000 kuruş / 3 -> [3334, 3333, 3333]
-      final result1 = MoneyFormatter.divideInstallmentCents(10000, 3);
-      expect(result1, equals([3334, 3333, 3333]));
-      expect(result1.reduce((a, b) => a + b), equals(10000));
+    test('kayan nokta hatası yapmaz', () {
+      expect(MoneyFormatter.parseToCents('0,29'), 29);
+      expect(MoneyFormatter.parseToCents('1,15'), 115);
+      expect(MoneyFormatter.parseToCents('4,35'), 435);
+    });
 
-      // 1000 TL / 6 taksit = 100000 kuruş / 6 -> [16670, 16666, 16666, 16666, 16666, 16666]
-      final result2 = MoneyFormatter.divideInstallmentCents(100000, 6);
-      expect(result2.length, equals(6));
-      expect(result2.first, equals(16670));
-      expect(result2.skip(1), everyElement(equals(16666)));
-      expect(result2.reduce((a, b) => a + b), equals(100000));
+    test('belirsiz ve geçersiz girdileri reddeder', () {
+      expect(MoneyFormatter.parseToCents(''), 0);
+      expect(MoneyFormatter.parseToCents('geçersiz'), 0);
+      expect(MoneyFormatter.parseToCents('-50'), 0);
+      expect(MoneyFormatter.parseToCents('0'), 0);
+      expect(MoneyFormatter.parseToCents('12,505'), 0);
+      expect(MoneyFormatter.parseToCents('12.50.5'), 0);
+      expect(MoneyFormatter.parseToCents('1234.567'), 0);
+      expect(MoneyFormatter.parseToCents('1,2,3'), 0);
+      expect(MoneyFormatter.parseToCents('1,250.50'), 0);
+    });
 
-      // Tam bölünen: 300 TL / 3 taksit -> [10000, 10000, 10000]
-      final result3 = MoneyFormatter.divideInstallmentCents(30000, 3);
-      expect(result3, equals([10000, 10000, 10000]));
-      expect(result3.reduce((a, b) => a + b), equals(30000));
+    test('azami tutarı aşan girdiyi reddeder', () {
+      expect(
+        MoneyFormatter.parseToCents('100000000'),
+        MoneyFormatter.maxAmountInCents,
+      );
+      expect(MoneyFormatter.parseToCents('100000000,01'), 0);
+    });
+  });
+
+  group('MoneyFormatter.divideInstallmentCents', () {
+    test('kuruş kaybetmeden böler, kalanı ilk taksite verir', () {
+      expect(MoneyFormatter.divideInstallmentCents(10000, 3), [
+        3334,
+        3333,
+        3333,
+      ]);
+      final six = MoneyFormatter.divideInstallmentCents(100000, 6);
+      expect(six.first, 16670);
+      expect(six.skip(1), everyElement(16666));
+      expect(six.reduce((a, b) => a + b), 100000);
+      expect(MoneyFormatter.divideInstallmentCents(30000, 3), [
+        10000,
+        10000,
+        10000,
+      ]);
+    });
+
+    test('geçersiz taksit sayısında tutarı tek parça döner', () {
+      expect(MoneyFormatter.divideInstallmentCents(500, 0), [500]);
     });
   });
 }

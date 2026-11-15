@@ -1,110 +1,333 @@
 rules_version = '2';
+
+// Harcama Takip — Firestore güvenlik kuralları
+//
+// İlkeler:
+//  1. Varsayılan olarak her şey kapalıdır; yalnızca açıkça izin verilen işlemler yapılabilir.
+//  2. Profil dışındaki tüm veriler için e-posta adresi DOĞRULANMIŞ oturum gerekir.
+//  3. Kişisel kayıtlar yalnızca sahibine, takım kayıtları yalnızca takım üyelerine açıktır.
+//  4. Yazılan her belge şema ve boyut sınırlarıyla doğrulanır (istemci kodu ile aynı sınırlar).
+//
+// Testler: firestore-tests/ (Firebase Emulator ile `npm test`).
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAuthenticated() {
+    // ---------------------------------------------------------------- Yardımcılar
+
+    function signedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function uid() {
+      return request.auth.uid;
     }
 
-    // 1. Kullanıcı Profili ve Cihaz Bildirim Token'ları
-    match /users/{uid} {
-      allow read: if isAuthenticated();
-      allow create, update: if isOwner(uid);
-      allow delete: if false;
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function tokenEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function teamPath(teamId) {
+      return /databases/$(database)/documents/teams/$(teamId);
+    }
+
+    function teamData(teamId) {
+      return get(teamPath(teamId)).data;
+    }
+
+    function isTeamMember(teamId) {
+      return teamId is string && exists(teamPath(teamId)) && uid() in teamData(teamId).memberUids;
+    }
+
+    function isTeamOwner(teamId) {
+      return teamId is string && exists(teamPath(teamId)) && teamData(teamId).ownerUid == uid();
+    }
+
+    function validPeriod(p) {
+      return p is string && p.matches('^[0-9]{4}-(0[1-9]|1[0-2])$');
+    }
+
+    function optionalString(d, field, maxLen) {
+      return !(field in d) || d[field] == null || (d[field] is string && d[field].size() <= maxLen);
+    }
+
+    // Takım görünürlüğü tutarlılığı: kişisel kayıtta teamId olmamalı,
+    // takım kaydında teamId kullanıcının üyesi olduğu bir takım olmalı.
+    function validScope(d) {
+      return d.visibility in ['personal', 'team']
+        && (d.visibility == 'personal'
+              ? d.get('teamId', null) == null
+              : isTeamMember(d.get('teamId', null)));
+    }
+
+    // Not: Sorgu kurallarının (ör. teamId == X) değerlendirilebilmesi için alanlara
+    // doğrudan erişilir; Firestore sorgu kısıtlarını bu ifadelerle eşleştirir.
+    function canReadScoped(d) {
+      return d.ownerUid == uid()
+        || (d.visibility == 'team' && isTeamMember(d.teamId));
+    }
+
+    // ---------------------------------------------------------------- Kullanıcılar
+
+    match /users/{userId} {
+      // Profil, e-posta doğrulamasından önce de sahibince okunup yazılabilir (kayıt akışı).
+      allow read: if signedIn() && uid() == userId;
+      allow create: if signedIn() && uid() == userId
+        && incoming().uid == userId
+        && incoming().displayName is string && incoming().displayName.size() <= 60;
+      allow update: if signedIn() && uid() == userId
+        && incoming().get('uid', userId) == userId
+        && (!('displayName' in incoming()) || (incoming().displayName is string && incoming().displayName.size() <= 60))
+        && (!('fcmTokens' in incoming()) || (incoming().fcmTokens is list && incoming().fcmTokens.size() <= 20));
+      allow delete: if signedIn() && uid() == userId;
 
       match /devices/{deviceId} {
-        allow read, write: if isOwner(uid);
+        allow read, write: if signedIn() && uid() == userId;
       }
     }
 
-    // 2. Takımlar
+    // ---------------------------------------------------------------- Takımlar
+
     match /teams/{teamId} {
-      allow read: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        (resource.data.memberUids != null && request.auth.uid in resource.data.memberUids)
+      allow read: if verified() && uid() in existing().memberUids;
+
+      allow create: if verified()
+        && incoming().ownerUid == uid()
+        && incoming().memberUids == [uid()]
+        && incoming().memberCount == 1
+        && incoming().isArchived == false
+        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 60
+        && optionalString(incoming(), 'description', 200);
+
+      allow update: if verified() && (
+        // Sahip: ad/açıklama/renk/arşiv güncelleyebilir ve üye çıkarabilir (üye ekleyemez, sahipliği devredemez).
+        (existing().ownerUid == uid()
+          && incoming().ownerUid == existing().ownerUid
+          && uid() in incoming().memberUids
+          && existing().memberUids.hasAll(incoming().memberUids)
+          && changedKeys().hasOnly(['name', 'description', 'colorHex', 'isArchived', 'memberUids', 'memberCount', 'updatedAt'])
+          && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 60
+          && optionalString(incoming(), 'description', 200))
+        ||
+        // Davetle katılma: yalnızca kendini ekleyebilir; üye belgesi aynı yığında oluşturulmalıdır.
+        (!(uid() in existing().memberUids)
+          && existing().isArchived == false
+          && incoming().memberUids == existing().memberUids.concat([uid()])
+          && changedKeys().hasOnly(['memberUids', 'memberCount', 'updatedAt'])
+          && existsAfter(/databases/$(database)/documents/teams/$(teamId)/members/$(uid())))
+        ||
+        // Ayrılma: sahip dışındaki üye yalnızca kendini çıkarabilir.
+        (uid() in existing().memberUids
+          && existing().ownerUid != uid()
+          && incoming().memberUids == existing().memberUids.removeAll([uid()])
+          && changedKeys().hasOnly(['memberUids', 'memberCount', 'updatedAt']))
       );
-      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        (resource.data.memberUids != null && request.auth.uid in resource.data.memberUids)
-      );
-      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+
+      // Takımlar silinmez, arşivlenir (üyelerin kayıtları korunur).
+      allow delete: if false;
 
       match /members/{memberUid} {
-        allow read, write: if isAuthenticated();
+        allow read: if verified() && isTeamMember(teamId);
+
+        allow create: if verified()
+          && memberUid == uid()
+          && incoming().uid == memberUid
+          && incoming().teamId == teamId
+          && incoming().status == 'accepted'
+          && (
+            // Takımı oluşturan sahip kendi üyeliğini aynı yığında yazar.
+            (incoming().role == 'owner'
+              && !exists(teamPath(teamId))
+              && getAfter(teamPath(teamId)).data.ownerUid == uid())
+            ||
+            // Davet edilen kişi, kendi e-postasına ait geçerli daveti kullanarak katılır.
+            (incoming().role == 'member'
+              && incoming().inviteId is string
+              && get(/databases/$(database)/documents/teams/$(teamId)/invites/$(incoming().inviteId)).data.status == 'pending'
+              && get(/databases/$(database)/documents/teams/$(teamId)/invites/$(incoming().inviteId)).data.invitedEmail == tokenEmail()
+              && get(/databases/$(database)/documents/teams/$(teamId)/invites/$(incoming().inviteId)).data.expiresAt > request.time)
+          );
+
+        allow update: if false;
+
+        // Üye kendini çıkarabilir (sahip hariç); sahip başka üyeleri çıkarabilir.
+        allow delete: if verified() && (
+          (memberUid == uid() && !isTeamOwner(teamId))
+          || (isTeamOwner(teamId) && memberUid != uid())
+        );
       }
 
       match /invites/{inviteId} {
-        allow read, write: if isAuthenticated();
+        allow read: if verified() && (isTeamOwner(teamId) || existing().invitedEmail == tokenEmail());
+
+        allow create: if verified() && isTeamOwner(teamId)
+          && teamData(teamId).isArchived == false
+          && inviteId.matches('^[A-Z0-9]{8}$')
+          && incoming().inviteId == inviteId
+          && incoming().teamId == teamId
+          && incoming().teamName is string && incoming().teamName.size() <= 60
+          && incoming().invitedEmail is string
+          && incoming().invitedEmail == incoming().invitedEmail.lower()
+          && incoming().invitedEmail.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+          && incoming().invitedEmail != tokenEmail()
+          && incoming().role == 'member'
+          && incoming().status == 'pending'
+          && incoming().createdBy == uid()
+          && incoming().expiresAt is timestamp
+          && incoming().expiresAt > request.time
+          && incoming().expiresAt < request.time + duration.value(8, 'd');
+
+        allow update: if verified() && existing().status == 'pending' && (
+          // Davet edilen kişi kabul eder (üye belgesi aynı yığında oluşmalı) veya reddeder.
+          (existing().invitedEmail == tokenEmail()
+            && changedKeys().hasOnly(['status', 'acceptedBy', 'acceptedAt'])
+            && (
+              (incoming().status == 'accepted'
+                && incoming().acceptedBy == uid()
+                && existsAfter(/databases/$(database)/documents/teams/$(teamId)/members/$(uid())))
+              || incoming().status == 'declined'
+            ))
+          ||
+          // Sahip daveti iptal eder.
+          (isTeamOwner(teamId) && changedKeys().hasOnly(['status']) && incoming().status == 'revoked')
+        );
+
+        allow delete: if verified() && isTeamOwner(teamId);
       }
     }
 
-    // Collection Group Davetler
+    // Kullanıcının kendi e-postasına gönderilmiş davetleri listelemesi (collectionGroup sorgusu).
     match /{path=**}/invites/{inviteId} {
-      allow read, write: if isAuthenticated();
+      allow read: if verified() && resource.data.invitedEmail == tokenEmail();
     }
 
-    // 3. Harcamalar
+    // ---------------------------------------------------------------- Harcamalar
+
+    function validExpense(d, expenseId) {
+      return d.keys().hasAll(['id', 'ownerUid', 'visibility', 'title', 'amountInCents', 'category',
+                              'date', 'paymentMethod', 'statementPeriod', 'status', 'createdAt'])
+        && d.id == expenseId
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 100
+        && d.amountInCents is int && d.amountInCents > 0 && d.amountInCents <= 10000000000
+        && d.category is string && d.category.size() > 0 && d.category.size() <= 40
+        && d.paymentMethod in ['cash', 'debit_card', 'credit_card', 'bank_transfer', 'auto_payment', 'other']
+        && d.status in ['active', 'deleted']
+        && validPeriod(d.statementPeriod)
+        && optionalString(d, 'notes', 500)
+        && optionalString(d, 'cardLast4', 4)
+        && validScope(d);
+    }
+
     match /expenses/{expenseId} {
-      allow read: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        resource.data.visibility == "team"
-      );
+      allow read: if verified() && canReadScoped(existing());
 
-      allow create: if isAuthenticated() && 
-        request.resource.data.ownerUid == request.auth.uid &&
-        request.resource.data.amountInCents is int && 
-        request.resource.data.amountInCents > 0;
+      allow create: if verified()
+        && incoming().ownerUid == uid()
+        && validExpense(incoming(), expenseId);
 
-      allow update: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        resource.data.visibility == "team"
-      );
+      // Yalnızca sahibi günceller (soft delete dahil); sahiplik devredilemez.
+      allow update: if verified()
+        && existing().ownerUid == uid()
+        && incoming().ownerUid == existing().ownerUid
+        && validExpense(incoming(), expenseId);
 
-      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow delete: if verified() && existing().ownerUid == uid();
     }
 
-    // 4. Kredi Kartları
+    // ---------------------------------------------------------------- Kredi kartları
+
+    function validCard(d, cardId) {
+      return d.id == cardId
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 60
+        && d.bankName is string && d.bankName.size() > 0 && d.bankName.size() <= 60
+        && d.last4Digits is string && d.last4Digits.matches('^[0-9]{4}$')
+        && d.cutoffDay is int && d.cutoffDay >= 1 && d.cutoffDay <= 31
+        && d.paymentDueDaysAfterCutoff is int && d.paymentDueDaysAfterCutoff >= 1 && d.paymentDueDaysAfterCutoff <= 60
+        && d.limitInCents is int && d.limitInCents >= 0
+        && d.isActive is bool
+        && d.isSharedWithTeam is bool
+        && (d.isSharedWithTeam == false || isTeamMember(d.get('teamId', null)));
+    }
+
     match /creditCards/{cardId} {
-      allow read: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        resource.data.isSharedWithTeam == true
+      allow read: if verified() && (
+        existing().ownerUid == uid()
+        || (existing().isSharedWithTeam == true && isTeamMember(existing().teamId))
       );
-      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow create: if verified() && incoming().ownerUid == uid() && validCard(incoming(), cardId);
+      allow update: if verified()
+        && existing().ownerUid == uid()
+        && incoming().ownerUid == existing().ownerUid
+        && validCard(incoming(), cardId);
+      allow delete: if verified() && existing().ownerUid == uid();
     }
 
-    // 5. Taksit Planları
+    // ---------------------------------------------------------------- Taksit planları
+
+    function validPlan(d, planId) {
+      return d.id == planId
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 100
+        && d.totalAmountInCents is int && d.totalAmountInCents > 0 && d.totalAmountInCents <= 10000000000
+        && d.totalInstallments is int && d.totalInstallments >= 1 && d.totalInstallments <= 120
+        && d.installmentSchedule is list && d.installmentSchedule.size() == d.totalInstallments
+        && d.status in ['active', 'completed', 'cancelled']
+        && d.cardId is string
+        && validScope(d);
+    }
+
     match /installmentPlans/{planId} {
-      allow read: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        resource.data.visibility == "team"
-      );
-      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        resource.data.visibility == "team"
-      );
-      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow read: if verified() && canReadScoped(existing());
+      allow create: if verified() && incoming().ownerUid == uid() && validPlan(incoming(), planId);
+      allow update: if verified()
+        && existing().ownerUid == uid()
+        && incoming().ownerUid == existing().ownerUid
+        && validPlan(incoming(), planId);
+      allow delete: if verified() && existing().ownerUid == uid();
     }
 
-    // 6. Bütçeler
+    // ---------------------------------------------------------------- Bütçeler
+
+    function validBudget(d, budgetId) {
+      return d.id == budgetId
+        && validPeriod(d.period)
+        && d.totalBudgetInCents is int && d.totalBudgetInCents > 0 && d.totalBudgetInCents <= 10000000000
+        && d.categoryBudgetsInCents is map && d.categoryBudgetsInCents.size() <= 30
+        && d.ownerUid == uid()
+        && validScope(d)
+        // Her çalışma alanı + dönem için tek belge (deterministik kimlik).
+        && budgetId == (d.visibility == 'team'
+              ? 'team_' + d.teamId + '_' + d.period
+              : 'user_' + uid() + '_' + d.period);
+    }
+
     match /budgets/{budgetId} {
-      allow read: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        resource.data.visibility == "team"
-      );
-      allow create, update: if isAuthenticated() && (
-        request.resource.data.ownerUid == request.auth.uid ||
-        request.resource.data.visibility == "team"
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.ownerUid == request.auth.uid ||
-        resource.data.visibility == "team"
+      allow read: if verified() && canReadScoped(existing());
+      allow create: if verified() && validBudget(incoming(), budgetId);
+      allow update: if verified()
+        && validBudget(incoming(), budgetId)
+        && existing().visibility == incoming().visibility
+        && (existing().visibility == 'team' || existing().ownerUid == uid());
+      allow delete: if verified() && (
+        (existing().visibility == 'personal' && existing().ownerUid == uid())
+        || (existing().visibility == 'team' && isTeamMember(existing().get('teamId', null)))
+        // Eski sürümlerden kalan, kimliği kanonik olmayan kayıtlar için sahibin silme hakkı.
+        || existing().ownerUid == uid()
       );
     }
   }

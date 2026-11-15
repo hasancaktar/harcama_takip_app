@@ -1,204 +1,621 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/repository_providers.dart';
 import '../../../application/providers/team_providers.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/errors/error_messages.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/color_utils.dart';
+import '../../../core/utils/date_formats.dart';
+import '../../../core/utils/validators.dart';
+import '../../../domain/entities/team.dart';
+import '../../../domain/entities/team_invite.dart';
 import '../../../domain/entities/team_member.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/common.dart';
+import '../../widgets/dialogs.dart';
+import '../../widgets/state_views.dart';
 
 class TeamDetailScreen extends ConsumerWidget {
   final String teamId;
-
   const TeamDetailScreen({super.key, required this.teamId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final teamRepo = ref.watch(teamRepositoryProvider);
-    final teams = ref.watch(userTeamsProvider).value ?? [];
-    final team = teams.firstWhere((t) => t.id == teamId);
+    final teamAsync = ref.watch(teamByIdProvider(teamId));
     final uid = ref.watch(currentUserIdProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(team.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_rounded),
-            tooltip: 'Üye Davet Et',
-            onPressed: () => _showInviteDialog(context, ref, team.name),
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<TeamMember>>(
-        stream: teamRepo.watchTeamMembers(teamId),
-        builder: (context, snapshot) {
-          final members = snapshot.data ?? [];
-
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              // Takım Başlık Kartı
-              AppCard(
-                color: Color(int.parse(team.colorHex.replaceFirst('#', '0xFF'))),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(team.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
-                    if (team.description != null) ...[
-                      const SizedBox(height: 6),
-                      Text(team.description!, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                    ],
-                    const SizedBox(height: 12),
-                    Text(
-                      '${members.length} Aktif Üye • Para Birimi: ${team.defaultCurrency}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Takım Üyeleri', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                  TextButton.icon(
-                    onPressed: () => _showInviteDialog(context, ref, team.name),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Davet Et'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              ...members.map((member) {
-                final isMe = member.uid == uid;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          child: Text(member.displayName.isNotEmpty ? member.displayName[0].toUpperCase() : '?'),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${member.displayName} ${isMe ? '(Siz)' : ''}',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              Text(member.email, style: TextStyle(fontSize: 12, color: theme.hintColor)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceVariant,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            member.role == 'owner' ? 'Sahip' : 'Üye',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-
-              const SizedBox(height: 32),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Takımdan Ayrıl'),
-                      content: const Text('Bu takımdan ayrılmak istediğinizden emin misiniz?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          style: TextButton.styleFrom(foregroundColor: Colors.red),
-                          child: const Text('Ayrıl'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirm == true && uid != null) {
-                    await teamRepo.leaveTeam(teamId, uid);
-                    if (context.mounted) {
-                      ref.read(activeTeamIdProvider.notifier).state = null;
-                      context.pop();
-                    }
-                  }
-                },
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
-                icon: const Icon(Icons.exit_to_app_rounded),
-                label: const Text('Takımdan Ayrıl'),
-              ),
-            ],
-          );
+      appBar: AppBar(title: Text(teamAsync.valueOrNull?.name ?? 'Takım')),
+      body: AsyncValueView<Team?>(
+        value: teamAsync,
+        onRetry: () => ref.invalidate(teamByIdProvider(teamId)),
+        data: (team) {
+          if (team == null ||
+              team.isArchived ||
+              !team.memberUids.contains(uid)) {
+            return EmptyStateView(
+              icon: Icons.group_off_outlined,
+              title: 'Takıma erişilemiyor',
+              message: 'Takım kapatılmış ya da artık üyesi değilsiniz.',
+              actionLabel: 'Takımlara dön',
+              actionIcon: Icons.arrow_back_rounded,
+              onAction: () => context.go('/teams'),
+            );
+          }
+          return _TeamBody(team: team, isOwner: team.ownerUid == uid);
         },
       ),
     );
   }
+}
 
-  void _showInviteDialog(BuildContext context, WidgetRef ref, String teamName) {
-    final emailController = TextEditingController();
+class _TeamBody extends ConsumerWidget {
+  final Team team;
+  final bool isOwner;
+  const _TeamBody({required this.team, required this.isOwner});
 
-    showDialog(
+  Future<void> _invite(BuildContext context, WidgetRef ref) async {
+    final invite = await showDialog<TeamInvite>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Üye Davet Et'),
-        content: Column(
+      builder: (_) => _InviteDialog(team: team),
+    );
+    if (invite != null && context.mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => _InviteCodeDialog(invite: invite),
+      );
+    }
+  }
+
+  Future<void> _leave(BuildContext context, WidgetRef ref) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Takımdan ayrılınsın mı?',
+      message: 'Takım harcamalarını artık göremeyeceksiniz. Eklediğiniz harcamalar takımda kalır.',
+      confirmLabel: 'Ayrıl',
+      destructive: true,
+    );
+    if (!ok || !context.mounted) return;
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return;
+    try {
+      if (ref.read(activeTeamProvider)?.id == team.id) {
+        await ref.read(workspaceControllerProvider).select(null);
+      }
+      await ref
+          .read(teamRepositoryProvider)
+          .leaveTeam(teamId: team.id, uid: uid);
+      if (context.mounted) {
+        context.showSuccess('Takımdan ayrıldınız.');
+        context.go('/teams');
+      }
+    } catch (e) {
+      if (context.mounted) context.showError(e);
+    }
+  }
+
+  Future<void> _archive(BuildContext context, WidgetRef ref) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Takım kapatılsın mı?',
+      message: 'Takım tüm üyeler için listeden kaldırılır. Harcama kayıtları silinmez ancak takım üzerinden görüntülenemez.',
+      confirmLabel: 'Takımı kapat',
+      destructive: true,
+    );
+    if (!ok || !context.mounted) return;
+    try {
+      if (ref.read(activeTeamProvider)?.id == team.id) {
+        await ref.read(workspaceControllerProvider).select(null);
+      }
+      await ref.read(teamRepositoryProvider).archiveTeam(team.id);
+      if (context.mounted) {
+        context.showSuccess('Takım kapatıldı.');
+        context.go('/teams');
+      }
+    } catch (e) {
+      if (context.mounted) context.showError(e);
+    }
+  }
+
+  Future<void> _removeMember(
+    BuildContext context,
+    WidgetRef ref,
+    TeamMember member,
+  ) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Üye çıkarılsın mı?',
+      message:
+          '${member.label} takımdan çıkarılacak ve takım harcamalarını göremeyecek.',
+      confirmLabel: 'Çıkar',
+      destructive: true,
+    );
+    if (!ok || !context.mounted) return;
+    try {
+      await ref
+          .read(teamRepositoryProvider)
+          .removeMember(teamId: team.id, memberUid: member.uid);
+      if (context.mounted) {
+        context.showSuccess('${member.label} takımdan çıkarıldı.');
+      }
+    } catch (e) {
+      if (context.mounted) context.showError(e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(teamMembersProvider(team.id));
+    final invitesAsync = isOwner
+        ? ref.watch(teamInvitesProvider(team.id))
+        : null;
+    final uid = ref.watch(currentUserIdProvider);
+    final isActive = ref.watch(activeTeamProvider)?.id == team.id;
+    final color = ColorUtils.fromHex(team.colorHex);
+    final onColor = ColorUtils.onColor(color);
+
+    return PageListView(
+      children: [
+        AppCard(
+          color: color,
+          borderColor: color,
+          padding: const EdgeInsets.all(AppSpacing.lg - 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      team.name,
+                      style: context.textStyles.titleLarge?.copyWith(
+                        color: onColor,
+                      ),
+                    ),
+                  ),
+                  if (isOwner)
+                    IconButton(
+                      tooltip: 'Takımı düzenle',
+                      color: onColor,
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => showModalBottomSheet<void>(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (_) => _EditTeamSheet(team: team),
+                      ),
+                    ),
+                ],
+              ),
+              if (team.description != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  team.description!,
+                  style: context.textStyles.bodyMedium?.copyWith(
+                    color: onColor.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '${team.memberCount} üye',
+                style: context.textStyles.labelLarge?.copyWith(color: onColor),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (!isActive)
+          AppButton(
+            label: 'Bu takıma geç',
+            icon: Icons.swap_horiz_rounded,
+            outlined: true,
+            onPressed: () async {
+              await ref.read(workspaceControllerProvider).select(team.id);
+              if (context.mounted) {
+                context.showSuccess('Çalışma alanı: ${team.name}');
+              }
+            },
+          )
+        else
+          InlineMessage(
+            tone: MessageTone.success,
+            message: 'Bu takım aktif çalışma alanınız. Yeni harcamalar varsayılan olarak bu takıma eklenir.',
+          ),
+        SectionHeader(
+          title: 'Üyeler',
+          actionLabel: isOwner ? 'Davet et' : null,
+          onAction: isOwner ? () => _invite(context, ref) : null,
+        ),
+        membersAsync.when(
+          skipLoadingOnReload: false,
+          loading: () => const SizedBox(height: 120, child: LoadingView()),
+          error: (e, _) => ErrorStateView(error: e, compact: true),
+          data: (members) => AppCard(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+            child: Column(
+              children: [
+                for (final m in members)
+                  ListTile(
+                    leading: UserAvatar(name: m.label),
+                    title: Text(m.uid == uid ? '${m.label} (siz)' : m.label),
+                    subtitle: Text(m.email),
+                    trailing: isOwner && !m.isOwner
+                        ? IconButton(
+                            tooltip: '${m.label} adlı üyeyi çıkar',
+                            icon: const Icon(Icons.person_remove_outlined),
+                            onPressed: () => _removeMember(context, ref, m),
+                          )
+                        : Pill(label: AppConstants.teamRoles[m.role] ?? 'Üye'),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (invitesAsync != null) ...[
+          const SectionHeader(title: 'Bekleyen davetler'),
+          invitesAsync.when(
+            skipLoadingOnReload: false,
+            loading: () => const SizedBox(height: 80, child: LoadingView()),
+            error: (e, _) => ErrorStateView(error: e, compact: true),
+            data: (invites) => invites.isEmpty
+                ? AppCard(
+                    child: Text(
+                      'Bekleyen davet yok. "Davet et" ile e-posta adresine özel bir davet kodu oluşturun.',
+                      style: context.textStyles.bodyMedium?.copyWith(
+                        color: context.colors.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                : AppCard(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xxs,
+                    ),
+                    child: Column(
+                      children: [
+                        for (final i in invites)
+                          ListTile(
+                            leading: const Icon(
+                              Icons.mark_email_unread_outlined,
+                            ),
+                            title: Text(
+                              i.invitedEmail,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              'Kod: ${i.code} · son gün ${DateFormats.dayShort(i.expiresAt)}',
+                            ),
+                            onTap: () => showDialog<void>(
+                              context: context,
+                              builder: (_) => _InviteCodeDialog(invite: i),
+                            ),
+                            trailing: IconButton(
+                              tooltip: 'Daveti iptal et',
+                              icon: const Icon(Icons.cancel_outlined),
+                              onPressed: () async {
+                                try {
+                                  await ref
+                                      .read(teamRepositoryProvider)
+                                      .revokeInvite(
+                                        teamId: team.id,
+                                        inviteId: i.id,
+                                      );
+                                  if (context.mounted) {
+                                    context.showSuccess('Davet iptal edildi.');
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) context.showError(e);
+                                }
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        if (isOwner)
+          AppButton(
+            label: 'Takımı kapat',
+            icon: Icons.archive_outlined,
+            outlined: true,
+            destructive: true,
+            onPressed: () => _archive(context, ref),
+          )
+        else
+          AppButton(
+            label: 'Takımdan ayrıl',
+            icon: Icons.logout_rounded,
+            outlined: true,
+            destructive: true,
+            onPressed: () => _leave(context, ref),
+          ),
+      ],
+    );
+  }
+}
+
+class _InviteDialog extends ConsumerStatefulWidget {
+  final Team team;
+  const _InviteDialog({required this.team});
+
+  @override
+  ConsumerState<_InviteDialog> createState() => _InviteDialogState();
+}
+
+class _InviteDialogState extends ConsumerState<_InviteDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final invite = await ref
+          .read(teamRepositoryProvider)
+          .createInvite(
+            team: widget.team,
+            email: _emailController.text,
+            invitedBy: user,
+          );
+      if (mounted) Navigator.pop(context, invite);
+    } catch (e) {
+      if (mounted) setState(() => _error = ErrorMessages.from(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Üye davet et'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Davet edeceğiniz kişinin e-posta adresini girin. Size özel bir kod oluşturulur; '
+                'kişi bu adresle uygulamaya giriş yaptığında daveti görür veya kodla katılır.',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (_error != null) ...[
+                InlineMessage(message: _error!, tone: MessageTone.error),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              TextFormField(
+                controller: _emailController,
+                autofocus: true,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                validator: Validators.email,
+                onFieldSubmitted: (_) => _submit(),
+                decoration: const InputDecoration(
+                  labelText: 'E-posta',
+                  prefixIcon: Icon(Icons.alternate_email_rounded),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          onPressed: _busy ? null : _submit,
+          style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+          child: _busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Davet oluştur'),
+        ),
+      ],
+    );
+  }
+}
+
+class _InviteCodeDialog extends StatelessWidget {
+  final TeamInvite invite;
+  const _InviteCodeDialog({required this.invite});
+
+  String get _shareText =>
+      '"${invite.teamName}" takımına katılmak için Harcama Takip uygulamasında ${invite.invitedEmail} '
+      'adresiyle giriş yapın ve Takımlar > Kodla katıl bölümüne ${invite.code} kodunu girin.';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    return AlertDialog(
+      title: const Text('Davet kodu hazır'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Davet etmek istediğiniz aile üyenizin veya arkadaşınızın e-posta adresini girin:'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'E-posta',
-                prefixIcon: Icon(Icons.email_outlined),
+            Text(
+              '${invite.invitedEmail} için davet oluşturuldu. Kodu kişiyle paylaşın:',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: SelectableText(
+                invite.code,
+                textAlign: TextAlign.center,
+                style: context.textStyles.headlineMedium?.copyWith(
+                  letterSpacing: 6,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Kod ${DateFormats.day(invite.expiresAt)} tarihine kadar ve yalnızca bu e-posta adresi için geçerlidir.',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-          ElevatedButton(
-            onPressed: () async {
-              final email = emailController.text.trim();
-              if (email.isNotEmpty) {
-                final uid = ref.read(currentUserIdProvider)!;
-                final teamRepo = ref.read(teamRepositoryProvider);
-                await teamRepo.inviteMember(
-                  teamId: teamId,
-                  teamName: teamName,
-                  email: email,
-                  invitedByUid: uid,
-                );
-                if (context.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Davet başarıyla oluşturuldu.')),
-                  );
-                }
-              }
-            },
-            child: const Text('Davet Gönder'),
+      ),
+      actions: [
+        TextButton.icon(
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: _shareText));
+            if (context.mounted) {
+              context.showSuccess('Davet mesajı kopyalandı.');
+            }
+          },
+          icon: const Icon(Icons.copy_rounded),
+          label: const Text('Mesajı kopyala'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context),
+          style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+          child: const Text('Tamam'),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditTeamSheet extends ConsumerStatefulWidget {
+  final Team team;
+  const _EditTeamSheet({required this.team});
+
+  @override
+  ConsumerState<_EditTeamSheet> createState() => _EditTeamSheetState();
+}
+
+class _EditTeamSheetState extends ConsumerState<_EditTeamSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final _name = TextEditingController(text: widget.team.name);
+  late final _description = TextEditingController(
+    text: widget.team.description ?? '',
+  );
+  late String _colorHex = widget.team.colorHex;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(teamRepositoryProvider)
+          .updateTeam(
+            teamId: widget.team.id,
+            name: _name.text.trim(),
+            description: _description.text.trim().isEmpty
+                ? null
+                : _description.text.trim(),
+            colorHex: _colorHex,
+          );
+      if (mounted) {
+        Navigator.pop(context);
+        context.showSuccess('Takım güncellendi.');
+      }
+    } catch (e) {
+      if (mounted) {
+        context.showError(e);
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.lg,
           ),
-        ],
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Takımı düzenle', style: context.textStyles.titleLarge),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: _name,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(
+                      AppConstants.maxNameLength,
+                    ),
+                  ],
+                  validator: Validators.requiredText(
+                    'Takım adı',
+                    maxLength: AppConstants.maxNameLength,
+                  ),
+                  decoration: const InputDecoration(labelText: 'Takım adı'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: _description,
+                  maxLines: 2,
+                  inputFormatters: [LengthLimitingTextInputFormatter(200)],
+                  decoration: const InputDecoration(labelText: 'Açıklama'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ColorPickerRow(
+                  selectedHex: _colorHex,
+                  onSelected: (h) => setState(() => _colorHex = h),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppButton(
+                  label: 'Kaydet',
+                  onPressed: _save,
+                  isLoading: _saving,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

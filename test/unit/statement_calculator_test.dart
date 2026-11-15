@@ -2,71 +2,195 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harcama_takip/core/utils/statement_calculator.dart';
 
 void main() {
-  group('StatementCalculator Tests', () {
-    test('Clamps cutoff day for 28/29/30/31 day months', () {
-      // 31. gün hedefi:
-      // Ocak (31 gün) -> 31
-      expect(StatementCalculator.getEffectiveCutoffDay(2026, 1, 31), equals(31));
-      // Şubat 2026 (28 gün) -> 28
-      expect(StatementCalculator.getEffectiveCutoffDay(2026, 2, 31), equals(28));
-      // Şubat 2028 (Artık yıl - 29 gün) -> 29
-      expect(StatementCalculator.getEffectiveCutoffDay(2028, 2, 31), equals(29));
-      // Nisan (30 gün) -> 30
-      expect(StatementCalculator.getEffectiveCutoffDay(2026, 4, 31), equals(30));
-      // Normal gün (örneğin 15. gün) -> 15
-      expect(StatementCalculator.getEffectiveCutoffDay(2026, 2, 15), equals(15));
+  group('Kesim günü', () {
+    test(
+      '28/29/30/31 günlük aylarda kesim gününü ayın son gününe sabitler',
+      () {
+        expect(StatementCalculator.getEffectiveCutoffDay(2026, 1, 31), 31);
+        expect(StatementCalculator.getEffectiveCutoffDay(2026, 2, 31), 28);
+        expect(StatementCalculator.getEffectiveCutoffDay(2028, 2, 31), 29);
+        expect(StatementCalculator.getEffectiveCutoffDay(2026, 4, 31), 30);
+        expect(StatementCalculator.getEffectiveCutoffDay(2026, 2, 15), 15);
+      },
+    );
+  });
+
+  group('Ekstre dönemi', () {
+    test('kesim gününe kadar o ay, sonrasında sonraki ay', () {
+      expect(
+        StatementCalculator.resolveStatementPeriod(
+          DateTime(2026, 11, 10, 14, 30),
+          15,
+        ),
+        '2026-11',
+      );
+      expect(
+        StatementCalculator.resolveStatementPeriod(
+          DateTime(2026, 11, 15, 23, 59),
+          15,
+        ),
+        '2026-11',
+      );
+      expect(
+        StatementCalculator.resolveStatementPeriod(
+          DateTime(2026, 11, 16, 0, 1),
+          15,
+        ),
+        '2026-12',
+      );
     });
 
-    test('Resolves statement period correctly for transactions before and after cutoff', () {
-      // Kart kesim günü 15
-      // 10 Kasım 2026 harcaması -> 2026-11 dönemine aittir
-      final t1 = DateTime(2026, 11, 10, 14, 30);
-      expect(StatementCalculator.resolveStatementPeriod(t1, 15), equals('2026-11'));
-
-      // 15 Kasım 2026 saat 20:00 (tam kesim günü) -> 2026-11 dönemine aittir
-      final t2 = DateTime(2026, 11, 15, 20, 00);
-      expect(StatementCalculator.resolveStatementPeriod(t2, 15), equals('2026-11'));
-
-      // 16 Kasım 2026 saat 00:01 (kesimden hemen sonra) -> sonraki dönem 2026-12 dönemine aittir
-      final t3 = DateTime(2026, 11, 16, 0, 1);
-      expect(StatementCalculator.resolveStatementPeriod(t3, 15), equals('2026-12'));
+    test('yıl geçişini doğru yapar', () {
+      expect(
+        StatementCalculator.resolveStatementPeriod(DateTime(2026, 12, 20), 15),
+        '2027-01',
+      );
+      expect(
+        StatementCalculator.resolveStatementPeriod(DateTime(2026, 12, 10), 15),
+        '2026-12',
+      );
     });
 
-    test('Handles year transition correctly (December to January)', () {
-      // 20 Aralık 2026'da yapılan harcama, kesim günü 15 ise -> 2027-01 dönemine aittir
-      final tDec = DateTime(2026, 12, 20, 10, 0);
-      expect(StatementCalculator.resolveStatementPeriod(tDec, 15), equals('2027-01'));
+    test('REGRESYON: nakit harcamalar takvim ayına yazılır (eski sürüm sonraki aya yazıyordu)', () {
+      final date = DateTime(2026, 11, 16, 12);
+      expect(
+        StatementCalculator.periodForExpense(date: date, paymentMethod: 'cash'),
+        '2026-11',
+      );
+      expect(
+        StatementCalculator.periodForExpense(
+          date: date,
+          paymentMethod: 'debit_card',
+          cutoffDay: 1,
+        ),
+        '2026-11',
+      );
+      expect(
+        StatementCalculator.periodForExpense(
+          date: date,
+          paymentMethod: 'credit_card',
+          cutoffDay: 15,
+        ),
+        '2026-12',
+      );
+      expect(
+        StatementCalculator.periodForExpense(
+          date: date,
+          paymentMethod: 'credit_card',
+        ),
+        '2026-11',
+      );
+    });
+  });
 
-      // 10 Aralık 2026 harcaması, kesim günü 15 -> 2026-12
-      final tDecBefore = DateTime(2026, 12, 10, 10, 0);
-      expect(StatementCalculator.resolveStatementPeriod(tDecBefore, 15), equals('2026-12'));
+  group('Dönem yardımcıları', () {
+    test('kaydırma, doğrulama ve son dönemler', () {
+      expect(StatementCalculator.shiftPeriod('2026-12', 1), '2027-01');
+      expect(StatementCalculator.shiftPeriod('2026-01', -1), '2025-12');
+      expect(StatementCalculator.isValidPeriod('2026-11'), isTrue);
+      expect(StatementCalculator.isValidPeriod('2026-13'), isFalse);
+      expect(StatementCalculator.isValidPeriod('26-1'), isFalse);
+      expect(StatementCalculator.lastPeriods('2026-02', 3), [
+        '2025-12',
+        '2026-01',
+        '2026-02',
+      ]);
     });
 
-    test('Generates installment schedule across year boundaries and calculates due dates', () {
-      // 20 Kasım 2026 başlangıçlı, kesim günü 15 (yani ilk dönem 2026-12), 3 taksit
-      final startDate = DateTime(2026, 11, 20);
-      final schedule = StatementCalculator.generateSchedule(
-        startDate: startDate,
-        cutoffDay: 15,
-        totalInstallments: 3,
-        installmentCentsList: [3334, 3333, 3333],
+    test('bir sonraki kesim tarihi (kesim günü dahil)', () {
+      expect(
+        StatementCalculator.nextCutoffDate(DateTime(2026, 11, 10), 15).day,
+        15,
+      );
+      expect(
+        StatementCalculator.nextCutoffDate(
+          DateTime(2026, 11, 15, 20),
+          15,
+        ).month,
+        11,
+      );
+      final next = StatementCalculator.nextCutoffDate(
+        DateTime(2026, 11, 16),
+        15,
+      );
+      expect([next.month, next.day], [12, 15]);
+      final feb = StatementCalculator.nextCutoffDate(
+        DateTime(
+          2027,
+          1,
+          31,
+          23,
+          59,
+          59,
+          999,
+        ).add(const Duration(milliseconds: 1)),
+        31,
+      );
+      expect([feb.month, feb.day], [2, 28]);
+    });
+
+    test('son ödeme tarihi kesimden N gün sonradır', () {
+      final due = StatementCalculator.calculateDueDate(
+        statementPeriod: '2026-02',
+        cutoffDay: 31,
         paymentDueDaysAfterCutoff: 10,
       );
-
-      expect(schedule.length, equals(3));
-
-      // Taksit 1: 2026-12
-      expect(schedule[0].statementPeriod, equals('2026-12'));
-      expect(schedule[0].amountInCents, equals(3334));
-      expect(schedule[0].dueDate.day, equals(25)); // 15 + 10 = 25 Aralık
-
-      // Taksit 2: 2027-01 (Yıl atlama)
-      expect(schedule[1].statementPeriod, equals('2027-01'));
-      expect(schedule[1].amountInCents, equals(3333));
-
-      // Taksit 3: 2027-02
-      expect(schedule[2].statementPeriod, equals('2027-02'));
-      expect(schedule[2].amountInCents, equals(3333));
+      expect([due.month, due.day], [3, 10]);
     });
+  });
+
+  group('Taksit takvimi', () {
+    test(
+      'yıl sınırını aşan takvim üretir; tüm taksitler başlangıçta beklemede',
+      () {
+        final schedule = StatementCalculator.generateSchedule(
+          startDate: DateTime(2026, 11, 20),
+          cutoffDay: 15,
+          totalInstallments: 3,
+          installmentCentsList: const [3334, 3333, 3333],
+          paymentDueDaysAfterCutoff: 10,
+        );
+        expect(schedule.map((s) => s.statementPeriod), [
+          '2026-12',
+          '2027-01',
+          '2027-02',
+        ]);
+        expect(schedule.first.dueDate.day, 25);
+        expect(schedule.every((s) => s.status == 'upcoming'), isTrue);
+      },
+    );
+
+    test(
+      'işleme kuralı: yalnızca içinde bulunulan döneme kadarki taksitler',
+      () {
+        final item = StatementInstallmentScheduleItem(
+          installmentNumber: 2,
+          amountInCents: 100,
+          statementPeriod: '2026-12',
+          statementCutoffDate: DateTime(2026, 12, 15, 23, 59),
+          dueDate: DateTime(2026, 12, 25),
+          status: 'upcoming',
+        );
+        expect(
+          InstallmentPostingPolicy.isDue(item, DateTime(2026, 11, 30)),
+          isFalse,
+        );
+        expect(
+          InstallmentPostingPolicy.isDue(item, DateTime(2026, 12, 1)),
+          isTrue,
+        );
+        expect(
+          InstallmentPostingPolicy.isDue(
+            item.copyWith(status: 'posted'),
+            DateTime(2027, 1, 1),
+          ),
+          isFalse,
+        );
+        expect(
+          InstallmentPostingPolicy.expenseIdFor('p1', item),
+          'p1_2_2026-12',
+        );
+      },
+    );
   });
 }

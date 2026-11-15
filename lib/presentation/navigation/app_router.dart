@@ -1,14 +1,18 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../application/providers/auth_providers.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
+import '../screens/auth/verify_email_screen.dart';
 import '../screens/budgets/budgets_screen.dart';
 import '../screens/cards_installments/add_edit_card_screen.dart';
 import '../screens/cards_installments/add_installment_plan_screen.dart';
 import '../screens/cards_installments/card_statement_detail_screen.dart';
 import '../screens/cards_installments/cards_installments_screen.dart';
+import '../screens/cards_installments/installment_plan_detail_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/expenses/add_edit_expense_screen.dart';
 import '../screens/expenses/expense_detail_screen.dart';
@@ -25,166 +29,227 @@ import '../screens/teams/accept_invite_screen.dart';
 import '../screens/teams/create_team_screen.dart';
 import '../screens/teams/team_detail_screen.dart';
 import '../screens/teams/teams_screen.dart';
+import 'auth_redirect.dart';
 
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
+/// Uygulama yönlendiricisi. Oturum değiştiğinde yeniden oluşturulmaz;
+/// `refreshListenable` ile yalnızca yönlendirme kuralları yeniden değerlendirilir
+/// (önceki sürüm her oturum değişiminde yeni GoRouter üretip gezinme durumunu kaybediyordu).
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final refresh = ValueNotifier<int>(0);
+  ref.listen(authStateProvider, (_, __) => refresh.value++);
 
-  return GoRouter(
-    initialLocation: '/',
-    redirect: (context, state) {
-      final isLoggedIn = authState.value != null;
-      final isAuthRoute = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register' ||
-          state.matchedLocation == '/forgot-password' ||
-          state.matchedLocation == '/';
-
-      if (!isLoggedIn && !isAuthRoute) {
-        return '/login';
-      }
-      return null;
-    },
+  final router = GoRouter(
+    navigatorKey: rootNavigatorKey,
+    initialLocation: AppRoutes.splash,
+    refreshListenable: refresh,
+    debugLogDiagnostics: false,
+    redirect: (context, state) => resolveAuthRedirect(
+      status: authStatusOf(ref.read(authStateProvider)),
+      location: state.uri.path,
+      fullLocation: state.uri.toString(),
+      from: state.uri.queryParameters['from'],
+    ),
+    errorBuilder: (context, state) => const _NotFoundScreen(),
     routes: [
+      GoRoute(path: '/', redirect: (_, __) => AppRoutes.dashboard),
+      GoRoute(path: AppRoutes.splash, builder: (_, __) => const SplashScreen()),
+      GoRoute(path: AppRoutes.login, builder: (_, __) => const LoginScreen()),
       GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
+        path: AppRoutes.register,
+        builder: (_, __) => const RegisterScreen(),
       ),
       GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        path: AppRoutes.forgotPassword,
+        builder: (_, state) {
+          return ForgotPasswordScreen(
+            initialEmail: state.uri.queryParameters['email'],
+          );
+        },
       ),
       GoRoute(
-        path: '/register',
-        builder: (context, state) => const RegisterScreen(),
-      ),
-      GoRoute(
-        path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        path: AppRoutes.verifyEmail,
+        builder: (_, __) => const VerifyEmailScreen(),
       ),
 
-      // Ana Shell (5 Sekmeli Alt Navigasyon)
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) {
-          return AppShellScreen(navigationShell: navigationShell);
-        },
+        builder: (context, state, shell) =>
+            AppShellScreen(navigationShell: shell),
         branches: [
-          // 0. Özet
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/dashboard',
-                builder: (context, state) => const DashboardScreen(),
+                path: AppRoutes.dashboard,
+                builder: (_, __) => const DashboardScreen(),
               ),
             ],
           ),
-
-          // 1. Harcamalar
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/expenses',
-                builder: (context, state) => const ExpenseListScreen(),
+                builder: (_, __) => const ExpenseListScreen(),
               ),
             ],
           ),
-
-          // 2. Kartlar & Taksitler
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/cards-installments',
-                builder: (context, state) => const CardsInstallmentsScreen(),
+                path: '/cards',
+                builder: (_, state) {
+                  final tab = state.uri.queryParameters['tab'] == 'installments'
+                      ? 1
+                      : 0;
+                  return CardsInstallmentsScreen(initialTab: tab);
+                },
               ),
             ],
           ),
-
-          // 3. Raporlar
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/reports',
-                builder: (context, state) => const ReportsScreen(),
+                builder: (_, __) => const ReportsScreen(),
               ),
             ],
           ),
-
-          // 4. Ayarlar
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/settings',
-                builder: (context, state) => const SettingsScreen(),
+                builder: (_, __) => const SettingsScreen(),
               ),
             ],
           ),
         ],
       ),
 
-      // Bağımsız Sayfalar
-      GoRoute(
-        path: '/expenses/add',
-        builder: (context, state) => const AddEditExpenseScreen(),
-      ),
-      GoRoute(
-        path: '/expenses/detail/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return ExpenseDetailScreen(expenseId: id);
-        },
-      ),
-      GoRoute(
-        path: '/cards/add',
-        builder: (context, state) => const AddEditCardScreen(),
-      ),
-      GoRoute(
-        path: '/cards/statement/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return CardStatementDetailScreen(cardId: id);
-        },
-      ),
+      // Eski bağlantılar ve bildirim yükleri için geriye dönük uyumluluk
+      GoRoute(path: '/expenses/add', redirect: (_, __) => '/expenses/new'),
+      GoRoute(path: '/cards-installments', redirect: (_, __) => '/cards'),
+      GoRoute(path: '/cards/add', redirect: (_, __) => '/cards/new'),
       GoRoute(
         path: '/installments/add',
-        builder: (context, state) => const AddInstallmentPlanScreen(),
+        redirect: (_, __) => '/installments/new',
+      ),
+
+      GoRoute(
+        path: '/expenses/new',
+        builder: (_, __) => const AddEditExpenseScreen(),
       ),
       GoRoute(
-        path: '/budgets',
-        builder: (context, state) => const BudgetsScreen(),
+        path: '/expenses/:id',
+        builder: (_, state) =>
+            ExpenseDetailScreen(expenseId: state.pathParameters['id']!),
+        routes: [
+          GoRoute(
+            path: 'edit',
+            builder: (_, state) =>
+                AddEditExpenseScreen(expenseId: state.pathParameters['id']),
+          ),
+        ],
       ),
       GoRoute(
-        path: '/teams',
-        builder: (context, state) => const TeamsScreen(),
+        path: '/cards/new',
+        builder: (_, __) => const AddEditCardScreen(),
       ),
       GoRoute(
-        path: '/teams/create',
-        builder: (context, state) => const CreateTeamScreen(),
+        path: '/cards/:id',
+        builder: (_, state) =>
+            CardStatementDetailScreen(cardId: state.pathParameters['id']!),
+        routes: [
+          GoRoute(
+            path: 'edit',
+            builder: (_, state) =>
+                AddEditCardScreen(cardId: state.pathParameters['id']),
+          ),
+        ],
       ),
       GoRoute(
-        path: '/teams/detail/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return TeamDetailScreen(teamId: id);
+        path: '/installments/new',
+        builder: (_, __) => const AddInstallmentPlanScreen(),
+      ),
+      GoRoute(
+        path: '/installments/:id',
+        builder: (_, state) =>
+            InstallmentPlanDetailScreen(planId: state.pathParameters['id']!),
+      ),
+      GoRoute(path: '/budgets', builder: (_, __) => const BudgetsScreen()),
+      GoRoute(path: '/teams', builder: (_, __) => const TeamsScreen()),
+      GoRoute(path: '/teams/new', builder: (_, __) => const CreateTeamScreen()),
+      GoRoute(
+        path: '/teams/join',
+        builder: (_, state) {
+          return AcceptInviteScreen(
+            initialCode: state.uri.queryParameters['code'],
+          );
         },
       ),
       GoRoute(
-        path: '/teams/join',
-        builder: (context, state) => const AcceptInviteScreen(),
-      ),
-      GoRoute(
-        path: '/settings/notifications',
-        builder: (context, state) => const NotificationSettingsScreen(),
-      ),
-      GoRoute(
-        path: '/settings/categories',
-        builder: (context, state) => const CategoriesScreen(),
+        path: '/teams/:id',
+        builder: (_, state) =>
+            TeamDetailScreen(teamId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/settings/profile',
-        builder: (context, state) => const ProfileScreen(),
+        builder: (_, __) => const ProfileScreen(),
       ),
       GoRoute(
-        path: '/settings/theme-language',
-        builder: (context, state) => const ThemeLanguageScreen(),
+        path: '/settings/notifications',
+        builder: (_, __) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/appearance',
+        builder: (_, __) => const ThemeLanguageScreen(),
+      ),
+      GoRoute(
+        path: '/settings/categories',
+        builder: (_, __) => const CategoriesScreen(),
       ),
     ],
   );
+
+  ref.onDispose(() {
+    router.dispose();
+    refresh.dispose();
+  });
+  return router;
 });
+
+class _NotFoundScreen extends StatelessWidget {
+  const _NotFoundScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.explore_off_rounded, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'Sayfa bulunamadı',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Aradığınız sayfa taşınmış veya silinmiş olabilir.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go(AppRoutes.dashboard),
+                child: const Text('Ana sayfaya dön'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

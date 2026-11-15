@@ -1,58 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import '../../application/providers/expense_providers.dart';
 
-class PeriodSelectorWidget extends ConsumerWidget {
-  const PeriodSelectorWidget({super.key});
+import '../../application/providers/expense_providers.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_formats.dart';
+import '../../core/utils/statement_calculator.dart';
+
+/// Ay/dönem seçici: önceki-sonraki ay okları; etikete dokununca içinde bulunulan aya döner.
+class PeriodSelector extends ConsumerWidget {
+  const PeriodSelector({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentPeriod = ref.watch(selectedPeriodProvider);
-    final theme = Theme.of(context);
+    final period = ref.watch(selectedPeriodProvider);
+    final current = StatementCalculator.periodOf(DateTime.now());
+    final scheme = context.colors;
 
-    // YYYY-MM çözümle
-    final parts = currentPeriod.split('-');
-    final year = int.parse(parts[0]);
-    final month = int.parse(parts[1]);
-    final currentDate = DateTime(year, month, 1);
-
-    final String monthName = DateFormat('MMMM yyyy', 'tr_TR').format(currentDate);
-
-    void changeMonth(int offset) {
-      final newDate = DateTime(year, month + offset, 1);
-      final newPeriod = '${newDate.year}-${newDate.month.toString().padLeft(2, '0')}';
-      ref.read(selectedPeriodProvider.notifier).state = newPeriod;
+    void shift(int months) {
+      ref.read(selectedPeriodProvider.notifier).state =
+          StatementCalculator.shiftPeriod(period, months);
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left_rounded, size: 22),
-            onPressed: () => changeMonth(-1),
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            tooltip: 'Önceki ay',
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: () => shift(-1),
           ),
-          const SizedBox(width: 8),
-          Text(
-            monthName,
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          Semantics(
+            label: 'Seçili dönem ${DateFormats.period(period)}',
+            button: period != current,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: period == current
+                  ? null
+                  : () => ref.read(selectedPeriodProvider.notifier).state =
+                        current,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: Text(
+                  DateFormats.period(period),
+                  style: context.textStyles.titleSmall,
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.chevron_right_rounded, size: 22),
-            onPressed: () => changeMonth(1),
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            tooltip: 'Sonraki ay',
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: () => shift(1),
           ),
         ],
       ),

@@ -1,19 +1,41 @@
+import '../entities/app_user.dart';
 import '../entities/team.dart';
+import '../entities/team_invite.dart';
 import '../entities/team_member.dart';
 
 abstract class ITeamRepository {
   Stream<List<Team>> watchUserTeams(String uid);
-  Stream<List<TeamMember>> watchTeamMembers(String teamId);
+  Stream<Team?> watchTeam(String teamId);
+  Stream<List<TeamMember>> watchMembers(String teamId);
+  Stream<List<TeamInvite>> watchPendingTeamInvites(String teamId);
+  Stream<List<TeamInvite>> watchMyPendingInvites(String email);
+
   Future<void> createTeam(Team team, TeamMember ownerMember);
-  Future<void> updateTeam(Team team);
-  Future<void> inviteMember({
+  Future<void> updateTeam({
     required String teamId,
-    required String teamName,
-    required String email,
-    required String invitedByUid,
-    String role = 'member',
+    required String name,
+    String? description,
+    required String colorHex,
   });
-  Future<void> acceptInvite(String inviteCode, String uid, String displayName, String email);
-  Future<void> removeMember(String teamId, String memberUid);
-  Future<void> leaveTeam(String teamId, String uid);
+
+  Future<TeamInvite> createInvite({
+    required Team team,
+    required String email,
+    required AppUser invitedBy,
+  });
+  Future<void> revokeInvite({required String teamId, required String inviteId});
+  Future<void> acceptInvite({
+    required TeamInvite invite,
+    required AppUser user,
+  });
+  Future<void> declineInvite(TeamInvite invite);
+
+  Future<void> removeMember({
+    required String teamId,
+    required String memberUid,
+  });
+  Future<void> leaveTeam({required String teamId, required String uid});
+
+  /// Takımı arşivler (silmez); üyelerin geçmiş harcamaları korunur.
+  Future<void> archiveTeam(String teamId);
 }

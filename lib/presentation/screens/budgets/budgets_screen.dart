@@ -1,221 +1,406 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
+
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/budget_providers.dart';
 import '../../../application/providers/expense_providers.dart';
 import '../../../application/providers/repository_providers.dart';
 import '../../../application/providers/team_providers.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/date_formats.dart';
 import '../../../core/utils/money_formatter.dart';
+import '../../../core/utils/validators.dart';
 import '../../../domain/entities/budget.dart';
 import '../../widgets/app_card.dart';
-import '../../widgets/category_badge.dart';
-import '../../widgets/period_selector_widget.dart';
-import '../../widgets/team_selector_widget.dart';
+import '../../widgets/common.dart';
+import '../../widgets/dialogs.dart';
+import '../../widgets/state_views.dart';
+import '../../widgets/workspace_selector.dart';
 
-class BudgetsScreen extends ConsumerStatefulWidget {
+class BudgetsScreen extends ConsumerWidget {
   const BudgetsScreen({super.key});
 
   @override
-  ConsumerState<BudgetsScreen> createState() => _BudgetsScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final budgetAsync = ref.watch(currentBudgetProvider);
+    final period = ref.watch(selectedPeriodProvider);
+    final teamId = ref.watch(activeTeamProvider)?.id;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Bütçe')),
+      body: PageListView(
+        children: [
+          const ContextBar(),
+          const SizedBox(height: AppSpacing.md),
+          budgetAsync.when(
+            skipLoadingOnReload: false,
+            loading: () => const SizedBox(
+              height: 300,
+              child: SkeletonList(itemCount: 3, padding: EdgeInsets.zero),
+            ),
+            error: (e, _) => ErrorStateView(
+              error: e,
+              onRetry: () => ref.invalidate(currentBudgetProvider),
+            ),
+            data: (budget) => _BudgetEditor(
+              key: ValueKey('$teamId-$period'),
+              budget: budget,
+              period: period,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
-  final _budgetController = TextEditingController();
-  bool _isSaving = false;
+class _BudgetEditor extends ConsumerStatefulWidget {
+  final Budget? budget;
+  final String period;
+
+  const _BudgetEditor({super.key, required this.budget, required this.period});
+
+  @override
+  ConsumerState<_BudgetEditor> createState() => _BudgetEditorState();
+}
+
+class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
+  final _formKey = GlobalKey<FormState>();
+  late final _totalController = TextEditingController(
+    text: MoneyFormatter.formatForInput(widget.budget?.totalBudgetInCents ?? 0),
+  );
+  late final Map<String, TextEditingController> _categoryControllers = {
+    for (final c in AppConstants.defaultCategories)
+      c.id: TextEditingController(
+        text: MoneyFormatter.formatForInput(
+          widget.budget?.categoryBudgetsInCents[c.id] ?? 0,
+        ),
+      ),
+  };
+  bool _saving = false;
+  bool _showCategories = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _showCategories = widget.budget?.categoryBudgetsInCents.isNotEmpty ?? false;
+  }
 
   @override
   void dispose() {
-    _budgetController.dispose();
+    _totalController.dispose();
+    for (final c in _categoryControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _handleSaveBudget() async {
-    final cents = MoneyFormatter.parseToCents(_budgetController.text);
-    if (cents <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Geçerli bir bütçe tutarı giriniz.')),
-      );
-      return;
-    }
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return;
+    final team = ref.read(activeTeamProvider);
+    final total = MoneyFormatter.parseToCents(_totalController.text);
+    final categories = <String, int>{};
+    _categoryControllers.forEach((id, controller) {
+      final cents = MoneyFormatter.parseToCents(controller.text);
+      if (cents > 0) categories[id] = cents;
+    });
 
-    setState(() => _isSaving = true);
-
+    setState(() => _saving = true);
+    final now = DateTime.now();
     try {
-      final uid = ref.read(currentUserIdProvider)!;
-      final activeTeam = ref.read(activeTeamProvider);
-      final period = ref.read(selectedPeriodProvider);
-      final budgetRepo = ref.read(budgetRepositoryProvider);
-
       final budget = Budget(
-        id: const Uuid().v4(),
+        id: Budget.idFor(
+          ownerUid: uid,
+          teamId: team?.id,
+          period: widget.period,
+        ),
         ownerUid: uid,
-        teamId: activeTeam?.id,
-        visibility: activeTeam != null ? 'team' : 'personal',
-        period: period,
-        totalBudgetInCents: cents,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        teamId: team?.id,
+        visibility: team != null ? 'team' : 'personal',
+        period: widget.period,
+        totalBudgetInCents: total,
+        categoryBudgetsInCents: categories,
+        createdAt: widget.budget?.createdAt ?? now,
+        updatedAt: now,
       );
-
-      await budgetRepo.saveBudget(budget);
+      await ref.read(budgetRepositoryProvider).saveBudget(budget);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Aylık bütçe başarıyla güncellendi.')),
+        context.showSuccess(
+          '${DateFormats.period(widget.period)} bütçesi kaydedildi.',
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e')),
-      );
+      if (mounted) context.showError(e);
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final budget = widget.budget;
+    if (budget == null) return;
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Bütçe kaldırılsın mı?',
+      message:
+          '${DateFormats.period(widget.period)} için belirlenen bütçe kaldırılacak. Harcamalarınız etkilenmez.',
+      confirmLabel: 'Kaldır',
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    try {
+      await ref.read(budgetRepositoryProvider).deleteBudget(budget.id);
+      if (mounted) context.showSuccess('Bütçe kaldırıldı.');
+    } catch (e) {
+      if (mounted) context.showError(e);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final budget = ref.watch(currentBudgetProvider).value;
-    final stats = ref.watch(monthlyStatsProvider);
+    final stats = ref.watch(workspaceStatsProvider);
+    final status = ref.watch(budgetStatusProvider);
+    final scheme = context.colors;
+    final semantic = context.semantic;
+    final budget = widget.budget;
 
-    final totalBudget = budget?.totalBudgetInCents ?? 0;
-    final spent = stats.totalCents;
-    final remaining = totalBudget - spent;
-    final progress = totalBudget > 0 ? (spent / totalBudget).clamp(0.0, 1.0) : 0.0;
+    final (String headline, Color tone) = switch (status?.level) {
+      null => ('Bu ay için bütçe belirlenmedi', scheme.onSurfaceVariant),
+      BudgetLevel.safe => ('Bütçe kontrol altında', semantic.success),
+      BudgetLevel.warning => ('Bütçenin %75\'i aşıldı', semantic.warning),
+      BudgetLevel.critical => ('Bütçe dolmak üzere', semantic.warning),
+      BudgetLevel.exceeded => ('Bütçe aşıldı', scheme.error),
+    };
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bütçe Yönetimi'),
-        actions: const [
-          TeamSelectorWidget(),
-          SizedBox(width: 8),
-          PeriodSelectorWidget(),
-          SizedBox(width: 12),
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  headline,
+                  style: context.textStyles.titleMedium?.copyWith(color: tone),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (status != null) ...[
+                  UsageBar(
+                    ratio: status.ratio,
+                    height: 12,
+                    semanticsLabel: 'Bütçe kullanımı',
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: _Figure(
+                        label: 'Harcanan',
+                        value: MoneyFormatter.formatCents(stats.totalCents),
+                      ),
+                    ),
+                    Expanded(
+                      child: _Figure(
+                        label: 'Bütçe',
+                        value: status != null
+                            ? MoneyFormatter.formatCents(status.limitCents)
+                            : '—',
+                      ),
+                    ),
+                    Expanded(
+                      child: _Figure(
+                        label: (status?.remainingCents ?? 0) < 0
+                            ? 'Aşım'
+                            : 'Kalan',
+                        value: status != null
+                            ? MoneyFormatter.formatCents(
+                                status.remainingCents.abs(),
+                              )
+                            : '—',
+                        color: (status?.remainingCents ?? 0) < 0
+                            ? scheme.error
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SectionHeader(title: 'Aylık toplam bütçe'),
+          TextFormField(
+            controller: _totalController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
+            validator: Validators.amount,
+            decoration: const InputDecoration(
+              labelText: 'Toplam bütçe',
+              prefixText: '₺ ',
+              prefixIcon: Icon(Icons.savings_outlined),
+              helperText: 'Seçili çalışma alanı ve ay için geçerlidir.',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _showCategories,
+            onChanged: (v) => setState(() => _showCategories = v),
+            title: const Text('Kategori limitleri'),
+            subtitle: const Text(
+              'İsteğe bağlı: kategoriler için ayrı üst sınır belirleyin.',
+            ),
+          ),
+          if (_showCategories)
+            AppCard(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              child: Column(
+                children: [
+                  for (final c in AppConstants.defaultCategories)
+                    _CategoryLimitRow(
+                      categoryId: c.id,
+                      spentCents: stats.categoryCents(c.id),
+                      limitCents: budget?.categoryBudgetsInCents[c.id] ?? 0,
+                      controller: _categoryControllers[c.id]!,
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: AppSpacing.lg),
+          AppButton(
+            label: 'Bütçeyi kaydet',
+            icon: Icons.check_rounded,
+            onPressed: _save,
+            isLoading: _saving,
+          ),
+          if (budget != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            AppButton(
+              label: 'Bütçeyi kaldır',
+              outlined: true,
+              destructive: true,
+              onPressed: _delete,
+            ),
+          ],
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+    );
+  }
+}
+
+class _Figure extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? color;
+  const _Figure({required this.label, required this.value, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: context.textStyles.labelMedium?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: context.textStyles.titleMedium?.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CategoryLimitRow extends StatelessWidget {
+  final String categoryId;
+  final int spentCents;
+  final int limitCents;
+  final TextEditingController controller;
+
+  const _CategoryLimitRow({
+    required this.categoryId,
+    required this.spentCents,
+    required this.limitCents,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final category = AppConstants.getCategoryById(categoryId);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
         children: [
-          // Ana Bütçe Durum Kartı
-          AppCard(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Row(
+            children: [
+              CategoryIcon(categoryId: categoryId, size: 36),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Aylık Bütçe Hedefi', style: TextStyle(color: theme.hintColor, fontSize: 13)),
+                    Text(category.name, style: context.textStyles.titleSmall),
                     Text(
-                      totalBudget > 0 ? MoneyFormatter.formatCents(totalBudget) : 'Belirlenmedi',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 12,
-                  borderRadius: BorderRadius.circular(6),
-                  backgroundColor: theme.colorScheme.surfaceVariant,
-                  valueColor: AlwaysStoppedAnimation(
-                    spent > totalBudget && totalBudget > 0 ? Colors.red : theme.colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Harcanan', style: TextStyle(fontSize: 11, color: theme.hintColor)),
-                        const SizedBox(height: 2),
-                        Text(MoneyFormatter.formatCents(spent), style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('Kalan Bütçe', style: TextStyle(fontSize: 11, color: theme.hintColor)),
-                        const SizedBox(height: 2),
-                        Text(
-                          MoneyFormatter.formatCents(remaining),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: remaining >= 0 ? theme.colorScheme.primary : Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Bütçe Tanımlama / Güncelleme Formu
-          Text(
-            'Bu Ay İçin Bütçe Belirle',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          AppCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: _budgetController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Aylık Toplam Bütçe Tutarı (TL)',
-                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-                    hintText: 'Örn: 25000',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _isSaving ? null : _handleSaveBudget,
-                  child: _isSaving
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Bütçeyi Kaydet'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Kategori Bazlı Harcama Dağılımı ve Eşikleri
-          Text(
-            'Kategori Harcamaları',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          ...stats.categoryTotalsCents.entries.map((entry) {
-            final cat = AppConstants.getCategoryById(entry.key);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: AppCard(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
-                  children: [
-                    CategoryBadge(categoryId: entry.key, showLabel: false),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                    Text(
-                      MoneyFormatter.formatCents(entry.value),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      'Harcanan ${MoneyFormatter.formatCents(spentCents)}',
+                      style: context.textStyles.bodySmall?.copyWith(
+                        color: context.colors.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
               ),
-            );
-          }),
+              SizedBox(
+                width: 130,
+                child: TextFormField(
+                  controller: controller,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  ],
+                  validator: Validators.optionalAmount,
+                  textAlign: TextAlign.end,
+                  decoration: const InputDecoration(
+                    hintText: 'Limit yok',
+                    prefixText: '₺ ',
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (limitCents > 0) ...[
+            const SizedBox(height: 6),
+            UsageBar(
+              ratio: spentCents / limitCents,
+              height: 6,
+              semanticsLabel: '${category.name} limit kullanımı',
+            ),
+          ],
         ],
       ),
     );

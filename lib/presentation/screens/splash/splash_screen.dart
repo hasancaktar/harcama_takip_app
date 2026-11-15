@@ -1,100 +1,75 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../../application/providers/auth_providers.dart';
-import '../../../application/services/notification_service.dart';
 
-class SplashScreen extends ConsumerStatefulWidget {
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+
+/// Oturum durumu belirlenirken gösterilir. Yönlendirme tamamen router tarafından yapılır;
+/// yapay bekleme süresi yoktur.
+class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   @override
-  ConsumerState<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends ConsumerState<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _initializeApp();
-  }
-
-  Future<void> _initializeApp() async {
-    // Bildirim servisini başlat
-    try {
-      await NotificationService().initialize();
-    } catch (e) {
-      debugPrint('[Splash] Bildirim başlatma hatası: $e');
-    }
-
-    await Future.delayed(const Duration(milliseconds: 1200));
-
-    if (!mounted) return;
-
-    final authState = ref.read(authStateProvider);
-    authState.when(
-      data: (user) {
-        if (user != null) {
-          context.go('/dashboard');
-        } else {
-          context.go('/login');
-        }
-      },
-      error: (_, __) => context.go('/login'),
-      loading: () {
-        // Dinleyici authState değişiminde yönlendirecek
-      },
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    ref.listen(authStateProvider, (prev, next) {
-      next.whenData((user) {
-        if (mounted) {
-          if (user != null) {
-            context.go('/dashboard');
-          } else {
-            context.go('/login');
-          }
-        }
-      });
-    });
-
-    final theme = Theme.of(context);
-
+    final scheme = context.colors;
     return Scaffold(
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 64,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 24),
+            const AppLogo(size: 72),
+            const SizedBox(height: AppSpacing.lg),
+            Text(AppConstants.appName, style: context.textStyles.headlineSmall),
+            const SizedBox(height: AppSpacing.xs),
             Text(
-              'Harcama & Taksit Takip',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
+              AppConstants.appTagline,
+              style: context.textStyles.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Aile ve Bireysel Bütçe Yönetimi',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                semanticsLabel: 'Yükleniyor',
+              ),
             ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Marka logosu (cüzdan simgesi, yuvarlatılmış kare zemin).
+class AppLogo extends StatelessWidget {
+  final double size;
+  const AppLogo({super.key, this.size = 56});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    return ExcludeSemantics(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              scheme.primary,
+              Color.lerp(scheme.primary, scheme.secondary, 0.55)!,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(size * 0.3),
+        ),
+        child: Icon(
+          Icons.account_balance_wallet_rounded,
+          color: scheme.onPrimary,
+          size: size * 0.52,
         ),
       ),
     );

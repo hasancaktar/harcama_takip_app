@@ -1,46 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Kişisel ve Aile Harcama, Kredi Kartı ve Taksit Takip Uygulaması">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Kişisel ve aile harcamalarınızı, kredi kartı ekstrelerinizi ve taksitlerinizi tek yerden takip edin.">
+  <meta name="theme-color" content="#0F6B47" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B1220" media="(prefers-color-scheme: dark)">
 
-  <!-- iOS meta tags & icons -->
+  <!-- iOS -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Harcama Takip">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>Harcama Takip</title>
   <link rel="manifest" href="manifest.json">
+  <title>Harcama Takip</title>
+
+  <style>
+    :root { color-scheme: light dark; }
+    html, body { margin: 0; height: 100%; background: #F5F7F6; }
+    @media (prefers-color-scheme: dark) { html, body { background: #0B1220; } }
+    #app-loader {
+      position: fixed; inset: 0; display: flex; flex-direction: column; gap: 20px;
+      align-items: center; justify-content: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #52606D;
+      transition: opacity .25s ease;
+    }
+    #app-loader .logo {
+      width: 64px; height: 64px; border-radius: 20px;
+      background: linear-gradient(135deg, #0F6B47, #1E3A8A);
+    }
+    #app-loader .bar { width: 120px; height: 4px; border-radius: 4px; background: rgba(15,107,71,.15); overflow: hidden; }
+    #app-loader .bar::after {
+      content: ""; display: block; width: 40%; height: 100%; background: #0F6B47; border-radius: 4px;
+      animation: slide 1.1s ease-in-out infinite;
+    }
+    @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    @media (prefers-reduced-motion: reduce) { #app-loader .bar::after { animation: none; } }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <div id="app-loader" role="status" aria-live="polite">
+    <div class="logo" aria-hidden="true"></div>
+    <div>Harcama Takip yükleniyor…</div>
+    <div class="bar" aria-hidden="true"></div>
+  </div>
+  <noscript>Harcama Takip'i kullanmak için tarayıcınızda JavaScript'i etkinleştirin.</noscript>
+  <script>
+    // Flutter ilk kareyi çizdiğinde yükleme ekranını kaldır.
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('app-loader');
+      if (!el) return;
+      el.style.opacity = '0';
+      setTimeout(function () { el.remove(); }, 300);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

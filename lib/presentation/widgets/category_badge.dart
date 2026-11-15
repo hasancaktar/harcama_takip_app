@@ -1,36 +1,23 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_constants.dart';
 
+import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_theme.dart';
+
+/// Kategori adıyla birlikte renkli etiket.
 class CategoryBadge extends StatelessWidget {
   final String categoryId;
-  final bool showLabel;
 
-  const CategoryBadge({
-    super.key,
-    required this.categoryId,
-    this.showLabel = true,
-  });
+  const CategoryBadge({super.key, required this.categoryId});
 
   @override
   Widget build(BuildContext context) {
     final category = AppConstants.getCategoryById(categoryId);
-
-    if (!showLabel) {
-      return Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: category.color.withOpacity(0.15),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(category.icon, size: 20, color: category.color),
-      );
-    }
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: category.color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(16),
+        color: category.color.withValues(alpha: isDark ? 0.22 : 0.12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -39,10 +26,8 @@ class CategoryBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             category.name,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: category.color,
+            style: context.textStyles.labelLarge?.copyWith(
+              color: isDark ? context.colors.onSurface : category.color,
             ),
           ),
         ],

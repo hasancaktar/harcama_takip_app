@@ -1,203 +1,112 @@
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-
-admin.initializeApp();
-const db = admin.firestore();
+"use strict";
 
 /**
- * 1. Otomatik Taksit Ekstreleştirme (Idempotent Scheduled Function)
- * Her gece 00:05'te (Europe/Istanbul) çalışır.
- * Kesim tarihi gelen taksitleri expenses koleksiyonuna idempotent ekler.
+ * Harcama Takip — Cloud Functions (2. nesil)
+ *
+ * 1. postDueInstallments: Her gece vadesi gelen taksitleri idempotent olarak harcamalara işler.
+ *    (İstemci de uygulama açılışında aynı işlemi yapar; fonksiyon, uygulama hiç açılmasa da
+ *    ekstrelerin güncel kalmasını sağlar.)
+ * 2. notifyTeamOnExpense: Takım harcaması eklendiğinde diğer üyelere FCM bildirimi gönderir.
+ *
+ * Not: Önceki sürümdeki HTTP API ("dev-secret-key" yedek anahtarıyla herkese açık bir uç nokta)
+ * ve hiçbir iş yapmadan saat başı çalışan hatırlatıcı fonksiyonu güvenlik ve maliyet nedeniyle kaldırıldı.
  */
-exports.postScheduledInstallments = functions.pubsub
-  .schedule("5 0 * * *")
-  .timeZone("Europe/Istanbul")
-  .onRun(async (context) => {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = String(today.getMonth() + 1).padLeft ? String(today.getMonth() + 1).padStart(2, "0") : ("0" + (today.getMonth() + 1)).slice(-2);
-    const currentDay = today.getDate();
-    const statementPeriod = `${currentYear}-${currentMonth}`;
 
-    console.log(`[InstallmentJob] Başlatıldı: ${statementPeriod}, Gün: ${currentDay}`);
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
+const { setGlobalOptions } = require("firebase-functions/v2");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const logger = require("firebase-functions/logger");
+const { applyDuePostings } = require("./lib/installments");
 
-    try {
-      const plansSnapshot = await db
-        .collection("installmentPlans")
-        .where("status", "==", "active")
-        .get();
+initializeApp();
+setGlobalOptions({ region: "europe-west1", maxInstances: 5 });
 
-      let postedCount = 0;
+const db = getFirestore();
 
-      for (const doc of plansSnapshot.docs) {
-        const plan = doc.data();
-        const planId = doc.id;
-        const schedule = plan.installmentSchedule || [];
+exports.postDueInstallments = onSchedule(
+  { schedule: "10 0 * * *", timeZone: "Europe/Istanbul", retryCount: 1 },
+  async () => {
+    const plans = await db.collection("installmentPlans").where("status", "==", "active").get();
+    let posted = 0;
 
-        for (const item of schedule) {
-          if (item.statementPeriod === statementPeriod && item.status === "upcoming") {
-            const idempotencyKey = `${planId}_${item.installmentNumber}_${statementPeriod}`;
-            const expenseRef = db.collection("expenses").doc(idempotencyKey);
+    for (const planDoc of plans.docs) {
+      try {
+        posted += await db.runTransaction(async (tx) => {
+          const fresh = await tx.get(planDoc.ref);
+          if (!fresh.exists) return 0;
+          const result = applyDuePostings(planDoc.id, fresh.data(), new Date());
+          if (result.postings.length === 0) return 0;
 
-            await db.runTransaction(async (transaction) => {
-              const existingExpense = await transaction.get(expenseRef);
-              if (!existingExpense.exists) {
-                transaction.set(expenseRef, {
-                  id: idempotencyKey,
-                  teamId: plan.teamId || null,
-                  ownerUid: plan.ownerUid,
-                  visibility: plan.visibility || "personal",
-                  title: `${plan.title} (Taksit ${item.installmentNumber}/${plan.totalInstallments})`,
-                  amountInCents: item.amountInCents,
-                  currency: plan.currency || "TRY",
-                  category: plan.category || "other",
-                  date: admin.firestore.FieldValue.serverTimestamp(),
-                  paymentMethod: "credit_card",
-                  cardId: plan.cardId,
-                  cardLast4: plan.cardLast4 || "",
-                  isInstallment: true,
-                  installmentPlanId: planId,
-                  installmentNumber: item.installmentNumber,
-                  totalInstallments: plan.totalInstallments,
-                  statementPeriod: statementPeriod,
-                  status: "active",
-                  createdBy: "system_scheduler",
-                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-                postedCount++;
-              }
-            });
-          }
-        }
+          // Firestore işlemlerinde tüm okumalar yazmalardan önce yapılmalıdır.
+          const refs = result.postings.map((p) => db.collection("expenses").doc(p.id));
+          const existing = await Promise.all(refs.map((ref) => tx.get(ref)));
+          let created = 0;
+          existing.forEach((snap, i) => {
+            if (!snap.exists) {
+              tx.set(refs[i], result.postings[i].data);
+              created++;
+            }
+          });
+          tx.update(planDoc.ref, {
+            installmentSchedule: result.schedule,
+            status: result.status,
+            updatedAt: new Date().toISOString(),
+          });
+          return created;
+        });
+      } catch (error) {
+        logger.error("Taksit planı işlenemedi", { planId: planDoc.id, error: error.message });
       }
-
-      console.log(`[InstallmentJob] Tamamlandı. Eklenen taksit sayısı: ${postedCount}`);
-      return null;
-    } catch (error) {
-      console.error("[InstallmentJob] Hata oluştu:", error);
-      throw error;
     }
-  });
+    logger.info("Taksit işleme tamamlandı", { plans: plans.size, posted });
+  },
+);
 
-/**
- * 2. Takım Harcaması Bildirimi
- * Yeni bir takım harcaması girildiğinde diğer üyelere FCM push bildirimi gönderir.
- */
-exports.onExpenseCreated = functions.firestore
-  .document("expenses/{expenseId}")
-  .onCreate(async (snap, context) => {
-    const expense = snap.data();
-    if (expense.visibility !== "team" || !expense.teamId) {
-      return null;
-    }
+exports.notifyTeamOnExpense = onDocumentCreated("expenses/{expenseId}", async (event) => {
+  const expense = event.data && event.data.data();
+  if (!expense || expense.visibility !== "team" || !expense.teamId || expense.status !== "active") return;
+  // Sistem tarafından işlenen aylık taksitler için bildirim gönderme (gürültü yaratır).
+  if (expense.createdBy === "system") return;
 
-    try {
-      const teamDoc = await db.collection("teams").doc(expense.teamId).get();
-      const teamName = teamDoc.exists ? teamDoc.data().name : "Takım";
+  const teamSnap = await db.collection("teams").doc(expense.teamId).get();
+  if (!teamSnap.exists) return;
+  const team = teamSnap.data();
+  const recipients = (team.memberUids || []).filter((uid) => uid !== expense.ownerUid);
+  if (recipients.length === 0) return;
 
-      const membersSnap = await db
-        .collection("teams")
-        .doc(expense.teamId)
-        .collection("members")
-        .where("status", "==", "accepted")
-        .get();
-
-      const recipientUids = [];
-      membersSnap.forEach((mDoc) => {
-        if (mDoc.id !== expense.ownerUid) {
-          recipientUids.push(mDoc.id);
-        }
-      });
-
-      if (recipientUids.length === 0) return null;
-
-      // Token'ları topla
-      const tokens = [];
-      for (const uid of recipientUids) {
-        const userDoc = await db.collection("users").doc(uid).get();
-        if (userDoc.exists && userDoc.data().fcmTokens) {
-          tokens.push(...userDoc.data().fcmTokens);
-        }
-      }
-
-      if (tokens.length === 0) return null;
-
-      const formattedAmount = (expense.amountInCents / 100).toFixed(2) + " " + expense.currency;
-      const message = {
-        tokens: tokens,
-        notification: {
-          title: `${teamName}: Yeni Harcama`,
-          body: `${expense.title} - ${formattedAmount}`,
-        },
-        data: {
-          click_action: "FLUTTER_NOTIFICATION_CLICK",
-          screen: "/expenses",
-          expenseId: context.params.expenseId,
-        },
-      };
-
-      const response = await admin.messaging().sendEachForMulticast(message);
-      console.log(`[Notification] ${response.successCount} cihaza iletildi.`);
-      return null;
-    } catch (error) {
-      console.error("[Notification] Gönderim hatası:", error);
-      return null;
-    }
-  });
-
-/**
- * 3. Günlük Harcama Hatırlatıcısı
- * Saat başı çalışarak yerel saati eşleşen kullanıcılara FCM hatırlatması gönderir.
- */
-exports.sendDailySpendingReminders = functions.pubsub
-  .schedule("0 * * * *")
-  .timeZone("UTC")
-  .onRun(async (context) => {
-    console.log("[DailyReminder] Kontrol başlatıldı.");
-    // Saate ve timezone'a göre kullanıcı eşleştirip FCM iletir.
-    return null;
-  });
-
-/**
- * 4. HTTP REST API Endpoint'leri
- * Dış sistemler veya HTTP çağrıları için Express tabanlı REST API.
- * URL: https://<region>-<project-id>.cloudfunctions.net/api/...
- */
-const express = require("express");
-const cors = require("cors");
-const app = express();
-app.use(cors({ origin: true }));
-app.use(express.json());
-
-// API Sağlık Durumu
-app.get("/health", (req, res) => {
-  res.json({
-    status: "ok",
-    service: "Harcama & Taksit Takip API",
-    version: "1.0.0",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Manuel Taksit Senkronizasyon Tetikleme API'si
-app.post("/sync-installments", async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-  // Basit API Key güvenliği
-  if (!apiKey || apiKey !== process.env.SYNC_API_KEY && apiKey !== "dev-secret-key") {
-    return res.status(401).json({ error: "Yetkisiz erişim: Geçersiz API anahtarı" });
+  const userSnaps = await db.getAll(...recipients.map((uid) => db.collection("users").doc(uid)));
+  const tokenOwners = new Map();
+  for (const snap of userSnaps) {
+    for (const token of snap.get("fcmTokens") || []) tokenOwners.set(token, snap.id);
   }
+  const tokens = [...tokenOwners.keys()];
+  if (tokens.length === 0) return;
 
-  try {
-    const today = new Date();
-    const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-    res.json({
-      success: true,
-      message: `Taksit senkronizasyonu başlatıldı (${period})`,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const amount = new Intl.NumberFormat("tr-TR", { style: "currency", currency: expense.currency || "TRY" })
+    .format((expense.amountInCents || 0) / 100);
+
+  const response = await getMessaging().sendEachForMulticast({
+    tokens,
+    notification: {
+      title: `${team.name}: yeni harcama`,
+      body: `${expense.title} · ${amount}`,
+    },
+    data: { route: `/expenses/${event.params.expenseId}` },
+    android: { notification: { channelId: "team_expenses" } },
+  });
+
+  // Geçersiz cihaz anahtarlarını temizle.
+  const cleanup = [];
+  response.responses.forEach((res, i) => {
+    const code = res.error && res.error.code;
+    if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token") {
+      const uid = tokenOwners.get(tokens[i]);
+      cleanup.push(db.collection("users").doc(uid).update({ fcmTokens: FieldValue.arrayRemove(tokens[i]) }));
+    }
+  });
+  await Promise.allSettled(cleanup);
+  logger.info("Takım bildirimi gönderildi", { success: response.successCount, failure: response.failureCount });
 });
-
-exports.api = functions.https.onRequest(app);

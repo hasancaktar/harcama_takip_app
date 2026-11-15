@@ -1,14 +1,18 @@
+import '../entities/expense.dart';
 import '../entities/installment_plan.dart';
 
 abstract class IInstallmentRepository {
-  Stream<List<InstallmentPlan>> watchInstallmentPlans({
-    required String ownerUid,
-    String? teamId,
-    String? status,
-  });
+  Stream<List<InstallmentPlan>> watchOwnPlans(String uid);
+  Stream<List<InstallmentPlan>> watchTeamPlans(String teamId);
+  Stream<InstallmentPlan?> watchPlan(String planId);
+  Future<List<InstallmentPlan>> getActiveOwnPlans(String uid);
 
-  Future<void> createInstallmentPlan(InstallmentPlan plan);
-  Future<void> updateInstallmentPlan(InstallmentPlan plan);
-  Future<void> cancelInstallmentPlan(String planId);
-  Future<InstallmentPlan?> getInstallmentPlanById(String planId);
+  /// Planı ve vadesi gelmiş taksit harcamalarını tek atomik işlemle yazar.
+  Future<void> savePlanWithPostings(
+    InstallmentPlan plan,
+    List<Expense> postings,
+  );
+
+  /// Plan iptal edilir; işlenmiş taksitler korunur, kalanlar işlenmez.
+  Future<void> cancelPlan(String planId);
 }
