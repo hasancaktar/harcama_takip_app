@@ -51,7 +51,10 @@ class FirestoreTeamRepository implements ITeamRepository {
     final teamRef = _teamsCol.doc(team.id);
     final memberRef = teamRef.collection('members').doc(ownerMember.uid);
 
-    batch.set(teamRef, team.toMap());
+    final teamData = team.toMap();
+    teamData['memberUids'] = [ownerMember.uid];
+
+    batch.set(teamRef, teamData);
     batch.set(memberRef, ownerMember.toMap());
     await batch.commit();
   }
@@ -128,9 +131,10 @@ class FirestoreTeamRepository implements ITeamRepository {
     // Davet durumunu güncelle
     batch.update(inviteDoc.reference, {'status': 'accepted'});
 
-    // Takım üye sayısını artır
+    // Takım üye sayısını artır ve memberUids listesine ekle
     batch.update(_teamsCol.doc(teamId), {
       'memberCount': FieldValue.increment(1),
+      'memberUids': FieldValue.arrayUnion([uid]),
     });
 
     await batch.commit();
@@ -145,6 +149,7 @@ class FirestoreTeamRepository implements ITeamRepository {
         .update({'status': 'removed'});
     await _teamsCol.doc(teamId).update({
       'memberCount': FieldValue.increment(-1),
+      'memberUids': FieldValue.arrayRemove([memberUid]),
     });
   }
 
@@ -157,6 +162,7 @@ class FirestoreTeamRepository implements ITeamRepository {
         .update({'status': 'left'});
     await _teamsCol.doc(teamId).update({
       'memberCount': FieldValue.increment(-1),
+      'memberUids': FieldValue.arrayRemove([uid]),
     });
   }
 }
