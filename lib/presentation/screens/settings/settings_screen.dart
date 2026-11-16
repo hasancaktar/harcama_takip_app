@@ -39,10 +39,10 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final profile = ref.watch(userProfileProvider).value;
+    final profile = ref.watch(userProfileProvider).valueOrNull;
     final themeMode = ref.watch(themeModeProvider);
-    final workspace = ref.watch(workspaceProvider).value;
-    final invites = ref.watch(myPendingInvitesProvider).value ?? const [];
+    final workspace = ref.watch(workspaceProvider).valueOrNull;
+    final invites = ref.watch(myPendingInvitesProvider).valueOrNull ?? const [];
     final scheme = context.colors;
 
     final reminderText = profile?.dailyReminderEnabled == true

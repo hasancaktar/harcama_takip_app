@@ -23,7 +23,7 @@ class TeamsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final teamsAsync = ref.watch(userTeamsProvider);
-    final invites = ref.watch(myPendingInvitesProvider).value ?? const [];
+    final invites = ref.watch(myPendingInvitesProvider).valueOrNull ?? const [];
     final activeId = ref.watch(activeTeamProvider)?.id;
     final uid = ref.watch(currentUserIdProvider);
 

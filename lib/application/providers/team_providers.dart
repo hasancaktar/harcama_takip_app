@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -54,7 +56,7 @@ final workspaceProvider = FutureProvider<Workspace>((ref) async {
 });
 
 final activeTeamProvider = Provider<Team?>(
-  (ref) => ref.watch(workspaceProvider).value?.team,
+  (ref) => ref.watch(workspaceProvider).valueOrNull?.team,
 );
 
 /// Çalışma alanı seçimini profile kaydeder (cihazlar arası senkron, uygulama yeniden açıldığında korunur).
@@ -81,7 +83,7 @@ final activeTeamMembersProvider = StreamProvider<List<TeamMember>>((ref) {
 
 /// Takım modunda harcamayı kimin eklediğini göstermek için uid -> ad eşlemesi.
 final memberNamesProvider = Provider<Map<String, String>>((ref) {
-  final members = ref.watch(activeTeamMembersProvider).value ?? const [];
+  final members = ref.watch(activeTeamMembersProvider).valueOrNull ?? const [];
   return {for (final m in members) m.uid: m.label};
 });
 
@@ -109,5 +111,17 @@ final myPendingInvitesProvider = StreamProvider<List<TeamInvite>>((ref) {
   if (uid == null || email == null || email.isEmpty) {
     return Stream.value(const []);
   }
-  return ref.watch(teamRepositoryProvider).watchMyPendingInvites(email);
+  // Davet listesi yardımcı bir bilgidir: sorgu başarısız olursa (ör. collectionGroup
+  // dizini henüz oluşmadıysa) ekranları bozmamak için boş liste gösterilir.
+  return ref
+      .watch(teamRepositoryProvider)
+      .watchMyPendingInvites(email)
+      .transform(
+        StreamTransformer<List<TeamInvite>, List<TeamInvite>>.fromHandlers(
+          handleError: (error, stack, sink) {
+            debugPrint('[Invites] Davetler okunamadı: $error');
+            sink.add(const []);
+          },
+        ),
+      );
 });

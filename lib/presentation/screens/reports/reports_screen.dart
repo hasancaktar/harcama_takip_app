@@ -74,7 +74,7 @@ class _ReportContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(workspaceStatsProvider);
-    final expenses = ref.watch(periodExpensesProvider).value ?? const [];
+    final expenses = ref.watch(periodExpensesProvider).valueOrNull ?? const [];
     final budget = ref.watch(budgetStatusProvider);
     final isTeam = ref.watch(activeTeamProvider) != null;
     final memberNames = ref.watch(memberNamesProvider);

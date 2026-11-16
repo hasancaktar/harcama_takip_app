@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -247,6 +248,28 @@ void main() {
       final profile = await backend.users.getProfile(_verifiedUser.uid);
       expect(profile?.activeTeamId, 'team-1');
       expect(find.textContaining('takımına katıldınız'), findsOneWidget);
+      await unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'REGRESYON: davet sorgusu hata verse de Özet ve Ayarlar çizilir (gri ekran yok)',
+    (tester) async {
+      final backend = _BackendWithUser(
+        FakeAuthRepository(initialUser: _verifiedUser),
+      );
+      backend.teams.invitesError = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'failed-precondition',
+      );
+      await pumpApp(tester, backend);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Merhaba, Ayşe'), findsOneWidget);
+
+      await tester.tap(find.text('Ayarlar'));
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Takımlar ve aile'), findsOneWidget);
       await unmount(tester);
     },
   );

@@ -15,7 +15,7 @@ class WorkspaceSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workspace = ref.watch(workspaceProvider).value;
+    final workspace = ref.watch(workspaceProvider).valueOrNull;
     final team = workspace?.team;
     final scheme = context.colors;
     final color = team != null
@@ -72,7 +72,7 @@ Future<void> showWorkspaceSheet(BuildContext context, WidgetRef ref) {
     isScrollControlled: true,
     builder: (sheetContext) => Consumer(
       builder: (context, ref, _) {
-        final workspace = ref.watch(workspaceProvider).value;
+        final workspace = ref.watch(workspaceProvider).valueOrNull;
         final teams = workspace?.teams ?? const [];
         final activeId = workspace?.teamId;
         final scheme = context.colors;

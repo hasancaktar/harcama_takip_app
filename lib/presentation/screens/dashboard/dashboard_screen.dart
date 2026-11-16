@@ -35,7 +35,7 @@ class DashboardScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final expensesAsync = ref.watch(visibleExpensesProvider);
     final isTeam = ref.watch(activeTeamProvider) != null;
-    final invites = ref.watch(myPendingInvitesProvider).value ?? const [];
+    final invites = ref.watch(myPendingInvitesProvider).valueOrNull ?? const [];
     final firstName = (user?.displayName ?? '').split(' ').first;
 
     return Scaffold(
@@ -145,8 +145,8 @@ class _DashboardContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(visibleStatsProvider);
-    final expenses = ref.watch(visibleExpensesProvider).value ?? const [];
-    final cards = ref.watch(availableCardsProvider).value ?? const [];
+    final expenses = ref.watch(visibleExpensesProvider).valueOrNull ?? const [];
+    final cards = ref.watch(availableCardsProvider).valueOrNull ?? const [];
     final memberNames = ref.watch(memberNamesProvider);
     final isTeam = ref.watch(activeTeamProvider) != null;
 

@@ -152,7 +152,7 @@ class _AddInstallmentPlanScreenState
   @override
   Widget build(BuildContext context) {
     final cardsAsync = ref.watch(availableCardsProvider);
-    final cards = cardsAsync.value ?? const [];
+    final cards = cardsAsync.valueOrNull ?? const [];
     final team = ref.watch(activeTeamProvider);
     final scheme = context.colors;
 

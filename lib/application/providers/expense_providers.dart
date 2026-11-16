@@ -196,12 +196,12 @@ class ExpenseStats {
 
 /// Görünen (filtrelenmiş) harcamaların istatistikleri.
 final visibleStatsProvider = Provider<ExpenseStats>((ref) {
-  final expenses = ref.watch(visibleExpensesProvider).value ?? const [];
+  final expenses = ref.watch(visibleExpensesProvider).valueOrNull ?? const [];
   return ExpenseStats.from(expenses);
 });
 
 /// Çalışma alanının tamamına ait istatistikler (bütçe karşılaştırması bununla yapılır).
 final workspaceStatsProvider = Provider<ExpenseStats>((ref) {
-  final expenses = ref.watch(periodExpensesProvider).value ?? const [];
+  final expenses = ref.watch(periodExpensesProvider).valueOrNull ?? const [];
   return ExpenseStats.from(expenses);
 });

@@ -425,9 +425,13 @@ class FakeTeamRepository implements ITeamRepository {
   @override
   Stream<List<TeamInvite>> watchPendingTeamInvites(String teamId) =>
       Stream.value(const []);
+
+  /// Canlıdaki gibi sorgu hatası (ör. eksik dizin) simülasyonu.
+  Object? invitesError;
+
   @override
   Stream<List<TeamInvite>> watchMyPendingInvites(String email) =>
-      myInvites.stream;
+      invitesError != null ? Stream.error(invitesError!) : myInvites.stream;
   @override
   Future<void> createTeam(Team team, TeamMember ownerMember) async =>
       teams.value = [...teams.value, team];

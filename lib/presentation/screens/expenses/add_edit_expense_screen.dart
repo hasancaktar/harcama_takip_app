@@ -196,7 +196,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    final cards = ref.read(availableCardsProvider).value ?? const [];
+    final cards = ref.read(availableCardsProvider).valueOrNull ?? const [];
     final card = _selectedCard(cards);
     if (_paymentMethod == 'credit_card' && _cardId == null) {
       context.showInfo(
@@ -273,7 +273,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
 
   @override
   Widget build(BuildContext context) {
-    final cards = ref.watch(availableCardsProvider).value ?? const [];
+    final cards = ref.watch(availableCardsProvider).valueOrNull ?? const [];
     final activeTeam = ref.watch(activeTeamProvider);
     final scheme = context.colors;
 

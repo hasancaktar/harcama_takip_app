@@ -47,7 +47,7 @@ class BudgetStatus {
 }
 
 final budgetStatusProvider = Provider<BudgetStatus?>((ref) {
-  final budget = ref.watch(currentBudgetProvider).value;
+  final budget = ref.watch(currentBudgetProvider).valueOrNull;
   if (budget == null || budget.totalBudgetInCents <= 0) return null;
   final stats = ref.watch(workspaceStatsProvider);
   return BudgetStatus(

@@ -11,7 +11,7 @@ final authStateProvider = StreamProvider<AppUser?>((ref) {
 
 /// Oturum açmış kullanıcı (doğrulanmış olsun ya da olmasın).
 final currentUserProvider = Provider<AppUser?>(
-  (ref) => ref.watch(authStateProvider).value,
+  (ref) => ref.watch(authStateProvider).valueOrNull,
 );
 
 /// Veri erişimi için kullanılacak kullanıcı kimliği.
