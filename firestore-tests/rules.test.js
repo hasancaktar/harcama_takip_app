@@ -572,4 +572,48 @@ describe('Taksit planları', () => {
     await assertSucceeds(updateDoc(doc(db(USERS.alice), 'installmentPlans/p1'), { status: 'cancelled', updatedAt: now() }));
     await assertFails(setDoc(doc(db(USERS.alice), 'installmentPlans/p2'), plan('p2', 'alice', { totalInstallments: 5 })));
   });
+
+  test('iptal: plan ve gelecek ayın taksit harcaması aynı yığında güncellenir', async () => {
+    const installment = (n, period) => expense(`p1_${n}_${period}`, 'alice', {
+      isInstallment: true, installmentPlanId: 'p1', paymentMethod: 'credit_card',
+      cardId: 'c1', cardLast4: '1234', statementPeriod: period,
+    });
+    await seed(async (fs) => {
+      await setDoc(doc(fs, 'installmentPlans/p1'), plan('p1', 'alice'));
+      await setDoc(doc(fs, 'expenses/p1_1_2026-11'), installment(1, '2026-11'));
+      await setDoc(doc(fs, 'expenses/p1_2_2026-12'), installment(2, '2026-12'));
+    });
+    const softDelete = { status: 'deleted', deletedAt: now(), deletedBy: 'alice', updatedAt: now() };
+
+    // Başkası iptal yığınını yazamaz.
+    const eve = db(USERS.eve);
+    const evil = writeBatch(eve);
+    evil.update(doc(eve, 'expenses/p1_2_2026-12'), { ...softDelete, deletedBy: 'eve' });
+    evil.update(doc(eve, 'installmentPlans/p1'), { status: 'cancelled', updatedAt: now() });
+    await assertFails(evil.commit());
+
+    const fs = db(USERS.alice);
+    const batch = writeBatch(fs);
+    batch.update(doc(fs, 'expenses/p1_2_2026-12'), softDelete);
+    batch.update(doc(fs, 'installmentPlans/p1'), {
+      status: 'cancelled',
+      installmentSchedule: plan('p1', 'alice').installmentSchedule,
+      updatedAt: now(),
+    });
+    await assertSucceeds(batch.commit());
+  });
+});
+
+describe('Takım üyesi görünen adı', () => {
+  test('üye yalnızca kendi kaydındaki adı değiştirebilir', async () => {
+    await seedTeam();
+    await assertSucceeds(updateDoc(doc(db(USERS.bob), 'teams/t1/members/bob'), { displayName: 'Bob Yılmaz' }));
+    // Başka bir üyenin adı değiştirilemez.
+    await assertFails(updateDoc(doc(db(USERS.bob), 'teams/t1/members/alice'), { displayName: 'Hacked' }));
+    // Ad dışında alan (ör. rol) değiştirilemez.
+    await assertFails(updateDoc(doc(db(USERS.bob), 'teams/t1/members/bob'), { role: 'owner' }));
+    await assertFails(updateDoc(doc(db(USERS.bob), 'teams/t1/members/bob'), { displayName: 'x'.repeat(81) }));
+    // E-postası doğrulanmamış hesap güncelleyemez.
+    await assertFails(updateDoc(doc(db(USERS.bob, { verified: false }), 'teams/t1/members/bob'), { displayName: 'Bob' }));
+  });
 });

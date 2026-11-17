@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 
 /// Türkiye yerel sayı formatına uygun (binlik ayırıcı nokta, ondalık ayırıcı virgül)
@@ -41,7 +42,8 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
         oldValue.text[oldValue.selection.baseOffset - 1] == '.') {
       final deleteIndex = oldValue.selection.baseOffset - 2;
       if (deleteIndex >= 0) {
-        text = oldValue.text.substring(0, deleteIndex) +
+        text =
+            oldValue.text.substring(0, deleteIndex) +
             oldValue.text.substring(oldValue.selection.baseOffset);
         selectionIndex = deleteIndex;
       }
@@ -56,8 +58,13 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
 
     if (commaIndex != -1) {
       rawInteger = text.substring(0, commaIndex).replaceAll(RegExp(r'\D'), '');
-      final afterComma = text.substring(commaIndex + 1).replaceAll(RegExp(r'\D'), '');
-      rawDecimal = afterComma.substring(0, math.min(afterComma.length, maxDecimalDigits));
+      final afterComma = text
+          .substring(commaIndex + 1)
+          .replaceAll(RegExp(r'\D'), '');
+      rawDecimal = afterComma.substring(
+        0,
+        math.min(afterComma.length, maxDecimalDigits),
+      );
     } else {
       rawInteger = text.replaceAll(RegExp(r'\D'), '');
       rawDecimal = null;

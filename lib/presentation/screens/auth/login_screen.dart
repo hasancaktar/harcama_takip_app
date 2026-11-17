@@ -30,16 +30,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    final savedEmail =
-        ref.read(sharedPreferencesProvider)?.getString('last_login_email');
+    final savedEmail = ref
+        .read(sharedPreferencesProvider)
+        ?.getString('last_login_email');
     if (savedEmail != null && savedEmail.isNotEmpty) {
       _emailController.text = savedEmail;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (_emailController.text.isEmpty) {
-        final postSaved =
-            ref.read(sharedPreferencesProvider)?.getString('last_login_email');
+        final postSaved = ref
+            .read(sharedPreferencesProvider)
+            ?.getString('last_login_email');
         if (postSaved != null && postSaved.isNotEmpty) {
           setState(() {
             _emailController.text = postSaved;
@@ -68,10 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final email = _emailController.text.trim();
       await ref
           .read(authRepositoryProvider)
-          .signIn(
-            email: email,
-            password: _passwordController.text,
-          );
+          .signIn(email: email, password: _passwordController.text);
       await ref
           .read(sharedPreferencesProvider)
           ?.setString('last_login_email', email);

@@ -242,9 +242,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
           TextFormField(
             controller: _totalController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: const [
-              ThousandsSeparatorInputFormatter(),
-            ],
+            inputFormatters: const [ThousandsSeparatorInputFormatter()],
             validator: Validators.amount,
             decoration: InputDecoration(
               labelText: 'Toplam bütçe'.tr,
@@ -382,9 +380,7 @@ class _CategoryLimitRow extends StatelessWidget {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  inputFormatters: const [
-                    ThousandsSeparatorInputFormatter(),
-                  ],
+                  inputFormatters: const [ThousandsSeparatorInputFormatter()],
                   validator: Validators.optionalAmount,
                   textAlign: TextAlign.end,
                   decoration: InputDecoration(

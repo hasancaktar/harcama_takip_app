@@ -4,6 +4,7 @@ import 'package:harcama_takip/core/constants/app_constants.dart';
 import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:harcama_takip/core/theme/app_spacing.dart';
 import 'package:harcama_takip/core/theme/app_theme.dart';
+
 import '../splash/splash_screen.dart';
 
 class _LicenseData {
@@ -11,9 +12,9 @@ class _LicenseData {
 
   void addLicense(LicenseEntry entry) {
     for (final package in entry.packages) {
-      packages.putIfAbsent(package, () => <List<LicenseParagraph>>[]).add(
-        entry.paragraphs.toList(),
-      );
+      packages
+          .putIfAbsent(package, () => <List<LicenseParagraph>>[])
+          .add(entry.paragraphs.toList());
     }
   }
 
@@ -48,9 +49,7 @@ class _AppLicensePageState extends State<AppLicensePage> {
     final scheme = context.colors;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Lisanslar'.tr),
-      ),
+      appBar: AppBar(title: Text('Lisanslar'.tr)),
       body: FutureBuilder<_LicenseData>(
         future: _licensesFuture,
         builder: (context, snapshot) {

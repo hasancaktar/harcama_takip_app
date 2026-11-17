@@ -13,6 +13,12 @@ abstract class IInstallmentRepository {
     List<Expense> postings,
   );
 
-  /// Plan iptal edilir; işlenmiş taksitler korunur, kalanlar işlenmez.
-  Future<void> cancelPlan(String planId);
+  /// Plan iptal edilir. [now] itibarıyla ekstreye yansımış taksitler korunur;
+  /// gelecek aylara yazılmış taksit harcamaları silinir (soft delete) ve
+  /// takvimde yeniden "bekliyor" durumuna alınır. Hepsi tek yığında yazılır.
+  Future<void> cancelPlan(
+    InstallmentPlan plan, {
+    required String actorUid,
+    DateTime? now,
+  });
 }

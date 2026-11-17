@@ -129,7 +129,17 @@ class InstallmentPostingService {
       final plans = await _repository.getActiveOwnPlans(uid);
       for (final plan in plans) {
         final result = applyDuePostings(plan, now: at, actorUid: uid);
-        if (!result.hasChanges) continue;
+        if (!result.hasChanges) {
+          // Taksitler baştan yazıldığı için işlenecek bir şey kalmamış olabilir;
+          // son taksit de ekstreye yansıdıysa plan tamamlanır.
+          if (plan.isCompletedAt(at)) {
+            await _repository.savePlanWithPostings(
+              plan.copyWith(status: 'completed', updatedAt: at),
+              const [],
+            );
+          }
+          continue;
+        }
         await _repository.savePlanWithPostings(result.plan, result.postings);
         posted += result.postings.length;
       }

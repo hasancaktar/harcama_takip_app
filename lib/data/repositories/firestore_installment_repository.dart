@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../core/utils/statement_calculator.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/installment_plan.dart';
 import '../../domain/repositories/i_installment_repository.dart';
@@ -71,10 +72,38 @@ class FirestoreInstallmentRepository implements IInstallmentRepository {
   }
 
   @override
-  Future<void> cancelPlan(String planId) {
-    return _col.doc(planId).update({
+  Future<void> cancelPlan(
+    InstallmentPlan plan, {
+    required String actorUid,
+    DateTime? now,
+  }) async {
+    final at = now ?? DateTime.now();
+    final stamp = at.toIso8601String();
+    final batch = _firestore.batch();
+    final schedule = <StatementInstallmentScheduleItem>[];
+    for (final item in plan.installmentSchedule) {
+      if (item.isPosted && !InstallmentPlan.isBilledAt(item, at)) {
+        batch.update(
+          _firestore
+              .collection('expenses')
+              .doc(InstallmentPostingPolicy.expenseIdFor(plan.id, item)),
+          {
+            'status': 'deleted',
+            'deletedAt': stamp,
+            'deletedBy': actorUid,
+            'updatedAt': stamp,
+          },
+        );
+        schedule.add(item.copyWith(status: 'upcoming'));
+      } else {
+        schedule.add(item);
+      }
+    }
+    batch.update(_col.doc(plan.id), {
       'status': 'cancelled',
-      'updatedAt': DateTime.now().toIso8601String(),
+      'installmentSchedule': schedule.map((s) => s.toMap()).toList(),
+      'updatedAt': stamp,
     });
+    await batch.commit();
   }
 }

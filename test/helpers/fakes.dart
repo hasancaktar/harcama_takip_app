@@ -7,6 +7,7 @@ import 'package:harcama_takip/application/providers/settings_providers.dart';
 import 'package:harcama_takip/application/services/notification_service.dart';
 import 'package:harcama_takip/application/services/push_token_service.dart';
 import 'package:harcama_takip/core/constants/app_constants.dart';
+import 'package:harcama_takip/core/utils/statement_calculator.dart';
 import 'package:harcama_takip/domain/entities/admin_models.dart';
 import 'package:harcama_takip/domain/entities/app_user.dart';
 import 'package:harcama_takip/domain/entities/budget.dart';
@@ -381,7 +382,35 @@ class FakeInstallmentRepository implements IInstallmentRepository {
   }
 
   @override
-  Future<void> cancelPlan(String planId) async {}
+  Future<void> cancelPlan(
+    InstallmentPlan plan, {
+    required String actorUid,
+    DateTime? now,
+  }) async {
+    // Gerçek depo gibi: ekstreye yansımamış taksit harcamaları silinir.
+    final at = now ?? DateTime.now();
+    final removed = <String>{};
+    final schedule = [
+      for (final item in plan.installmentSchedule)
+        if (item.isPosted && !InstallmentPlan.isBilledAt(item, at))
+          () {
+            removed.add(InstallmentPostingPolicy.expenseIdFor(plan.id, item));
+            return item.copyWith(status: 'upcoming');
+          }()
+        else
+          item,
+    ];
+    cancelledExpenseIds.addAll(removed);
+    plans.value = [
+      for (final p in plans.value)
+        p.id == plan.id
+            ? p.copyWith(status: 'cancelled', installmentSchedule: schedule)
+            : p,
+    ];
+  }
+
+  /// İptalde silinen taksit harcamalarının kimlikleri.
+  final Set<String> cancelledExpenseIds = {};
 }
 
 class FakeBudgetRepository implements IBudgetRepository {
@@ -517,6 +546,7 @@ class FakeTeamRepository implements ITeamRepository {
           m,
     ];
   }
+
   @override
   Future<void> archiveTeam(String teamId) async {}
 }

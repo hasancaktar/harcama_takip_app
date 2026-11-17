@@ -184,15 +184,22 @@ class _InstallmentsTab extends ConsumerWidget {
             onAction: () => context.push('/installments/new'),
           );
         }
-        final active = plans.where((p) => p.isActive).toList();
-        final other = plans.where((p) => !p.isActive).toList();
+        // Taksitler plan oluşturulurken gelecek aylara yazılır; ilerleme ve
+        // kalan borç bugünün ekstre dönemine göre hesaplanır.
+        final now = DateTime.now();
+        final active = plans
+            .where((p) => p.displayStatusAt(now) == 'active')
+            .toList();
+        final other = plans
+            .where((p) => p.displayStatusAt(now) != 'active')
+            .toList();
         final remaining = active.fold<int>(
           0,
-          (s, p) => s + p.remainingAmountInCents,
+          (s, p) => s + p.remainingAmountAt(now),
         );
         final monthly = active.fold<int>(
           0,
-          (s, p) => s + (p.nextInstallment?.amountInCents ?? 0),
+          (s, p) => s + (p.nextInstallmentAt(now)?.amountInCents ?? 0),
         );
 
         return PageListView(
@@ -276,11 +283,14 @@ class _PlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = context.colors;
-    final next = plan.nextInstallment;
+    final now = DateTime.now();
+    final status = plan.displayStatusAt(now);
+    final next = plan.nextInstallmentAt(now);
+    final billed = plan.billedCountAt(now);
     final progress = plan.totalInstallments == 0
         ? 0.0
-        : plan.postedCount / plan.totalInstallments;
-    final (String statusLabel, Color statusColor) = switch (plan.status) {
+        : billed / plan.totalInstallments;
+    final (String statusLabel, Color statusColor) = switch (status) {
       'active' => ('Devam ediyor'.tr, scheme.primary),
       'completed' => ('Tamamlandı'.tr, context.semantic.success),
       _ => ('İptal edildi'.tr, scheme.onSurfaceVariant),
@@ -335,15 +345,15 @@ class _PlanCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  next != null && plan.isActive
+                  next != null && status == 'active'
                       ? '{0}/{1} · sıradaki {2} ({3})'.trArgs([
-                          plan.postedCount,
+                          billed,
                           plan.totalInstallments,
                           MoneyFormatter.formatCents(next.amountInCents),
                           DateFormats.periodShort(next.statementPeriod),
                         ])
                       : '{0}/{1} taksit işlendi'.trArgs([
-                          plan.postedCount,
+                          billed,
                           plan.totalInstallments,
                         ]),
                   style: context.textStyles.bodySmall?.copyWith(

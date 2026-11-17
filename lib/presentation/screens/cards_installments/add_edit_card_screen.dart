@@ -265,9 +265,7 @@ class _CardFormState extends ConsumerState<_CardForm> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    inputFormatters: const [
-                      ThousandsSeparatorInputFormatter(),
-                    ],
+                    inputFormatters: const [ThousandsSeparatorInputFormatter()],
                     validator: Validators.optionalAmount,
                     decoration: InputDecoration(
                       labelText: 'Limit (isteğe bağlı)'.tr,

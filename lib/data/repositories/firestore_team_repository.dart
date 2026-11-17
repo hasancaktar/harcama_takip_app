@@ -262,9 +262,7 @@ class FirestoreTeamRepository implements ITeamRepository {
     if (snap.docs.isEmpty) return;
     final batch = _firestore.batch();
     for (final doc in snap.docs) {
-      batch.update(_members(doc.id).doc(uid), {
-        'displayName': displayName,
-      });
+      batch.update(_members(doc.id).doc(uid), {'displayName': displayName});
     }
     await batch.commit();
   }

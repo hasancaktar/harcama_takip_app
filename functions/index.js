@@ -42,7 +42,13 @@ exports.postDueInstallments = onSchedule(
           const fresh = await tx.get(planDoc.ref);
           if (!fresh.exists) return 0;
           const result = applyDuePostings(planDoc.id, fresh.data(), new Date());
-          if (result.postings.length === 0) return 0;
+          if (result.postings.length === 0) {
+            // Taksitler baştan yazılmış olabilir; son taksit yansıdıysa planı kapat.
+            if (result.status !== fresh.data().status) {
+              tx.update(planDoc.ref, { status: result.status, updatedAt: new Date().toISOString() });
+            }
+            return 0;
+          }
 
           // Firestore işlemlerinde tüm okumalar yazmalardan önce yapılmalıdır.
           const refs = result.postings.map((p) => db.collection("expenses").doc(p.id));

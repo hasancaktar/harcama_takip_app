@@ -55,7 +55,7 @@ function applyDuePostings(planId, plan, now = new Date()) {
         teamId: plan.teamId || null,
         ownerUid: plan.ownerUid,
         visibility: plan.visibility || "personal",
-        title: `${plan.title} (${item.installmentNumber}/${plan.totalInstallments}. taksit)`,
+        title: `${plan.title} - ${item.installmentNumber}. Taksit`,
         amountInCents: item.amountInCents,
         currency: plan.currency || "TRY",
         category: plan.category || "other",
@@ -83,8 +83,11 @@ function applyDuePostings(planId, plan, now = new Date()) {
     return { ...item, status: "posted" };
   });
 
-  const allPosted = updated.length > 0 && updated.every((i) => i.status === "posted");
-  return { postings, schedule: updated, status: allPosted ? "completed" : plan.status };
+  // Uygulama taksitleri plan oluşurken gelecek aylara da yazar; bu yüzden plan,
+  // tüm taksitler yazılmış VE son taksitin dönemi gelmişse tamamlanır.
+  const allBilled = updated.length > 0 && updated.every((i) =>
+    i.status === "posted" && String(i.statementPeriod) <= currentPeriod);
+  return { postings, schedule: updated, status: allBilled ? "completed" : plan.status };
 }
 
 module.exports = { periodOf, isDue, expenseIdFor, applyDuePostings };

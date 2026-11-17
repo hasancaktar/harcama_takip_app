@@ -54,7 +54,7 @@ Kaynak: [`firestore.rules`](../firestore.rules) · Testler: [`firestore-tests/ru
 cd firestore-tests && npm install && npm test
 ```
 
-40 test; doğrulanmamış hesap, sahiplik, takım üyeliği, davet (geçerli/süresi dolmuş/başka e-posta),
+42 test; doğrulanmamış hesap, sahiplik, takım üyeliği, davet (geçerli/süresi dolmuş/başka e-posta),
 şema sınırları, sorgu düzeyi kuralları ve yönetim yetkisi kapsanır. Yönetim testleri: normal
 kullanıcının yazamaması, e-postası doğrulanmamış yöneticinin ve benzer adresli hesabın yetkisiz
 olması, bildirim sonuç alanlarının ve `lastSentDate` alanının istemciden yazılamaması, işlem

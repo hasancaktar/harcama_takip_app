@@ -534,10 +534,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                       prefixIcon: const Icon(Icons.splitscreen_rounded),
                     ),
                     items: [
-                      DropdownMenuItem(
-                        value: 1,
-                        child: Text('Tek çekim'.tr),
-                      ),
+                      DropdownMenuItem(value: 1, child: Text('Tek çekim'.tr)),
                       for (final n in [2, 3, 4, 5, 6, 8, 9, 10, 12, 18, 24, 36])
                         DropdownMenuItem(
                           value: n,

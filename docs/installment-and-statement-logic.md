@@ -1,15 +1,24 @@
 # Kredi Kartı Kesim Tarihi ve Taksit Motoru Mantığı (Installment & Statement Logic)
 
-> **Güncel kurallar (v1.1)** — Bu belgenin geri kalanından önce okunmalıdır:
+> **Güncel kurallar (v1.2)** — Bu belgenin geri kalanından önce okunmalıdır:
 >
 > 1. **Dönem ataması:** Yalnızca *kredi kartı* harcamaları kesim gününe göre ekstre dönemine yazılır.
 >    Nakit, banka kartı, havale vb. harcamalar harcamanın yapıldığı **takvim ayına** yazılır
 >    (`StatementCalculator.periodForExpense`). Önceki sürüm bunları kesim günü 1 varsayımıyla
 >    hesaplıyor, ayın 1'inden sonraki tüm nakit harcamaları bir sonraki aya yazıyordu.
-> 2. **Taksit işleme zamanı:** Bir taksit, ait olduğu ekstre döneminin takvim ayı geldiğinde
->    harcama olarak işlenir (`InstallmentPostingPolicy.isDue`: `statementPeriod <= içinde bulunulan ay`).
->    Böylece içinde bulunulan ayın ekstresi kesimden önce de doğru toplamı gösterir. Geçmiş tarihli
->    planlarda vadesi gelmiş tüm taksitler plan oluşturulurken tek atomik yığında eklenir.
+> 2. **Taksitler baştan yazılır (v1.2):** Taksit planı oluşturulduğunda (taksit planı ekranı veya
+>    harcama formundaki "Taksit sayısı") **tüm taksitler hemen** kendi ekstre dönemlerine harcama olarak
+>    yazılır (`InstallmentPostingService.applyAllPostings`). Böylece gelecek ayların harcama ve rapor
+>    ekranları taksitleri önceden gösterir. Bu yüzden takvimde `posted`, "ödendi" anlamına gelmez.
+>    - **Ekstreye yansıdı:** taksit `posted` **ve** dönemi içinde bulunulan aydan sonra değil
+>      (`InstallmentPlan.isBilledAt`). İlerleme (`billedCountAt`), ödenen (`billedAmountAt`), kalan borç
+>      (`remainingAmountAt`) ve sıradaki taksit (`nextInstallmentAt`) bugünün dönemine göre hesaplanır.
+>    - **Tamamlanma:** son taksitin dönemi gelince plan tamamlanmış görünür (`displayStatusAt`); istemci
+>      senkronu ve gece çalışan Cloud Function planı `completed` olarak kaydeder.
+>    - **İptal:** ekstreye henüz yansımamış taksit harcamaları silinir (soft delete) ve takvimde yeniden
+>      `upcoming` olur; bu aya kadar yansıyanlar korunur. Plan durumu ve silmeler tek yığında yazılır.
+>    - Eski sürümde oluşturulmuş (taksitleri ayı gelince işlenen) planlar aynı hesaplarla doğru görünür;
+>      onlar için `applyDuePostings` ve gece fonksiyonu eskisi gibi çalışır.
 > 3. **Harcama tarihi:** 1. taksit alışveriş tarihinde, sonrakiler bankanın işlediği kesim tarihinde görünür.
 > 4. **Idempotens:** Harcama kimliği `planId_taksitNo_dönem`; istemci ve Cloud Function aynı kuralı
 >    (`functions/lib/installments.js`) uygular. İşlenen taksit planda `posted` olarak işaretlenir.

@@ -55,3 +55,21 @@ test("iptal edilmiş planda işlem yapılmaz", () => {
 test("idempotent kimlik istemci ile aynıdır", () => {
   assert.equal(expenseIdFor("abc", { installmentNumber: 2, statementPeriod: "2026-12" }), "abc_2_2026-12");
 });
+
+test("baştan yazılmış taksitlerde plan, son taksitin dönemi gelince tamamlanır", () => {
+  const allPosted = plan({
+    installmentSchedule: plan().installmentSchedule.map((i) => ({ ...i, status: "posted" })),
+  });
+  const december = applyDuePostings("p1", allPosted, new Date("2026-12-02T09:00:00Z"));
+  assert.equal(december.postings.length, 0);
+  assert.equal(december.status, "active");
+
+  const january = applyDuePostings("p1", allPosted, new Date("2027-01-05T09:00:00Z"));
+  assert.equal(january.postings.length, 0);
+  assert.equal(january.status, "completed");
+});
+
+test("taksit başlığı uygulamayla aynı biçimdedir", () => {
+  const result = applyDuePostings("p1", plan(), new Date("2026-12-02T09:00:00Z"));
+  assert.equal(result.postings[0].data.title, "Telefon - 2. Taksit");
+});

@@ -242,7 +242,8 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: AppConstants.privacyPolicyUrl,
                 trailing: const Icon(Icons.open_in_new_rounded, size: 20),
                 onTap: () => _openUrl(context, AppConstants.privacyPolicyUrl),
-                onLongPress: () => _copyUrl(context, AppConstants.privacyPolicyUrl),
+                onLongPress: () =>
+                    _copyUrl(context, AppConstants.privacyPolicyUrl),
               ),
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
@@ -256,9 +257,7 @@ class SettingsScreen extends ConsumerWidget {
                         children: [
                           const AppLogo(size: 32),
                           const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Text(AppConstants.appName),
-                          ),
+                          Expanded(child: Text(AppConstants.appName)),
                         ],
                       ),
                       content: Column(
@@ -275,8 +274,10 @@ class SettingsScreen extends ConsumerWidget {
                           Text(AppConstants.appTagline),
                           const SizedBox(height: AppSpacing.md),
                           InkWell(
-                            onTap: () => _openUrl(context, AppConstants.webAppUrl),
-                            onLongPress: () => _copyUrl(context, AppConstants.webAppUrl),
+                            onTap: () =>
+                                _openUrl(context, AppConstants.webAppUrl),
+                            onLongPress: () =>
+                                _copyUrl(context, AppConstants.webAppUrl),
                             child: SelectableText(
                               'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}'
                                   .trArgs([AppConstants.webAppUrl]),
@@ -387,7 +388,8 @@ class _SettingsTile extends StatelessWidget {
       subtitle: subtitle != null
           ? Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
           : null,
-      trailing: trailing ??
+      trailing:
+          trailing ??
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [

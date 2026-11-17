@@ -41,19 +41,52 @@ class InstallmentPlan {
     required this.updatedAt,
   });
 
+  /// Harcama olarak yazılmış taksit sayısı. Taksitler plan oluşturulurken
+  /// gelecek aylara da yazıldığı için bu, ödenen taksit sayısı **değildir**;
+  /// ilerleme ve kalan borç için [billedCountAt] / [remainingAmountAt] kullanın.
   int get postedCount => installmentSchedule.where((s) => s.isPosted).length;
-  int get remainingCount => totalInstallments - postedCount;
-  int get remainingAmountInCents => installmentSchedule
-      .where((s) => !s.isPosted)
-      .fold(0, (sum, s) => sum + s.amountInCents);
   bool get isActive => status == 'active';
 
-  StatementInstallmentScheduleItem? get nextInstallment {
-    for (final item in installmentSchedule) {
-      if (!item.isPosted) return item;
-    }
-    return null;
+  /// Taksit [now] itibarıyla ekstreye yansıdı mı? (Harcama olarak yazılmış ve
+  /// ekstre dönemi içinde bulunulan aydan sonra değil.)
+  static bool isBilledAt(StatementInstallmentScheduleItem item, DateTime now) =>
+      item.isPosted &&
+      item.statementPeriod.compareTo(StatementCalculator.periodOf(now)) <= 0;
+
+  /// Ekstreye yansımamış ama ileride yansıyacak taksitler. İptal edilmiş planda
+  /// harcamalardan kaldırılan taksitler bu listeye girmez.
+  List<StatementInstallmentScheduleItem> upcomingAt(DateTime now) =>
+      installmentSchedule
+          .where((s) => !isBilledAt(s, now) && (isActive || s.isPosted))
+          .toList();
+
+  int billedCountAt(DateTime now) =>
+      installmentSchedule.where((s) => isBilledAt(s, now)).length;
+
+  int billedAmountAt(DateTime now) => installmentSchedule
+      .where((s) => isBilledAt(s, now))
+      .fold(0, (sum, s) => sum + s.amountInCents);
+
+  /// Henüz ekstreye yansımamış taksitlerin toplamı (kalan borç).
+  int remainingAmountAt(DateTime now) =>
+      upcomingAt(now).fold(0, (sum, s) => sum + s.amountInCents);
+
+  /// Bir sonraki ekstreye yansıyacak taksit.
+  StatementInstallmentScheduleItem? nextInstallmentAt(DateTime now) {
+    final upcoming = upcomingAt(now);
+    return upcoming.isEmpty ? null : upcoming.first;
   }
+
+  /// Tüm taksitler ekstreye yansıdıysa plan tamamlanmış sayılır.
+  bool isCompletedAt(DateTime now) =>
+      status == 'completed' ||
+      (isActive &&
+          installmentSchedule.isNotEmpty &&
+          installmentSchedule.every((s) => isBilledAt(s, now)));
+
+  /// Ekranda gösterilecek durum: `active`, `completed` veya `cancelled`.
+  String displayStatusAt(DateTime now) =>
+      isCompletedAt(now) ? 'completed' : status;
 
   InstallmentPlan copyWith({
     List<StatementInstallmentScheduleItem>? installmentSchedule,

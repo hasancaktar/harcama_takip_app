@@ -126,7 +126,7 @@ const Map<String, String> translationsEn = {
   'Bu kayıt zaten mevcut.': 'This record already exists.',
   'Bu kodla e-posta adresinize ({0}) gönderilmiş geçerli bir davet bulunamadı. Kodu kontrol edin veya takım sahibinden sizi bu adresle davet etmesini isteyin.': 'No valid invitation sent to your email address ({0}) was found for this code. Check the code or ask the team owner to invite you with this address.',
   'Bu panel yalnızca {0} hesabına açıktır. Tüm işlemler kayıt altına alınır.': 'This panel is only available to the {0} account. All actions are logged.',
-  'Bu plan iptal edildi. Kalan taksitler harcamalara eklenmez.': 'This plan was cancelled. Remaining installments are not added to expenses.',
+  'Bu plan iptal edildi. Ekstreye yansımamış taksitler harcamalardan kaldırıldı.': 'This plan was cancelled. Installments not yet billed were removed from expenses.',
   'Bu sayfaya erişim yetkiniz yok': 'You do not have access to this page',
   'Bu takım aktif çalışma alanınız. Yeni harcamalar varsayılan olarak bu takıma eklenir.': 'This team is your active workspace. New expenses are added to this team by default.',
   'Bu takıma geç': 'Switch to this team',
@@ -234,7 +234,8 @@ const Map<String, String> translationsEn = {
   'Görünüm ve dil': 'Appearance and language',
   'Görünürlük': 'Visibility',
   'Göz yorgunluğunu azaltır': 'Reduces eye strain',
-  'Grafikler ve harcama analizleri güncelleniyor.': 'Charts and spending analyses are being updated.',
+  'Grafikler ve harcama analizleri güncelleniyor.':
+      'Charts and spending analyses are being updated.',
   'Günde en fazla bir kez gönderilir. Bildirimleri kapatan veya kendi kişisel hatırlatıcısını kullanan kullanıcılara gönderilmez (çift bildirim olmaması için).': 'Sent at most once a day. Not sent to users who turned notifications off or who use their own personal reminder (to avoid duplicate notifications).',
   'Günler': 'Days',
   'Günlük Harcama Hatırlatıcıları': 'Daily Expense Reminders',
@@ -307,7 +308,7 @@ const Map<String, String> translationsEn = {
   'Hesap oluşturun': 'Create an account',
   'Kalan': 'Remaining',
   'Kalan taksit borcu': 'Remaining installment debt',
-  'Kalan {0} taksit ({1}) artık harcamalara eklenmeyecek. Daha önce işlenmiş taksitler korunur. Bu işlem geri alınamaz.': 'The remaining {0} installment(s) ({1}) will no longer be added to expenses. Installments already posted are kept. This cannot be undone.',
+  'Henüz ekstreye yansımamış {0} taksit ({1}) gelecek ayların harcamalarından kaldırılacak. Bu aya kadar yansıyan taksitler korunur. Bu işlem geri alınamaz.': "{0} installment(s) not yet billed ({1}) will be removed from future months' expenses. Installments billed up to this month are kept. This cannot be undone.",
   'Kaldır': 'Remove',
   'Kapalı': 'Off',
   'Kapalı: otomatik bildirim gönderilmez.':
@@ -556,7 +557,8 @@ const Map<String, String> translationsEn = {
   'Toplam alışveriş tutarı': 'Total purchase amount',
   'Toplam bütçe': 'Total budget',
   'Toplam gider': 'Total spending',
-  'Toplam tutar {0} aya eşit şekilde paylaştırılacak.': 'The total amount will be divided equally over {0} months.',
+  'Toplam tutar {0} aya eşit şekilde paylaştırılacak.':
+      'The total amount will be divided equally over {0} months.',
   'Tutar': 'Amount',
   'Tutar gerekli': 'Amount is required',
   'Tüm harcamalarınız, kartlarınız, taksit planlarınız, kişisel bütçeleriniz ve profiliniz kalıcı olarak silinir. Sahibi olduğunuz takımlar kapatılır, üyesi olduğunuz takımlardan çıkarılırsınız. Bu işlem geri alınamaz.': 'All your expenses, cards, installment plans, personal budgets and your profile will be permanently deleted. Teams you own will be closed and you will be removed from teams you are a member of. This cannot be undone.',

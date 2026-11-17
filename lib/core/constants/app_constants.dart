@@ -186,8 +186,7 @@ abstract class AppConstants {
   static const String defaultTimezone = 'Europe/Istanbul';
   static const String privacyPolicyUrl =
       'https://harcama-takip-app-7ff66.web.app/privacy-policy.html';
-  static const String webAppUrl =
-      'https://harcama-takip-app-7ff66.web.app';
+  static const String webAppUrl = 'https://harcama-takip-app-7ff66.web.app';
 
   static String get appTagline => 'Harcama, kart ve taksitleriniz tek yerde'.tr;
 

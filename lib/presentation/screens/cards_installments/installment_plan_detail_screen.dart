@@ -25,20 +25,26 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     InstallmentPlan plan,
   ) async {
+    final now = DateTime.now();
+    final upcoming = plan.upcomingAt(now);
     final ok = await showConfirmDialog(
       context,
       title: 'Taksit planı iptal edilsin mi?'.tr,
-      message: 'Kalan {0} taksit ({1}) artık harcamalara eklenmeyecek. Daha önce işlenmiş taksitler korunur. Bu işlem geri alınamaz.'
+      message: 'Henüz ekstreye yansımamış {0} taksit ({1}) gelecek ayların harcamalarından kaldırılacak. Bu aya kadar yansıyan taksitler korunur. Bu işlem geri alınamaz.'
           .trArgs([
-            plan.remainingCount,
-            MoneyFormatter.formatCents(plan.remainingAmountInCents),
+            upcoming.length,
+            MoneyFormatter.formatCents(plan.remainingAmountAt(now)),
           ]),
       confirmLabel: 'Planı iptal et'.tr,
       destructive: true,
     );
     if (!ok || !context.mounted) return;
     try {
-      await ref.read(installmentRepositoryProvider).cancelPlan(plan.id);
+      final uid = ref.read(currentUserIdProvider);
+      if (uid == null) return;
+      await ref
+          .read(installmentRepositoryProvider)
+          .cancelPlan(plan, actorUid: uid, now: now);
       if (context.mounted) context.showSuccess('Taksit planı iptal edildi.'.tr);
     } catch (e) {
       if (context.mounted) context.showError(e);
@@ -64,8 +70,11 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
               message: 'Plan silinmiş veya görüntüleme yetkiniz yok.'.tr,
             );
           }
-          final canCancel = plan.isActive && plan.ownerUid == uid;
-          final paid = plan.totalAmountInCents - plan.remainingAmountInCents;
+          final now = DateTime.now();
+          final canCancel =
+              plan.displayStatusAt(now) == 'active' && plan.ownerUid == uid;
+          final paid = plan.billedAmountAt(now);
+          final remaining = plan.remainingAmountAt(now);
           return PageListView(
             maxWidth: AppSpacing.maxFormWidth,
             children: [
@@ -111,16 +120,14 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
                         Expanded(
                           child: _Kpi(
                             label: 'Kalan'.tr,
-                            value: MoneyFormatter.formatCents(
-                              plan.remainingAmountInCents,
-                            ),
+                            value: MoneyFormatter.formatCents(remaining),
                           ),
                         ),
                         Expanded(
                           child: _Kpi(
                             label: 'Taksit'.tr,
                             value:
-                                '${plan.postedCount}/${plan.totalInstallments}',
+                                '${plan.billedCountAt(now)}/${plan.totalInstallments}',
                           ),
                         ),
                       ],
@@ -132,7 +139,7 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.md),
                 InlineMessage(
                   tone: MessageTone.warning,
-                  message: 'Bu plan iptal edildi. Kalan taksitler harcamalara eklenmez.'
+                  message: 'Bu plan iptal edildi. Ekstreye yansımamış taksitler harcamalardan kaldırıldı.'
                       .tr,
                 ),
               ],
@@ -145,55 +152,61 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     for (final item in plan.installmentSchedule)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.xs,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              item.isPosted
-                                  ? Icons.check_circle_rounded
-                                  : Icons.radio_button_unchecked_rounded,
-                              size: 20,
-                              color: item.isPosted
-                                  ? context.semantic.success
-                                  : scheme.outline,
-                              semanticLabel: item.isPosted
-                                  ? 'İşlendi'.tr
-                                  : 'Bekliyor'.tr,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '{0}. taksit · {1}'.trArgs([
-                                      item.installmentNumber,
-                                      DateFormats.period(item.statementPeriod),
-                                    ]),
-                                    style: context.textStyles.titleSmall,
-                                  ),
-                                  Text(
-                                    'Son ödeme {0}'.trArgs([
-                                      DateFormats.day(item.dueDate),
-                                    ]),
-                                    style: context.textStyles.bodySmall
-                                        ?.copyWith(
-                                          color: scheme.onSurfaceVariant,
-                                        ),
-                                  ),
-                                ],
+                      if (InstallmentPlan.isBilledAt(item, now) ||
+                          plan.isActive ||
+                          item.isPosted)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xs,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                InstallmentPlan.isBilledAt(item, now)
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_unchecked_rounded,
+                                size: 20,
+                                color: InstallmentPlan.isBilledAt(item, now)
+                                    ? context.semantic.success
+                                    : scheme.outline,
+                                semanticLabel:
+                                    InstallmentPlan.isBilledAt(item, now)
+                                    ? 'İşlendi'.tr
+                                    : 'Bekliyor'.tr,
                               ),
-                            ),
-                            Text(
-                              MoneyFormatter.formatCents(item.amountInCents),
-                              style: context.textStyles.titleSmall,
-                            ),
-                          ],
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '{0}. taksit · {1}'.trArgs([
+                                        item.installmentNumber,
+                                        DateFormats.period(
+                                          item.statementPeriod,
+                                        ),
+                                      ]),
+                                      style: context.textStyles.titleSmall,
+                                    ),
+                                    Text(
+                                      'Son ödeme {0}'.trArgs([
+                                        DateFormats.day(item.dueDate),
+                                      ]),
+                                      style: context.textStyles.bodySmall
+                                          ?.copyWith(
+                                            color: scheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                MoneyFormatter.formatCents(item.amountInCents),
+                                style: context.textStyles.titleSmall,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                   ],
                 ),
               ),

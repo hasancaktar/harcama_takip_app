@@ -81,7 +81,8 @@ class NotificationService {
         AndroidNotificationChannel(
           _channelId,
           _channelName,
-          description: 'Günün harcamalarını girmeniz için hatırlatma gönderir'.tr,
+          description:
+              'Günün harcamalarını girmeniz için hatırlatma gönderir'.tr,
           importance: Importance.defaultImportance,
         ),
       );

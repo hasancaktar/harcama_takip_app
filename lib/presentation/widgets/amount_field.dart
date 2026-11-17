@@ -56,9 +56,7 @@ class AmountField extends StatelessWidget {
             onChanged: onChanged,
             textInputAction: textInputAction,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: const [
-              ThousandsSeparatorInputFormatter(),
-            ],
+            inputFormatters: const [ThousandsSeparatorInputFormatter()],
             validator: Validators.amount,
             style: context.textStyles.displaySmall?.copyWith(
               color: scheme.onSurface,

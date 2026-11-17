@@ -15,7 +15,9 @@ void main() {
         ),
         TextEditingValue(
           text: newText,
-          selection: TextSelection.collapsed(offset: newCursor ?? newText.length),
+          selection: TextSelection.collapsed(
+            offset: newCursor ?? newText.length,
+          ),
         ),
       );
     }
@@ -30,8 +32,14 @@ void main() {
     test('formatlanmış değerler MoneyFormatter.parseToCents ile doğru kuruşa çözülür', () {
       expect(MoneyFormatter.parseToCents(format('', '50000').text), 5000000);
       expect(MoneyFormatter.parseToCents(format('', '150000').text), 15000000);
-      expect(MoneyFormatter.parseToCents(format('', '1250000').text), 125000000);
-      expect(MoneyFormatter.parseToCents(format('', '50000000').text), 5000000000);
+      expect(
+        MoneyFormatter.parseToCents(format('', '1250000').text),
+        125000000,
+      );
+      expect(
+        MoneyFormatter.parseToCents(format('', '50000000').text),
+        5000000000,
+      );
     });
 
     test('ondalık virgül ve kuruş girişini destekler', () {

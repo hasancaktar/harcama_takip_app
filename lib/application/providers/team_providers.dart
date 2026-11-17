@@ -96,8 +96,8 @@ final memberNamesProvider = Provider<Map<String, String>>((ref) {
     final myDisplayName = (profile?.displayName.trim().isNotEmpty == true)
         ? profile!.displayName.trim()
         : ((user != null && user.displayName.trim().isNotEmpty)
-            ? user.displayName.trim()
-            : null);
+              ? user.displayName.trim()
+              : null);
     if (myDisplayName != null && myDisplayName.isNotEmpty) {
       map[myUid] = myDisplayName;
     }

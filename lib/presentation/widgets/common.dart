@@ -171,7 +171,10 @@ class AppButton extends StatelessWidget {
 
       final loadingStyle = OutlinedButton.styleFrom(
         disabledForegroundColor: outlineColor,
-        side: BorderSide(color: outlineColor.withValues(alpha: 0.8), width: 1.5),
+        side: BorderSide(
+          color: outlineColor.withValues(alpha: 0.8),
+          width: 1.5,
+        ),
       );
 
       button = OutlinedButton(
