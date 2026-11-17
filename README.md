@@ -16,22 +16,30 @@ takip etmeye yarayan Flutter + Firebase uygulaması (Android ve Web).
   olarak harcamalara eklenir. Plan detayı, ödeme takvimi ve iptal.
 - **Bütçe:** Çalışma alanı + ay başına tek bütçe, isteğe bağlı kategori limitleri, aşım uyarıları.
 - **Raporlar:** Son 6 ay trendi, kategori dağılımı, ödeme yöntemleri, takım üyelerine göre dağılım.
-- **Duyarlı arayüz:** Telefonda alt gezinme çubuğu, tablet/masaüstünde yan gezinme rayı;
-  açık/koyu tema, Türkçe yerelleştirme, erişilebilirlik etiketleri, çevrimdışı uyarısı.
+- **Duyarlı arayüz:** Telefonda alt gezinme çubuğu, tablet/masaüstünde ve yatay telefonda yan
+  gezinme rayı; açık/koyu tema, erişilebilirlik etiketleri, çevrimdışı uyarısı. Tüm ekranlar
+  7 ekran boyutunda ve iki dilde otomatik taşma denetiminden geçer.
+- **Türkçe ve İngilizce:** Dil ayarlardan anında değişir; yeni dil eklemeye uygun merkezi yapı
+  ([docs/localization.md](docs/localization.md)).
+- **Yönetim paneli:** Yalnızca yönetici hesabına açık; push bildirimi gönderme, sunucu taraflı
+  günlük hatırlatma, bildirim geçmişi, kategori yönetimi, kullanıcı listesi ve işlem kayıtları.
+  Yetki Firestore kurallarında ve Cloud Functions'ta da denetlenir
+  ([docs/admin-panel.md](docs/admin-panel.md)).
 - **Hesap yönetimi:** Ad güncelleme, şifre değiştirme, yeniden kimlik doğrulamalı hesap ve veri silme.
 
 ## Mimari
 
 ```
 lib/
-├── core/          tema ve tasarım belirteçleri, hata mesajları, para/dönem hesaplamaları, doğrulayıcılar
+├── core/          tema ve tasarım belirteçleri, dil (l10n), hata mesajları, para/dönem hesaplamaları, doğrulayıcılar
 ├── domain/        varlıklar (Expense, CreditCard, InstallmentPlan, Budget, Team, TeamInvite…) ve depo arayüzleri
 ├── data/          Firebase Auth / Firestore depo uygulamaları
 ├── application/   Riverpod sağlayıcıları ve servisler (taksit işleme, bildirim, hesap)
 └── presentation/  GoRouter (oturum + e-posta doğrulama korumalı), ekranlar ve ortak bileşenler
 firestore.rules            güvenlik kuralları  ·  firestore.indexes.json  dizinler
 firestore-tests/           kural testleri (Firebase Emulator)
-functions/                 Cloud Functions (2. nesil): gece taksit işleme, takım bildirimi
+functions/                 Cloud Functions (2. nesil): gece taksit işleme, takım bildirimi,
+                           yönetici bildirimleri ve günlük hatırlatma
 ```
 
 Ayrıntılar: [docs/architecture.md](docs/architecture.md), [docs/security-rules.md](docs/security-rules.md),

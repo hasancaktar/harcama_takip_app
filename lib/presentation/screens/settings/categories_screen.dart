@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -13,11 +14,12 @@ class CategoriesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kategoriler')),
+      appBar: AppBar(title: Text('Kategoriler'.tr)),
       body: PageListView(
         children: [
           Text(
-            'Harcamalarınızı aşağıdaki kategorilerle sınıflandırabilirsiniz. Kategori bazlı limitleri Bütçe ekranından belirleyebilirsiniz.',
+            'Harcamalarınızı aşağıdaki kategorilerle sınıflandırabilirsiniz. Kategori bazlı limitleri Bütçe ekranından belirleyebilirsiniz.'
+                .tr,
             style: context.textStyles.bodyMedium?.copyWith(
               color: context.colors.onSurfaceVariant,
             ),
@@ -27,7 +29,7 @@ class CategoriesScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
             child: Column(
               children: [
-                for (final c in AppConstants.defaultCategories)
+                for (final c in AppConstants.categories)
                   ListTile(
                     leading: CategoryIcon(categoryId: c.id, size: 36),
                     title: Text(c.name),

@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -94,15 +95,15 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Filtrele', style: ctx.textStyles.titleLarge),
+                  Text('Filtrele'.tr, style: ctx.textStyles.titleLarge),
                   const SizedBox(height: AppSpacing.md),
-                  Text('Kategori', style: ctx.textStyles.titleSmall),
+                  Text('Kategori'.tr, style: ctx.textStyles.titleSmall),
                   const SizedBox(height: AppSpacing.xs),
                   Wrap(
                     spacing: AppSpacing.xs,
                     runSpacing: AppSpacing.xs,
                     children: [
-                      for (final c in AppConstants.defaultCategories)
+                      for (final c in AppConstants.categories)
                         FilterChip(
                           avatar: Icon(c.icon, size: 18, color: c.color),
                           label: Text(c.name),
@@ -113,7 +114,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  Text('Ödeme yöntemi', style: ctx.textStyles.titleSmall),
+                  Text('Ödeme yöntemi'.tr, style: ctx.textStyles.titleSmall),
                   const SizedBox(height: AppSpacing.xs),
                   Wrap(
                     spacing: AppSpacing.xs,
@@ -134,7 +135,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                     children: [
                       Expanded(
                         child: AppButton(
-                          label: 'Temizle',
+                          label: 'Temizle'.tr,
                           outlined: true,
                           onPressed: () => update(() {
                             _category = null;
@@ -145,7 +146,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: AppButton(
-                          label: 'Uygula',
+                          label: 'Uygula'.tr,
                           onPressed: () => Navigator.pop(ctx),
                         ),
                       ),
@@ -169,9 +170,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         (_category != null ? 1 : 0) + (_paymentMethod != null ? 1 : 0);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Harcamalar')),
+      appBar: AppBar(title: Text('Harcamalar'.tr)),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Harcama ekle',
+        heroTag: 'fab-expenses',
+        tooltip: 'Harcama ekle'.tr,
         onPressed: () => context.push('/expenses/new'),
         child: const Icon(Icons.add_rounded),
       ),
@@ -197,7 +199,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                           textInputAction: TextInputAction.search,
                           onChanged: (v) => setState(() => _query = v),
                           decoration: InputDecoration(
-                            hintText: 'Başlık, not veya kategori ara',
+                            hintText: 'Başlık, not veya kategori ara'.tr,
                             prefixIcon: const Icon(Icons.search_rounded),
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 12,
@@ -205,7 +207,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                             suffixIcon: _query.isEmpty
                                 ? null
                                 : IconButton(
-                                    tooltip: 'Aramayı temizle',
+                                    tooltip: 'Aramayı temizle'.tr,
                                     icon: const Icon(Icons.close_rounded),
                                     onPressed: () {
                                       _searchController.clear();
@@ -220,7 +222,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                         isLabelVisible: filterCount > 0,
                         label: Text('$filterCount'),
                         child: IconButton.filledTonal(
-                          tooltip: 'Filtrele',
+                          tooltip: 'Filtrele'.tr,
                           onPressed: _openFilterSheet,
                           icon: const Icon(Icons.tune_rounded),
                         ),
@@ -236,14 +238,14 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                           final filter = ref.watch(teamExpenseFilterProvider);
                           return SegmentedButton<TeamExpenseFilter>(
                             showSelectedIcon: false,
-                            segments: const [
+                            segments: [
                               ButtonSegment(
                                 value: TeamExpenseFilter.all,
-                                label: Text('Tüm takım'),
+                                label: Text('Tüm takım'.tr),
                               ),
                               ButtonSegment(
                                 value: TeamExpenseFilter.mine,
-                                label: Text('Benimkiler'),
+                                label: Text('Benimkiler'.tr),
                               ),
                             ],
                             selected: {filter},
@@ -273,9 +275,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 if (all.isEmpty) {
                   return EmptyStateView(
                     icon: Icons.receipt_long_outlined,
-                    title: 'Bu dönemde harcama yok',
-                    message: 'Harcama ekledikçe burada gün gün listelenecek.',
-                    actionLabel: 'Harcama ekle',
+                    title: 'Bu dönemde harcama yok'.tr,
+                    message:
+                        'Harcama ekledikçe burada gün gün listelenecek.'.tr,
+                    actionLabel: 'Harcama ekle'.tr,
                     onAction: () => context.push('/expenses/new'),
                   );
                 }
@@ -283,9 +286,9 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 if (filtered.isEmpty) {
                   return EmptyStateView(
                     icon: Icons.search_off_rounded,
-                    title: 'Sonuç bulunamadı',
-                    message: 'Arama veya filtrelere uyan harcama yok.',
-                    actionLabel: _hasFilters ? 'Filtreleri temizle' : null,
+                    title: 'Sonuç bulunamadı'.tr,
+                    message: 'Arama veya filtrelere uyan harcama yok.'.tr,
+                    actionLabel: _hasFilters ? 'Filtreleri temizle'.tr : null,
                     actionIcon: Icons.filter_alt_off_outlined,
                     onAction: _hasFilters ? _clearFilters : null,
                   );
@@ -331,7 +334,10 @@ class _GroupedExpenseList extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.xs),
               child: Text(
-                '${expenses.length} harcama · ${MoneyFormatter.formatCents(total)}',
+                '{0} harcama · {1}'.trArgs([
+                  expenses.length,
+                  MoneyFormatter.formatCents(total),
+                ]),
                 style: context.textStyles.bodyMedium?.copyWith(
                   color: context.colors.onSurfaceVariant,
                 ),

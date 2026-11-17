@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,8 +25,9 @@ class WorkspaceSelector extends ConsumerWidget {
 
     return Semantics(
       button: true,
-      label:
-          'Çalışma alanı: ${workspace?.label ?? 'Bireysel'}. Değiştirmek için dokunun.',
+      label: 'Çalışma alanı: {0}. Değiştirmek için dokunun.'.trArgs([
+        workspace?.label ?? 'Bireysel'.tr,
+      ]),
       excludeSemantics: true,
       child: Material(
         color: scheme.surfaceContainerLowest,
@@ -50,7 +52,7 @@ class WorkspaceSelector extends ConsumerWidget {
                 const SizedBox(width: AppSpacing.xs),
                 Flexible(
                   child: Text(
-                    workspace?.label ?? 'Bireysel',
+                    workspace?.label ?? 'Bireysel'.tr,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.textStyles.titleSmall,
@@ -100,10 +102,11 @@ Future<void> showWorkspaceSheet(BuildContext context, WidgetRef ref) {
                 AppSpacing.md,
               ),
               children: [
-                Text('Çalışma alanı', style: context.textStyles.titleLarge),
+                Text('Çalışma alanı'.tr, style: context.textStyles.titleLarge),
                 const SizedBox(height: 4),
                 Text(
-                  'Harcamalar, bütçe ve raporlar seçtiğiniz alana göre gösterilir.',
+                  'Harcamalar, bütçe ve raporlar seçtiğiniz alana göre gösterilir.'
+                      .tr,
                   style: context.textStyles.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -112,8 +115,8 @@ Future<void> showWorkspaceSheet(BuildContext context, WidgetRef ref) {
                 _WorkspaceOption(
                   icon: Icons.person_rounded,
                   color: scheme.primary,
-                  title: 'Bireysel',
-                  subtitle: 'Yalnızca sizin gördüğünüz kişisel harcamalar',
+                  title: 'Bireysel'.tr,
+                  subtitle: 'Yalnızca sizin gördüğünüz kişisel harcamalar'.tr,
                   selected: activeId == null,
                   onTap: () => select(null),
                 ),
@@ -122,7 +125,9 @@ Future<void> showWorkspaceSheet(BuildContext context, WidgetRef ref) {
                     icon: Icons.groups_rounded,
                     color: ColorUtils.fromHex(team.colorHex),
                     title: team.name,
-                    subtitle: '${team.memberCount} üye · ortak harcamalar',
+                    subtitle: '{0} üye · ortak harcamalar'.trArgs([
+                      team.memberCount,
+                    ]),
                     selected: activeId == team.id,
                     onTap: () => select(team.id),
                   ),
@@ -131,8 +136,8 @@ Future<void> showWorkspaceSheet(BuildContext context, WidgetRef ref) {
                   leading: const Icon(Icons.group_add_outlined),
                   title: Text(
                     teams.isEmpty
-                        ? 'Takım oluştur veya katıl'
-                        : 'Takımları yönet',
+                        ? 'Takım oluştur veya katıl'.tr
+                        : 'Takımları yönet'.tr,
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {

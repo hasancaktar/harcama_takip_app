@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/firebase_auth_repository.dart';
+import '../../data/repositories/firestore_admin_repository.dart';
+import '../../domain/repositories/i_admin_repository.dart';
 import '../../data/repositories/firestore_account_data_repository.dart';
 import '../../data/repositories/firestore_budget_repository.dart';
 import '../../data/repositories/firestore_card_repository.dart';
@@ -54,5 +56,15 @@ final notificationServiceProvider = Provider<NotificationService>(
   (ref) => NotificationService.instance,
 );
 final pushTokenServiceProvider = Provider<PushTokenService>(
-  (ref) => PushTokenService(ref.watch(userRepositoryProvider)),
+  (ref) => PushTokenService(
+    ref.watch(userRepositoryProvider),
+    notifications: ref.watch(notificationServiceProvider),
+  ),
+);
+
+final categoryRepositoryProvider = Provider<ICategoryRepository>(
+  (ref) => FirestoreCategoryRepository(),
+);
+final adminRepositoryProvider = Provider<IAdminRepository>(
+  (ref) => FirestoreAdminRepository(),
 );

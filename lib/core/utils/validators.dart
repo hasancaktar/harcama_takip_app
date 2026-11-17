@@ -1,3 +1,5 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
+
 import 'money_formatter.dart';
 
 /// Form doğrulayıcıları. Hepsi saf fonksiyondur ve birim testleri vardır.
@@ -10,44 +12,46 @@ abstract class Validators {
 
   static String? email(String? value) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'E-posta adresi gerekli';
-    if (!_emailPattern.hasMatch(v)) return 'Geçerli bir e-posta adresi girin';
+    if (v.isEmpty) return 'E-posta adresi gerekli'.tr;
+    if (!_emailPattern.hasMatch(v)) {
+      return 'Geçerli bir e-posta adresi girin'.tr;
+    }
     return null;
   }
 
   /// Giriş ekranı için: yalnızca boş olmamasını kontrol eder (eski hesapları kilitlememek için).
   static String? loginPassword(String? value) {
-    if (value == null || value.isEmpty) return 'Şifre gerekli';
+    if (value == null || value.isEmpty) return 'Şifre gerekli'.tr;
     return null;
   }
 
   /// Yeni şifre için: en az 8 karakter, en az bir harf ve bir rakam.
   static String? newPassword(String? value) {
     final v = value ?? '';
-    if (v.isEmpty) return 'Şifre gerekli';
+    if (v.isEmpty) return 'Şifre gerekli'.tr;
     if (v.length < minPasswordLength) {
-      return 'Şifre en az $minPasswordLength karakter olmalı';
+      return 'Şifre en az {0} karakter olmalı'.trArgs([minPasswordLength]);
     }
     if (!RegExp(r'[A-Za-zÇĞİÖŞÜçğıöşü]').hasMatch(v) ||
         !RegExp(r'\d').hasMatch(v)) {
-      return 'Şifre en az bir harf ve bir rakam içermeli';
+      return 'Şifre en az bir harf ve bir rakam içermeli'.tr;
     }
     return null;
   }
 
   static String? Function(String?) confirmPassword(String Function() original) {
     return (value) {
-      if (value == null || value.isEmpty) return 'Şifreyi tekrar girin';
-      if (value != original()) return 'Şifreler eşleşmiyor';
+      if (value == null || value.isEmpty) return 'Şifreyi tekrar girin'.tr;
+      if (value != original()) return 'Şifreler eşleşmiyor'.tr;
       return null;
     };
   }
 
   static String? displayName(String? value) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Ad soyad gerekli';
-    if (v.length < 2) return 'Ad soyad en az 2 karakter olmalı';
-    if (v.length > 60) return 'Ad soyad en fazla 60 karakter olabilir';
+    if (v.isEmpty) return 'Ad soyad gerekli'.tr;
+    if (v.length < 2) return 'Ad soyad en az 2 karakter olmalı'.tr;
+    if (v.length > 60) return 'Ad soyad en fazla 60 karakter olabilir'.tr;
     return null;
   }
 
@@ -59,7 +63,10 @@ abstract class Validators {
       final v = value?.trim() ?? '';
       if (v.isEmpty) return '$fieldName gerekli';
       if (v.length > maxLength) {
-        return '$fieldName en fazla $maxLength karakter olabilir';
+        return '{0} en fazla {1} karakter olabilir'.trArgs([
+          fieldName,
+          maxLength,
+        ]);
       }
       return null;
     };
@@ -71,7 +78,10 @@ abstract class Validators {
   }) {
     return (value) {
       if ((value?.trim().length ?? 0) > maxLength) {
-        return '$fieldName en fazla $maxLength karakter olabilir';
+        return '{0} en fazla {1} karakter olabilir'.trArgs([
+          fieldName,
+          maxLength,
+        ]);
       }
       return null;
     };
@@ -79,9 +89,9 @@ abstract class Validators {
 
   static String? amount(String? value) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Tutar gerekli';
+    if (v.isEmpty) return 'Tutar gerekli'.tr;
     if (MoneyFormatter.parseToCents(v) <= 0) {
-      return 'Geçerli bir tutar girin (örn. 1250,50)';
+      return 'Geçerli bir tutar girin (örn. 1250,50)'.tr;
     }
     return null;
   }
@@ -94,14 +104,16 @@ abstract class Validators {
 
   static String? last4Digits(String? value) {
     final v = value?.trim() ?? '';
-    if (!RegExp(r'^\d{4}$').hasMatch(v)) return 'Kartın son 4 hanesini girin';
+    if (!RegExp(r'^\d{4}$').hasMatch(v)) {
+      return 'Kartın son 4 hanesini girin'.tr;
+    }
     return null;
   }
 
   static String? inviteCode(String? value) {
     final v = value?.trim() ?? '';
     if (!RegExp(r'^[A-Za-z0-9]{8}$').hasMatch(v)) {
-      return 'Davet kodu 8 karakter olmalı';
+      return 'Davet kodu 8 karakter olmalı'.tr;
     }
     return null;
   }

@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_spacing.dart';
@@ -86,7 +87,7 @@ class AuthScaffold extends StatelessWidget {
 /// Şifre alanı (göster/gizle düğmeli).
 class PasswordField extends StatefulWidget {
   final TextEditingController controller;
-  final String label;
+  final String? label;
   final String? Function(String?)? validator;
   final TextInputAction textInputAction;
   final ValueChanged<String>? onSubmitted;
@@ -96,7 +97,7 @@ class PasswordField extends StatefulWidget {
   const PasswordField({
     super.key,
     required this.controller,
-    this.label = 'Şifre',
+    this.label,
     this.validator,
     this.textInputAction = TextInputAction.done,
     this.onSubmitted,
@@ -123,11 +124,11 @@ class _PasswordFieldState extends State<PasswordField> {
       enableSuggestions: false,
       autocorrect: false,
       decoration: InputDecoration(
-        labelText: widget.label,
+        labelText: widget.label ?? 'Şifre'.tr,
         helperText: widget.helperText,
         prefixIcon: const Icon(Icons.lock_outline_rounded),
         suffixIcon: IconButton(
-          tooltip: _obscure ? 'Şifreyi göster' : 'Şifreyi gizle',
+          tooltip: _obscure ? 'Şifreyi göster'.tr : 'Şifreyi gizle'.tr,
           icon: Icon(
             _obscure
                 ? Icons.visibility_outlined

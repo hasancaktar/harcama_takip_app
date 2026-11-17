@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,19 +59,21 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       showBack: true,
-      title: 'Şifrenizi sıfırlayın',
-      subtitle: 'Kayıtlı e-posta adresinizi girin; size bir sıfırlama bağlantısı gönderelim.',
+      title: 'Şifrenizi sıfırlayın'.tr,
+      subtitle: 'Kayıtlı e-posta adresinizi girin; size bir sıfırlama bağlantısı gönderelim.'
+          .tr,
       children: [
         if (_sent) ...[
           // Hesap varlığını ifşa etmemek için her durumda aynı mesaj gösterilir.
-          const InlineMessage(
+          InlineMessage(
             tone: MessageTone.success,
-            title: 'E-postanızı kontrol edin',
-            message: 'Bu adrese kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi. Gelen kutunuzu ve istenmeyen klasörünü kontrol edin.',
+            title: 'E-postanızı kontrol edin'.tr,
+            message: 'Bu adrese kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi. Gelen kutunuzu ve istenmeyen klasörünü kontrol edin.'
+                .tr,
           ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: 'Giriş ekranına dön',
+            label: 'Giriş ekranına dön'.tr,
             onPressed: () =>
                 context.canPop() ? context.pop() : context.go('/login'),
           ),
@@ -96,7 +99,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: 'Sıfırlama bağlantısı gönder',
+            label: 'Sıfırlama bağlantısı gönder'.tr,
             onPressed: _handleReset,
             isLoading: _isLoading,
           ),

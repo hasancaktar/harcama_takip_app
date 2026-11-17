@@ -19,6 +19,8 @@ abstract class IUserRepository {
     required List<int> days,
   });
   Future<void> setActiveTeam(String uid, String? teamId);
+  Future<void> setPushEnabled(String uid, bool enabled);
+  Future<void> setLanguage(String uid, String languageCode);
   Future<void> addPushToken(String uid, String token);
   Future<void> removePushToken(String uid, String token);
 }

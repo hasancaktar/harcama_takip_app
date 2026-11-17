@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,17 +27,19 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
   ) async {
     final ok = await showConfirmDialog(
       context,
-      title: 'Taksit planı iptal edilsin mi?',
-      message:
-          'Kalan ${plan.remainingCount} taksit (${MoneyFormatter.formatCents(plan.remainingAmountInCents)}) artık harcamalara eklenmeyecek. '
-          'Daha önce işlenmiş taksitler korunur. Bu işlem geri alınamaz.',
-      confirmLabel: 'Planı iptal et',
+      title: 'Taksit planı iptal edilsin mi?'.tr,
+      message: 'Kalan {0} taksit ({1}) artık harcamalara eklenmeyecek. Daha önce işlenmiş taksitler korunur. Bu işlem geri alınamaz.'
+          .trArgs([
+            plan.remainingCount,
+            MoneyFormatter.formatCents(plan.remainingAmountInCents),
+          ]),
+      confirmLabel: 'Planı iptal et'.tr,
       destructive: true,
     );
     if (!ok || !context.mounted) return;
     try {
       await ref.read(installmentRepositoryProvider).cancelPlan(plan.id);
-      if (context.mounted) context.showSuccess('Taksit planı iptal edildi.');
+      if (context.mounted) context.showSuccess('Taksit planı iptal edildi.'.tr);
     } catch (e) {
       if (context.mounted) context.showError(e);
     }
@@ -49,16 +52,16 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
     final scheme = context.colors;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Taksit planı')),
+      appBar: AppBar(title: Text('Taksit planı'.tr)),
       body: AsyncValueView<InstallmentPlan?>(
         value: planAsync,
         onRetry: () => ref.invalidate(installmentPlanByIdProvider(planId)),
         data: (plan) {
           if (plan == null) {
-            return const EmptyStateView(
+            return EmptyStateView(
               icon: Icons.search_off_rounded,
-              title: 'Plan bulunamadı',
-              message: 'Plan silinmiş veya görüntüleme yetkiniz yok.',
+              title: 'Plan bulunamadı'.tr,
+              message: 'Plan silinmiş veya görüntüleme yetkiniz yok.'.tr,
             );
           }
           final canCancel = plan.isActive && plan.ownerUid == uid;
@@ -75,7 +78,11 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
                 style: context.textStyles.headlineSmall,
               ),
               Text(
-                '${MoneyFormatter.formatCents(plan.totalAmountInCents)} · ${plan.totalInstallments} taksit · •••• ${plan.cardLast4}',
+                '{0} · {1} taksit · •••• {2}'.trArgs([
+                  MoneyFormatter.formatCents(plan.totalAmountInCents),
+                  plan.totalInstallments,
+                  plan.cardLast4,
+                ]),
                 textAlign: TextAlign.center,
                 style: context.textStyles.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
@@ -90,20 +97,20 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
                       ratio: plan.totalAmountInCents == 0
                           ? 0
                           : paid / plan.totalAmountInCents,
-                      semanticsLabel: 'Ödeme ilerlemesi',
+                      semanticsLabel: 'Ödeme ilerlemesi'.tr,
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Row(
                       children: [
                         Expanded(
                           child: _Kpi(
-                            label: 'İşlenen',
+                            label: 'İşlenen'.tr,
                             value: MoneyFormatter.formatCents(paid),
                           ),
                         ),
                         Expanded(
                           child: _Kpi(
-                            label: 'Kalan',
+                            label: 'Kalan'.tr,
                             value: MoneyFormatter.formatCents(
                               plan.remainingAmountInCents,
                             ),
@@ -111,7 +118,7 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
                         ),
                         Expanded(
                           child: _Kpi(
-                            label: 'Taksit',
+                            label: 'Taksit'.tr,
                             value:
                                 '${plan.postedCount}/${plan.totalInstallments}',
                           ),
@@ -123,12 +130,13 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
               ),
               if (plan.status == 'cancelled') ...[
                 const SizedBox(height: AppSpacing.md),
-                const InlineMessage(
+                InlineMessage(
                   tone: MessageTone.warning,
-                  message: 'Bu plan iptal edildi. Kalan taksitler harcamalara eklenmez.',
+                  message: 'Bu plan iptal edildi. Kalan taksitler harcamalara eklenmez.'
+                      .tr,
                 ),
               ],
-              const SectionHeader(title: 'Ödeme takvimi'),
+              SectionHeader(title: 'Ödeme takvimi'.tr),
               AppCard(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
@@ -152,8 +160,8 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
                                   ? context.semantic.success
                                   : scheme.outline,
                               semanticLabel: item.isPosted
-                                  ? 'İşlendi'
-                                  : 'Bekliyor',
+                                  ? 'İşlendi'.tr
+                                  : 'Bekliyor'.tr,
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
@@ -161,11 +169,16 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${item.installmentNumber}. taksit · ${DateFormats.period(item.statementPeriod)}',
+                                    '{0}. taksit · {1}'.trArgs([
+                                      item.installmentNumber,
+                                      DateFormats.period(item.statementPeriod),
+                                    ]),
                                     style: context.textStyles.titleSmall,
                                   ),
                                   Text(
-                                    'Son ödeme ${DateFormats.day(item.dueDate)}',
+                                    'Son ödeme {0}'.trArgs([
+                                      DateFormats.day(item.dueDate),
+                                    ]),
                                     style: context.textStyles.bodySmall
                                         ?.copyWith(
                                           color: scheme.onSurfaceVariant,
@@ -187,7 +200,7 @@ class InstallmentPlanDetailScreen extends ConsumerWidget {
               if (canCancel) ...[
                 const SizedBox(height: AppSpacing.lg),
                 AppButton(
-                  label: 'Planı iptal et',
+                  label: 'Planı iptal et'.tr,
                   outlined: true,
                   destructive: true,
                   icon: Icons.block_rounded,

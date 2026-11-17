@@ -36,6 +36,7 @@ String? resolveAuthRedirect({
   required String location,
   String? fullLocation,
   String? from,
+  bool isAdmin = false,
 }) {
   final target = fullLocation ?? location;
   final safeFrom = _sanitizeFrom(from);
@@ -60,6 +61,10 @@ String? resolveAuthRedirect({
       if (isVerify) return null;
       return AppRoutes.verifyEmail;
     case AuthStatus.verified:
+      // Yönetim paneli yalnızca yöneticiye açıktır (asıl koruma Firestore kurallarındadır).
+      if (location.startsWith('/admin') && !isAdmin) {
+        return AppRoutes.dashboard;
+      }
       if (isPublic || isSplash || isVerify) {
         return safeFrom ?? AppRoutes.dashboard;
       }

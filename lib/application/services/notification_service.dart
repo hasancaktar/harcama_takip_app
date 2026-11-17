@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+
+import '../../core/l10n/app_locale.dart';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -17,7 +20,7 @@ class NotificationService {
   NotificationService.forTesting();
 
   static const String _channelId = 'daily_expense_reminders';
-  static const String _channelName = 'Günlük Harcama Hatırlatıcıları';
+  static String get _channelName => 'Günlük Harcama Hatırlatıcıları'.tr;
   static const int _baseId = 100;
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -49,7 +52,7 @@ class NotificationService {
     }
 
     const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('ic_stat_notification'),
       iOS: DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
@@ -72,25 +75,69 @@ class NotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >();
     await android?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         _channelId,
         _channelName,
-        description: 'Günün harcamalarını girmeniz için hatırlatma gönderir',
+        description: 'Günün harcamalarını girmeniz için hatırlatma gönderir'.tr,
         importance: Importance.defaultImportance,
       ),
     );
     // Cloud Functions'ın gönderdiği takım harcaması bildirimleri bu kanalı kullanır.
     await android?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         'team_expenses',
-        'Takım harcamaları',
+        'Takım harcamaları'.tr,
         description:
-            'Takım üyeleri ortak harcama eklediğinde bildirim gönderir',
+            'Takım üyeleri ortak harcama eklediğinde bildirim gönderir'.tr,
+        importance: Importance.high,
+      ),
+    );
+
+    // Yönetim panelinden gönderilen duyurular ve sunucu hatırlatmaları.
+    await android?.createNotificationChannel(
+      AndroidNotificationChannel(
+        'announcements',
+        'Duyurular ve hatırlatmalar'.tr,
+        description: 'Uygulama duyuruları ve günlük hatırlatmalar'.tr,
         importance: Importance.high,
       ),
     );
 
     _initialized = true;
+  }
+
+  /// Uygulama açıkken gelen push bildirimini hemen gösterir (Android, ön planda
+  /// gelen FCM bildirimlerini kendiliğinden göstermez).
+  Future<void> showNow({
+    required String title,
+    required String body,
+    String? route,
+    String channelId = 'announcements',
+  }) async {
+    if (!isSupported) return;
+    await initialize();
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(1 << 30),
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channelId,
+          channelId == 'team_expenses'
+              ? 'Takım harcamaları'.tr
+              : 'Duyurular ve hatırlatmalar'.tr,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+      payload: route,
+    );
+  }
+
+  /// Bildirime dokunma olayını dışarıdan (FCM) iletmek için.
+  void emitTap(String route) {
+    if (route.startsWith('/')) _tapController.add(route);
   }
 
   /// Uygulama bir bildirime dokunularak açıldıysa ilgili rotayı döner.
@@ -159,14 +206,14 @@ class NotificationService {
 
       await _plugin.zonedSchedule(
         _baseId + day,
-        'Bugünkü harcamalarınızı eklediniz mi?',
-        'Harcamalarınızı kaydederek bütçenizi kontrol altında tutun.',
+        'Bugünkü harcamalarınızı eklediniz mi?'.tr,
+        'Harcamalarınızı kaydederek bütçenizi kontrol altında tutun.'.tr,
         scheduled,
-        const NotificationDetails(
+        NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId,
             _channelName,
-            channelDescription: 'Harcama girişi hatırlatması',
+            channelDescription: 'Harcama girişi hatırlatması'.tr,
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
           ),

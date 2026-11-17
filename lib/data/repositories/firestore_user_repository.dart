@@ -95,6 +95,22 @@ class FirestoreUserRepository implements IUserRepository {
   }
 
   @override
+  Future<void> setPushEnabled(String uid, bool enabled) {
+    return _col.doc(uid).set({
+      'pushEnabled': enabled,
+      'updatedAt': _now,
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> setLanguage(String uid, String languageCode) {
+    return _col.doc(uid).set({
+      'language': languageCode,
+      'updatedAt': _now,
+    }, SetOptions(merge: true));
+  }
+
+  @override
   Future<void> addPushToken(String uid, String token) {
     return _col.doc(uid).set({
       'fcmTokens': FieldValue.arrayUnion([token]),

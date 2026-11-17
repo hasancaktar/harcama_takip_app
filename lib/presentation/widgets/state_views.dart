@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -110,7 +111,7 @@ class ErrorStateView extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Veriler yüklenemedi',
+                'Veriler yüklenemedi'.tr,
                 style: context.textStyles.titleMedium,
                 textAlign: TextAlign.center,
               ),
@@ -127,7 +128,7 @@ class ErrorStateView extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Tekrar dene'),
+                  label: Text('Tekrar dene'.tr),
                 ),
               ],
             ],
@@ -177,7 +178,7 @@ class SkeletonList extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = context.colors.surfaceContainerHigh;
     return Semantics(
-      label: 'Yükleniyor',
+      label: 'Yükleniyor'.tr,
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(

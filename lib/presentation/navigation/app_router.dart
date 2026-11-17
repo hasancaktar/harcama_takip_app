@@ -1,8 +1,13 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../application/providers/admin_providers.dart';
 import '../../application/providers/auth_providers.dart';
+import '../screens/admin/admin_categories_screen.dart';
+import '../screens/admin/admin_home_screen.dart';
+import '../screens/admin/admin_notifications_screens.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
@@ -50,6 +55,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       location: state.uri.path,
       fullLocation: state.uri.toString(),
       from: state.uri.queryParameters['from'],
+      isAdmin: ref.read(isAdminProvider),
     ),
     errorBuilder: (context, state) => const _NotFoundScreen(),
     routes: [
@@ -191,6 +197,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             TeamDetailScreen(teamId: state.pathParameters['id']!),
       ),
+      // Yönetim paneli (yalnızca yönetici; bkz. resolveAuthRedirect ve firestore.rules)
+      GoRoute(path: '/admin', builder: (_, _) => const AdminHomeScreen()),
+      GoRoute(
+        path: '/admin/send',
+        builder: (_, _) => const AdminSendNotificationScreen(),
+      ),
+      GoRoute(
+        path: '/admin/daily-reminder',
+        builder: (_, _) => const AdminDailyReminderScreen(),
+      ),
+      GoRoute(
+        path: '/admin/history',
+        builder: (_, _) => const AdminNotificationHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/admin/categories',
+        builder: (_, _) => const AdminCategoriesScreen(),
+      ),
+      GoRoute(
+        path: '/admin/users',
+        builder: (_, _) => const AdminUsersScreen(),
+      ),
+      GoRoute(path: '/admin/logs', builder: (_, _) => const AdminLogsScreen()),
       GoRoute(
         path: '/settings/profile',
         builder: (_, __) => const ProfileScreen(),
@@ -233,18 +262,18 @@ class _NotFoundScreen extends StatelessWidget {
               const Icon(Icons.explore_off_rounded, size: 48),
               const SizedBox(height: 16),
               Text(
-                'Sayfa bulunamadı',
+                'Sayfa bulunamadı'.tr,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Aradığınız sayfa taşınmış veya silinmiş olabilir.',
+              Text(
+                'Aradığınız sayfa taşınmış veya silinmiş olabilir.'.tr,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: () => context.go(AppRoutes.dashboard),
-                child: const Text('Ana sayfaya dön'),
+                child: Text('Ana sayfaya dön'.tr),
               ),
             ],
           ),

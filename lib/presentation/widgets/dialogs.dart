@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/errors/error_messages.dart';
@@ -8,8 +9,8 @@ Future<bool> showConfirmDialog(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmLabel = 'Onayla',
-  String cancelLabel = 'Vazgeç',
+  String? confirmLabel,
+  String? cancelLabel,
   bool destructive = false,
 }) async {
   final result = await showDialog<bool>(
@@ -22,7 +23,7 @@ Future<bool> showConfirmDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(cancelLabel),
+            child: Text(cancelLabel ?? 'Vazgeç'.tr),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -33,7 +34,7 @@ Future<bool> showConfirmDialog(
                     minimumSize: const Size(64, 44),
                   )
                 : FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-            child: Text(confirmLabel),
+            child: Text(confirmLabel ?? 'Onayla'.tr),
           ),
         ],
       );
@@ -47,7 +48,7 @@ Future<String?> showPasswordPrompt(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmLabel = 'Devam et',
+  String? confirmLabel,
   bool destructive = false,
 }) {
   return showDialog<String>(
@@ -55,7 +56,7 @@ Future<String?> showPasswordPrompt(
     builder: (ctx) => _PasswordPromptDialog(
       title: title,
       message: message,
-      confirmLabel: confirmLabel,
+      confirmLabel: confirmLabel ?? 'Devam et'.tr,
       destructive: destructive,
     ),
   );
@@ -111,10 +112,10 @@ class _PasswordPromptDialogState extends State<_PasswordPromptDialog> {
             autofillHints: const [AutofillHints.password],
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
-              labelText: 'Mevcut şifre',
+              labelText: 'Mevcut şifre'.tr,
               prefixIcon: const Icon(Icons.lock_outline_rounded),
               suffixIcon: IconButton(
-                tooltip: _obscure ? 'Şifreyi göster' : 'Şifreyi gizle',
+                tooltip: _obscure ? 'Şifreyi göster'.tr : 'Şifreyi gizle'.tr,
                 icon: Icon(
                   _obscure
                       ? Icons.visibility_outlined
@@ -129,7 +130,7 @@ class _PasswordPromptDialogState extends State<_PasswordPromptDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Vazgeç'),
+          child: Text('Vazgeç'.tr),
         ),
         FilledButton(
           onPressed: _submit,

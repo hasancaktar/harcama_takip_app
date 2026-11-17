@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +38,7 @@ class AddEditExpenseScreen extends ConsumerWidget {
     final uid = ref.watch(currentUserIdProvider);
     return expenseAsync.when(
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Harcamayı düzenle')),
+        appBar: AppBar(title: Text('Harcamayı düzenle'.tr)),
         body: const LoadingView(),
       ),
       error: (e, _) => Scaffold(
@@ -48,22 +49,23 @@ class AddEditExpenseScreen extends ConsumerWidget {
         if (expense == null) {
           return Scaffold(
             appBar: AppBar(),
-            body: const EmptyStateView(
+            body: EmptyStateView(
               icon: Icons.search_off_rounded,
-              title: 'Harcama bulunamadı',
-              message: 'Bu kayıt silinmiş veya erişiminiz yok.',
+              title: 'Harcama bulunamadı'.tr,
+              message: 'Bu kayıt silinmiş veya erişiminiz yok.'.tr,
             ),
           );
         }
         if (expense.ownerUid != uid || expense.isInstallment) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Harcamayı düzenle')),
+            appBar: AppBar(title: Text('Harcamayı düzenle'.tr)),
             body: EmptyStateView(
               icon: Icons.lock_outline_rounded,
-              title: 'Bu harcama düzenlenemez',
+              title: 'Bu harcama düzenlenemez'.tr,
               message: expense.isInstallment
                   ? 'Taksit harcamaları taksit planından otomatik oluşturulur. Değişiklik için taksit planını yönetin.'
-                  : 'Yalnızca harcamayı ekleyen kişi düzenleyebilir.',
+                        .tr
+                  : 'Yalnızca harcamayı ekleyen kişi düzenleyebilir.'.tr,
             ),
           );
         }
@@ -160,7 +162,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
       initialDate: _date,
       firstDate: DateTime(2000),
       lastDate: DateTime(now.year + 1, 12, 31),
-      helpText: 'Harcama tarihi',
+      helpText: 'Harcama tarihi'.tr,
     );
     if (picked == null || !mounted) return;
     setState(
@@ -178,7 +180,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_date),
-      helpText: 'Harcama saati',
+      helpText: 'Harcama saati'.tr,
     );
     if (picked == null || !mounted) return;
     setState(
@@ -200,12 +202,13 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     final card = _selectedCard(cards);
     if (_paymentMethod == 'credit_card' && _cardId == null) {
       context.showInfo(
-        'Lütfen bir kredi kartı seçin veya farklı bir ödeme yöntemi kullanın.',
+        'Lütfen bir kredi kartı seçin veya farklı bir ödeme yöntemi kullanın.'
+            .tr,
       );
       return;
     }
     if (_visibility == 'team' && _teamIdForSave == null) {
-      context.showInfo('Takım harcaması için önce bir takım seçin.');
+      context.showInfo('Takım harcaması için önce bir takım seçin.'.tr);
       return;
     }
 
@@ -249,10 +252,14 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
       if (!mounted) return;
       final selected = ref.read(selectedPeriodProvider);
       final note = expense.statementPeriod != selected
-          ? ' (${DateFormats.period(expense.statementPeriod)} dönemine eklendi)'
+          ? ' ({0} dönemine eklendi)'.trArgs([
+              DateFormats.period(expense.statementPeriod),
+            ])
           : '';
       context.showSuccess(
-        _isEdit ? 'Harcama güncellendi.' : 'Harcama kaydedildi.$note',
+        _isEdit
+            ? 'Harcama güncellendi.'.tr
+            : 'Harcama kaydedildi.{0}'.trArgs([note]),
       );
       if (addAnother) {
         _amountController.clear();
@@ -284,11 +291,11 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     }
     final period = _resolvePeriod(cards);
     final teamAvailable = (widget.existing?.teamId ?? activeTeam?.id) != null;
-    final teamName = activeTeam?.name ?? 'Takım';
+    final teamName = activeTeam?.name ?? 'Takım'.tr;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEdit ? 'Harcamayı düzenle' : 'Yeni harcama'),
+        title: Text(_isEdit ? 'Harcamayı düzenle'.tr : 'Yeni harcama'.tr),
       ),
       body: Form(
         key: _formKey,
@@ -311,23 +318,23 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                 LengthLimitingTextInputFormatter(AppConstants.maxTitleLength),
               ],
               validator: Validators.requiredText(
-                'Açıklama',
+                'Açıklama'.tr,
                 maxLength: AppConstants.maxTitleLength,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Açıklama',
-                hintText: 'Örn. Haftalık market alışverişi',
+              decoration: InputDecoration(
+                labelText: 'Açıklama'.tr,
+                hintText: 'Örn. Haftalık market alışverişi'.tr,
                 prefixIcon: Icon(Icons.edit_note_rounded),
                 counterText: '',
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            _FieldLabel('Kategori'),
+            _FieldLabel('Kategori'.tr),
             Wrap(
               spacing: AppSpacing.xs,
               runSpacing: AppSpacing.xs,
               children: [
-                for (final c in AppConstants.defaultCategories)
+                for (final c in AppConstants.categories)
                   ChoiceChip(
                     avatar: Icon(
                       c.icon,
@@ -344,7 +351,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            _FieldLabel('Ödeme yöntemi'),
+            _FieldLabel('Ödeme yöntemi'.tr),
             Wrap(
               spacing: AppSpacing.xs,
               runSpacing: AppSpacing.xs,
@@ -364,11 +371,12 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               if (cards.isEmpty && _cardId == null)
                 InlineMessage(
                   tone: MessageTone.warning,
-                  message: 'Kayıtlı kredi kartınız yok. Kart ekleyerek ekstre dönemlerini otomatik hesaplatın.',
+                  message: 'Kayıtlı kredi kartınız yok. Kart ekleyerek ekstre dönemlerini otomatik hesaplatın.'
+                      .tr,
                   action: TextButton.icon(
                     onPressed: () => context.push('/cards/new'),
                     icon: const Icon(Icons.add_card_rounded),
-                    label: const Text('Kart ekle'),
+                    label: Text('Kart ekle'.tr),
                   ),
                 )
               else ...[
@@ -376,8 +384,8 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                   key: ValueKey('card-${cards.length}-$_cardId'),
                   initialValue: _cardId,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Kredi kartı',
+                  decoration: InputDecoration(
+                    labelText: 'Kredi kartı'.tr,
                     prefixIcon: Icon(Icons.credit_card_rounded),
                   ),
                   items: [
@@ -393,7 +401,9 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                       DropdownMenuItem(
                         value: _cardId,
                         child: Text(
-                          '•••• ${widget.existing?.cardLast4 ?? ''} (kaldırılmış kart)',
+                          '•••• {0} (kaldırılmış kart)'.trArgs([
+                            widget.existing?.cardLast4 ?? '',
+                          ]),
                         ),
                       ),
                   ],
@@ -403,13 +413,19 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                 InlineMessage(
                   tone: MessageTone.info,
                   message: _selectedCard(cards) != null
-                      ? 'Kesim günü ${_selectedCard(cards)!.cutoffDay} olduğu için bu harcama ${DateFormats.period(period)} ekstresine yazılacak.'
-                      : 'Bu harcama ${DateFormats.period(period)} dönemine yazılacak.',
+                      ? 'Kesim günü {0} olduğu için bu harcama {1} ekstresine yazılacak.'
+                            .trArgs([
+                              _selectedCard(cards)!.cutoffDay,
+                              DateFormats.period(period),
+                            ])
+                      : 'Bu harcama {0} dönemine yazılacak.'.trArgs([
+                          DateFormats.period(period),
+                        ]),
                 ),
               ],
             ],
             const SizedBox(height: AppSpacing.md),
-            _FieldLabel('Tarih ve saat'),
+            _FieldLabel('Tarih ve saat'.tr),
             Row(
               children: [
                 Expanded(
@@ -436,14 +452,14 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
             ),
             if (teamAvailable) ...[
               const SizedBox(height: AppSpacing.md),
-              _FieldLabel('Kime ait?'),
+              _FieldLabel('Kime ait?'.tr),
               SegmentedButton<String>(
                 showSelectedIcon: false,
                 segments: [
-                  const ButtonSegment(
+                  ButtonSegment(
                     value: 'personal',
                     icon: Icon(Icons.person_rounded),
-                    label: Text('Bireysel'),
+                    label: Text('Bireysel'.tr),
                   ),
                   ButtonSegment(
                     value: 'team',
@@ -458,8 +474,8 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 _visibility == 'team'
-                    ? 'Takım üyeleri bu harcamayı görebilir.'
-                    : 'Bu harcamayı yalnızca siz görebilirsiniz.',
+                    ? 'Takım üyeleri bu harcamayı görebilir.'.tr
+                    : 'Bu harcamayı yalnızca siz görebilirsiniz.'.tr,
                 style: context.textStyles.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -473,17 +489,19 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               maxLength: AppConstants.maxNotesLength,
               textCapitalization: TextCapitalization.sentences,
               validator: Validators.optionalText(
-                'Not',
+                'Not'.tr,
                 maxLength: AppConstants.maxNotesLength,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Not (isteğe bağlı)',
+              decoration: InputDecoration(
+                labelText: 'Not (isteğe bağlı)'.tr,
                 prefixIcon: Icon(Icons.notes_rounded),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
             AppButton(
-              label: _isEdit ? 'Değişiklikleri kaydet' : 'Harcamayı kaydet',
+              label: _isEdit
+                  ? 'Değişiklikleri kaydet'.tr
+                  : 'Harcamayı kaydet'.tr,
               icon: Icons.check_rounded,
               onPressed: () => _save(),
               isLoading: _saving,
@@ -491,7 +509,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
             if (!_isEdit) ...[
               const SizedBox(height: AppSpacing.sm),
               AppButton(
-                label: 'Kaydet ve yenisini ekle',
+                label: 'Kaydet ve yenisini ekle'.tr,
                 outlined: true,
                 onPressed: _saving ? null : () => _save(addAnother: true),
               ),

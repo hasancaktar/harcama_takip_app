@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,20 +30,21 @@ class TeamsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Takımlar'),
+        title: Text('Takımlar'.tr),
         actions: [
           TextButton.icon(
             onPressed: () => context.push('/teams/join'),
             icon: const Icon(Icons.vpn_key_outlined),
-            label: const Text('Kodla katıl'),
+            label: Text('Kodla katıl'.tr),
           ),
           const SizedBox(width: AppSpacing.xs),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab-teams',
         onPressed: () => context.push('/teams/new'),
         icon: const Icon(Icons.group_add_rounded),
-        label: const Text('Takım oluştur'),
+        label: Text('Takım oluştur'.tr),
       ),
       body: AsyncValueView<List<Team>>(
         value: teamsAsync,
@@ -56,28 +58,29 @@ class TeamsScreen extends ConsumerWidget {
           ),
           children: [
             Text(
-              'Ailenizle veya ev arkadaşlarınızla ortak harcamaları, bütçeyi ve kartları paylaşın. '
-              'Kişisel harcamalarınız her zaman yalnızca size görünür.',
+              'Ailenizle veya ev arkadaşlarınızla ortak harcamaları, bütçeyi ve kartları paylaşın. Kişisel harcamalarınız her zaman yalnızca size görünür.'
+                  .tr,
               style: context.textStyles.bodyMedium?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
             ),
             if (invites.isNotEmpty) ...[
-              const SectionHeader(title: 'Bekleyen davetler'),
+              SectionHeader(title: 'Bekleyen davetler'.tr),
               for (final invite in invites) ...[
                 _InviteCard(invite: invite),
                 const SizedBox(height: AppSpacing.sm),
               ],
             ],
-            const SectionHeader(title: 'Takımlarım'),
+            SectionHeader(title: 'Takımlarım'.tr),
             if (teams.isEmpty)
               AppCard(
                 child: EmptyStateView(
                   compact: true,
                   icon: Icons.groups_outlined,
-                  title: 'Henüz bir takımınız yok',
-                  message: 'Yeni bir takım oluşturun veya size gönderilen davet koduyla katılın.',
-                  actionLabel: 'Takım oluştur',
+                  title: 'Henüz bir takımınız yok'.tr,
+                  message: 'Yeni bir takım oluşturun veya size gönderilen davet koduyla katılın.'
+                      .tr,
+                  actionLabel: 'Takım oluştur'.tr,
                   actionIcon: Icons.group_add_rounded,
                   onAction: () => context.push('/teams/new'),
                 ),
@@ -107,7 +110,10 @@ class TeamsScreen extends ConsumerWidget {
                               style: context.textStyles.titleSmall,
                             ),
                             Text(
-                              '${team.memberCount} üye${team.ownerUid == uid ? ' · Sahibisiniz' : ''}',
+                              '{0} üye{1}'.trArgs([
+                                team.memberCount,
+                                team.ownerUid == uid ? ' · Sahibisiniz'.tr : '',
+                              ]),
                               style: context.textStyles.bodySmall?.copyWith(
                                 color: context.colors.onSurfaceVariant,
                               ),
@@ -116,7 +122,7 @@ class TeamsScreen extends ConsumerWidget {
                         ),
                       ),
                       if (team.id == activeId)
-                        Pill(label: 'Aktif', color: context.colors.primary),
+                        Pill(label: 'Aktif'.tr, color: context.colors.primary),
                       const Icon(Icons.chevron_right_rounded),
                     ],
                   ),
@@ -155,7 +161,9 @@ class _InviteCardState extends ConsumerState<_InviteCard> {
       await repo.acceptInvite(invite: invite, user: user);
       await workspace.select(invite.teamId);
       messenger.showSnackBar(
-        SnackBar(content: Text('"${invite.teamName}" takımına katıldınız.')),
+        SnackBar(
+          content: Text('"{0}" takımına katıldınız.'.trArgs([invite.teamName])),
+        ),
       );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(ErrorMessages.from(e))));
@@ -168,10 +176,11 @@ class _InviteCardState extends ConsumerState<_InviteCard> {
     final repo = ref.read(teamRepositoryProvider);
     final ok = await showConfirmDialog(
       context,
-      title: 'Davet reddedilsin mi?',
-      message:
-          '"${widget.invite.teamName}" takımına yapılan davet reddedilecek.',
-      confirmLabel: 'Reddet',
+      title: 'Davet reddedilsin mi?'.tr,
+      message: '"{0}" takımına yapılan davet reddedilecek.'.trArgs([
+        widget.invite.teamName,
+      ]),
+      confirmLabel: 'Reddet'.tr,
     );
     if (!ok || !mounted) return;
     setState(() => _busy = true);
@@ -202,8 +211,14 @@ class _InviteCardState extends ConsumerState<_InviteCard> {
                   children: [
                     Text(invite.teamName, style: context.textStyles.titleSmall),
                     Text(
-                      '${invite.createdByName.isNotEmpty ? '${invite.createdByName} sizi davet etti · ' : ''}'
-                      'Son gün ${DateFormats.dayShort(invite.expiresAt)}',
+                      '{0}Son gün {1}'.trArgs([
+                        invite.createdByName.isNotEmpty
+                            ? '{0} sizi davet etti · '.trArgs([
+                                invite.createdByName,
+                              ])
+                            : '',
+                        DateFormats.dayShort(invite.expiresAt),
+                      ]),
                       style: context.textStyles.bodySmall?.copyWith(
                         color: context.colors.onSurfaceVariant,
                       ),
@@ -218,7 +233,7 @@ class _InviteCardState extends ConsumerState<_InviteCard> {
             children: [
               Expanded(
                 child: AppButton(
-                  label: 'Reddet',
+                  label: 'Reddet'.tr,
                   outlined: true,
                   onPressed: _busy ? null : _decline,
                 ),
@@ -226,7 +241,7 @@ class _InviteCardState extends ConsumerState<_InviteCard> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: AppButton(
-                  label: 'Katıl',
+                  label: 'Katıl'.tr,
                   onPressed: _accept,
                   isLoading: _busy,
                 ),

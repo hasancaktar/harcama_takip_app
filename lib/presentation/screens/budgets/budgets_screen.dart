@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +31,7 @@ class BudgetsScreen extends ConsumerWidget {
     final teamId = ref.watch(activeTeamProvider)?.id;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Bütçe')),
+      appBar: AppBar(title: Text('Bütçe'.tr)),
       body: PageListView(
         children: [
           const ContextBar(),
@@ -73,7 +74,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
     text: MoneyFormatter.formatForInput(widget.budget?.totalBudgetInCents ?? 0),
   );
   late final Map<String, TextEditingController> _categoryControllers = {
-    for (final c in AppConstants.defaultCategories)
+    for (final c in AppConstants.categories)
       c.id: TextEditingController(
         text: MoneyFormatter.formatForInput(
           widget.budget?.categoryBudgetsInCents[c.id] ?? 0,
@@ -132,7 +133,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
       await ref.read(budgetRepositoryProvider).saveBudget(budget);
       if (mounted) {
         context.showSuccess(
-          '${DateFormats.period(widget.period)} bütçesi kaydedildi.',
+          '{0} bütçesi kaydedildi.'.trArgs([DateFormats.period(widget.period)]),
         );
       }
     } catch (e) {
@@ -147,16 +148,17 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
     if (budget == null) return;
     final ok = await showConfirmDialog(
       context,
-      title: 'Bütçe kaldırılsın mı?',
+      title: 'Bütçe kaldırılsın mı?'.tr,
       message:
-          '${DateFormats.period(widget.period)} için belirlenen bütçe kaldırılacak. Harcamalarınız etkilenmez.',
-      confirmLabel: 'Kaldır',
+          '{0} için belirlenen bütçe kaldırılacak. Harcamalarınız etkilenmez.'
+              .trArgs([DateFormats.period(widget.period)]),
+      confirmLabel: 'Kaldır'.tr,
       destructive: true,
     );
     if (!ok || !mounted) return;
     try {
       await ref.read(budgetRepositoryProvider).deleteBudget(budget.id);
-      if (mounted) context.showSuccess('Bütçe kaldırıldı.');
+      if (mounted) context.showSuccess('Bütçe kaldırıldı.'.tr);
     } catch (e) {
       if (mounted) context.showError(e);
     }
@@ -171,11 +173,11 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
     final budget = widget.budget;
 
     final (String headline, Color tone) = switch (status?.level) {
-      null => ('Bu ay için bütçe belirlenmedi', scheme.onSurfaceVariant),
-      BudgetLevel.safe => ('Bütçe kontrol altında', semantic.success),
-      BudgetLevel.warning => ('Bütçenin %75\'i aşıldı', semantic.warning),
-      BudgetLevel.critical => ('Bütçe dolmak üzere', semantic.warning),
-      BudgetLevel.exceeded => ('Bütçe aşıldı', scheme.error),
+      null => ('Bu ay için bütçe belirlenmedi'.tr, scheme.onSurfaceVariant),
+      BudgetLevel.safe => ('Bütçe kontrol altında'.tr, semantic.success),
+      BudgetLevel.warning => ('Bütçenin %75\'i aşıldı'.tr, semantic.warning),
+      BudgetLevel.critical => ('Bütçe dolmak üzere'.tr, semantic.warning),
+      BudgetLevel.exceeded => ('Bütçe aşıldı'.tr, scheme.error),
     };
 
     return Form(
@@ -196,7 +198,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
                   UsageBar(
                     ratio: status.ratio,
                     height: 12,
-                    semanticsLabel: 'Bütçe kullanımı',
+                    semanticsLabel: 'Bütçe kullanımı'.tr,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                 ],
@@ -204,13 +206,13 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
                   children: [
                     Expanded(
                       child: _Figure(
-                        label: 'Harcanan',
+                        label: 'Harcanan'.tr,
                         value: MoneyFormatter.formatCents(stats.totalCents),
                       ),
                     ),
                     Expanded(
                       child: _Figure(
-                        label: 'Bütçe',
+                        label: 'Bütçe'.tr,
                         value: status != null
                             ? MoneyFormatter.formatCents(status.limitCents)
                             : '—',
@@ -219,8 +221,8 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
                     Expanded(
                       child: _Figure(
                         label: (status?.remainingCents ?? 0) < 0
-                            ? 'Aşım'
-                            : 'Kalan',
+                            ? 'Aşım'.tr
+                            : 'Kalan'.tr,
                         value: status != null
                             ? MoneyFormatter.formatCents(
                                 status.remainingCents.abs(),
@@ -236,7 +238,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
               ],
             ),
           ),
-          const SectionHeader(title: 'Aylık toplam bütçe'),
+          SectionHeader(title: 'Aylık toplam bütçe'.tr),
           TextFormField(
             controller: _totalController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -244,11 +246,11 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
             validator: Validators.amount,
-            decoration: const InputDecoration(
-              labelText: 'Toplam bütçe',
+            decoration: InputDecoration(
+              labelText: 'Toplam bütçe'.tr,
               prefixText: '₺ ',
               prefixIcon: Icon(Icons.savings_outlined),
-              helperText: 'Seçili çalışma alanı ve ay için geçerlidir.',
+              helperText: 'Seçili çalışma alanı ve ay için geçerlidir.'.tr,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -256,9 +258,9 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
             contentPadding: EdgeInsets.zero,
             value: _showCategories,
             onChanged: (v) => setState(() => _showCategories = v),
-            title: const Text('Kategori limitleri'),
-            subtitle: const Text(
-              'İsteğe bağlı: kategoriler için ayrı üst sınır belirleyin.',
+            title: Text('Kategori limitleri'.tr),
+            subtitle: Text(
+              'İsteğe bağlı: kategoriler için ayrı üst sınır belirleyin.'.tr,
             ),
           ),
           if (_showCategories)
@@ -269,19 +271,22 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
               ),
               child: Column(
                 children: [
-                  for (final c in AppConstants.defaultCategories)
+                  for (final c in AppConstants.categories)
                     _CategoryLimitRow(
                       categoryId: c.id,
                       spentCents: stats.categoryCents(c.id),
                       limitCents: budget?.categoryBudgetsInCents[c.id] ?? 0,
-                      controller: _categoryControllers[c.id]!,
+                      controller: _categoryControllers.putIfAbsent(
+                        c.id,
+                        TextEditingController.new,
+                      ),
                     ),
                 ],
               ),
             ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: 'Bütçeyi kaydet',
+            label: 'Bütçeyi kaydet'.tr,
             icon: Icons.check_rounded,
             onPressed: _save,
             isLoading: _saving,
@@ -289,7 +294,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
           if (budget != null) ...[
             const SizedBox(height: AppSpacing.sm),
             AppButton(
-              label: 'Bütçeyi kaldır',
+              label: 'Bütçeyi kaldır'.tr,
               outlined: true,
               destructive: true,
               onPressed: _delete,
@@ -360,7 +365,9 @@ class _CategoryLimitRow extends StatelessWidget {
                   children: [
                     Text(category.name, style: context.textStyles.titleSmall),
                     Text(
-                      'Harcanan ${MoneyFormatter.formatCents(spentCents)}',
+                      'Harcanan {0}'.trArgs([
+                        MoneyFormatter.formatCents(spentCents),
+                      ]),
                       style: context.textStyles.bodySmall?.copyWith(
                         color: context.colors.onSurfaceVariant,
                       ),
@@ -380,8 +387,8 @@ class _CategoryLimitRow extends StatelessWidget {
                   ],
                   validator: Validators.optionalAmount,
                   textAlign: TextAlign.end,
-                  decoration: const InputDecoration(
-                    hintText: 'Limit yok',
+                  decoration: InputDecoration(
+                    hintText: 'Limit yok'.tr,
                     prefixText: '₺ ',
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
@@ -398,7 +405,7 @@ class _CategoryLimitRow extends StatelessWidget {
             UsageBar(
               ratio: spentCents / limitCents,
               height: 6,
-              semanticsLabel: '${category.name} limit kullanımı',
+              semanticsLabel: '{0} limit kullanımı'.trArgs([category.name]),
             ),
           ],
         ],

@@ -1,3 +1,5 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -79,7 +81,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
       if (user != null && !user.emailVerified && !silent) {
         setState(() {
           _tone = MessageTone.warning;
-          _message = 'E-posta adresiniz henüz doğrulanmamış görünüyor. Bağlantıya tıkladıktan sonra tekrar deneyin.';
+          _message = 'E-posta adresiniz henüz doğrulanmamış görünüyor. Bağlantıya tıkladıktan sonra tekrar deneyin.'
+              .tr;
         });
       }
       // Doğrulandıysa router otomatik olarak ana sayfaya yönlendirir.
@@ -103,7 +106,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
       _startCooldown();
       setState(() {
         _tone = MessageTone.success;
-        _message = 'Doğrulama e-postası yeniden gönderildi.';
+        _message = 'Doğrulama e-postası yeniden gönderildi.'.tr;
       });
     } catch (e) {
       if (mounted) {
@@ -123,9 +126,10 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
     final scheme = context.colors;
 
     return AuthScaffold(
-      title: 'E-postanızı doğrulayın',
+      title: 'E-postanızı doğrulayın'.tr,
       subtitle:
-          'Hesabınızı korumak için e-posta adresinizi doğrulamanız gerekiyor.',
+          'Hesabınızı korumak için e-posta adresinizi doğrulamanız gerekiyor.'
+              .tr,
       header: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
@@ -148,7 +152,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
           child: Column(
             children: [
               Text(
-                'Doğrulama bağlantısı gönderildi:',
+                'Doğrulama bağlantısı gönderildi:'.tr,
                 style: context.textStyles.bodyMedium,
               ),
               const SizedBox(height: 4),
@@ -159,7 +163,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'E-postadaki bağlantıya tıklayın, ardından bu ekrana dönün. Birkaç dakika içinde gelmezse istenmeyen (spam) klasörünü kontrol edin.',
+                'E-postadaki bağlantıya tıklayın, ardından bu ekrana dönün. Birkaç dakika içinde gelmezse istenmeyen (spam) klasörünü kontrol edin.'
+                    .tr,
                 textAlign: TextAlign.center,
                 style: context.textStyles.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
@@ -174,7 +179,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
         ],
         const SizedBox(height: AppSpacing.lg),
         AppButton(
-          label: 'E-postamı doğruladım',
+          label: 'E-postamı doğruladım'.tr,
           icon: Icons.verified_outlined,
           onPressed: () => _check(),
           isLoading: _checking,
@@ -182,8 +187,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
         const SizedBox(height: AppSpacing.sm),
         AppButton(
           label: _cooldownLeft > 0
-              ? 'Tekrar gönder ($_cooldownLeft sn)'
-              : 'Doğrulama e-postasını tekrar gönder',
+              ? 'Tekrar gönder ({0} sn)'.trArgs([_cooldownLeft])
+              : 'Doğrulama e-postasını tekrar gönder'.tr,
           outlined: true,
           icon: Icons.refresh_rounded,
           isLoading: _resending,
@@ -193,7 +198,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
         TextButton.icon(
           onPressed: () => ref.read(accountServiceProvider).signOut(),
           icon: const Icon(Icons.logout_rounded),
-          label: const Text('Farklı bir hesapla giriş yap'),
+          label: Text('Farklı bir hesapla giriş yap'.tr),
         ),
       ],
     );

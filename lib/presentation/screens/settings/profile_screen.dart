@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,7 +44,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await ref
           .read(accountServiceProvider)
           .updateDisplayName(_nameController.text.trim());
-      if (mounted) context.showSuccess('Adınız güncellendi.');
+      if (mounted) context.showSuccess('Adınız güncellendi.'.tr);
     } catch (e) {
       if (mounted) context.showError(e);
     } finally {
@@ -62,20 +63,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _deleteAccount() async {
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Hesabınız kalıcı olarak silinsin mi?',
-      message:
-          'Tüm harcamalarınız, kartlarınız, taksit planlarınız, kişisel bütçeleriniz ve profiliniz '
-          'kalıcı olarak silinir. Sahibi olduğunuz takımlar kapatılır, üyesi olduğunuz takımlardan çıkarılırsınız. '
-          'Bu işlem geri alınamaz.',
-      confirmLabel: 'Devam et',
+      title: 'Hesabınız kalıcı olarak silinsin mi?'.tr,
+      message: 'Tüm harcamalarınız, kartlarınız, taksit planlarınız, kişisel bütçeleriniz ve profiliniz kalıcı olarak silinir. Sahibi olduğunuz takımlar kapatılır, üyesi olduğunuz takımlardan çıkarılırsınız. Bu işlem geri alınamaz.'
+          .tr,
+      confirmLabel: 'Devam et'.tr,
       destructive: true,
     );
     if (!confirmed || !mounted) return;
     final password = await showPasswordPrompt(
       context,
-      title: 'Şifrenizi doğrulayın',
-      message: 'Hesabı silmek için mevcut şifrenizi girin.',
-      confirmLabel: 'Hesabımı sil',
+      title: 'Şifrenizi doğrulayın'.tr,
+      message: 'Hesabı silmek için mevcut şifrenizi girin.'.tr,
+      confirmLabel: 'Hesabımı sil'.tr,
       destructive: true,
     );
     if (password == null || !mounted) return;
@@ -98,13 +97,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final scheme = context.colors;
 
     if (_deleting) {
-      return const Scaffold(
-        body: LoadingView(message: 'Hesabınız ve verileriniz siliniyor…'),
+      return Scaffold(
+        body: LoadingView(message: 'Hesabınız ve verileriniz siliniyor…'.tr),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil ve güvenlik')),
+      appBar: AppBar(title: Text('Profil ve güvenlik'.tr)),
       body: PageListView(
         maxWidth: AppSpacing.maxFormWidth,
         children: [
@@ -124,19 +123,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Center(
             child: Pill(
               icon: Icons.verified_rounded,
-              label: 'E-posta doğrulandı',
+              label: 'E-posta doğrulandı'.tr,
               color: context.semantic.success,
             ),
           ),
-          const SectionHeader(title: 'Kişisel bilgiler'),
+          SectionHeader(title: 'Kişisel bilgiler'.tr),
           Form(
             key: _nameFormKey,
             child: TextFormField(
               controller: _nameController,
               textCapitalization: TextCapitalization.words,
               validator: Validators.displayName,
-              decoration: const InputDecoration(
-                labelText: 'Ad soyad',
+              decoration: InputDecoration(
+                labelText: 'Ad soyad'.tr,
                 prefixIcon: Icon(Icons.person_outline_rounded),
               ),
             ),
@@ -146,51 +145,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             initialValue: user?.email ?? '',
             readOnly: true,
             enabled: false,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'E-posta',
               prefixIcon: Icon(Icons.alternate_email_rounded),
-              helperText: 'E-posta adresi değiştirilemez.',
+              helperText: 'E-posta adresi değiştirilemez.'.tr,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           AppButton(
-            label: 'Adı kaydet',
+            label: 'Adı kaydet'.tr,
             onPressed: _saveName,
             isLoading: _savingName,
           ),
-          const SectionHeader(title: 'Güvenlik'),
+          SectionHeader(title: 'Güvenlik'.tr),
           AppCard(
             padding: EdgeInsets.zero,
             child: ListTile(
               leading: const Icon(Icons.password_rounded),
-              title: const Text('Şifreyi değiştir'),
-              subtitle: const Text('Mevcut şifrenizle doğrulama gerekir'),
+              title: Text('Şifreyi değiştir'.tr),
+              subtitle: Text('Mevcut şifrenizle doğrulama gerekir'.tr),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: _changePassword,
             ),
           ),
-          const SectionHeader(title: 'Tehlikeli bölge'),
+          SectionHeader(title: 'Tehlikeli bölge'.tr),
           AppCard(
             borderColor: scheme.error.withValues(alpha: 0.4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Hesabı sil',
+                  'Hesabı sil'.tr,
                   style: context.textStyles.titleSmall?.copyWith(
                     color: scheme.error,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Hesabınız ve size ait tüm veriler kalıcı olarak silinir.',
+                  'Hesabınız ve size ait tüm veriler kalıcı olarak silinir.'.tr,
                   style: context.textStyles.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 AppButton(
-                  label: 'Hesabımı kalıcı olarak sil',
+                  label: 'Hesabımı kalıcı olarak sil'.tr,
                   destructive: true,
                   icon: Icons.delete_forever_rounded,
                   onPressed: _deleteAccount,
@@ -243,7 +242,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
           );
       if (!mounted) return;
       Navigator.pop(context);
-      context.showSuccess('Şifreniz güncellendi.');
+      context.showSuccess('Şifreniz güncellendi.'.tr);
     } catch (e) {
       if (mounted) setState(() => _error = ErrorMessages.from(e));
     } finally {
@@ -268,7 +267,10 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Şifreyi değiştir', style: context.textStyles.titleLarge),
+                Text(
+                  'Şifreyi değiştir'.tr,
+                  style: context.textStyles.titleLarge,
+                ),
                 const SizedBox(height: AppSpacing.md),
                 if (_error != null) ...[
                   InlineMessage(message: _error!, tone: MessageTone.error),
@@ -276,30 +278,30 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                 ],
                 PasswordField(
                   controller: _current,
-                  label: 'Mevcut şifre',
+                  label: 'Mevcut şifre'.tr,
                   validator: Validators.loginPassword,
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 PasswordField(
                   controller: _next,
-                  label: 'Yeni şifre',
+                  label: 'Yeni şifre'.tr,
                   validator: Validators.newPassword,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.newPassword],
-                  helperText: 'En az 8 karakter; harf ve rakam içermeli',
+                  helperText: 'En az 8 karakter; harf ve rakam içermeli'.tr,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 PasswordField(
                   controller: _confirm,
-                  label: 'Yeni şifre (tekrar)',
+                  label: 'Yeni şifre (tekrar)'.tr,
                   validator: Validators.confirmPassword(() => _next.text),
                   autofillHints: const [AutofillHints.newPassword],
                   onSubmitted: (_) => _submit(),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppButton(
-                  label: 'Şifreyi güncelle',
+                  label: 'Şifreyi güncelle'.tr,
                   onPressed: _submit,
                   isLoading: _saving,
                 ),

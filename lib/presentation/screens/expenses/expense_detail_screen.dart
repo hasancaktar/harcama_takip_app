@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,10 +31,12 @@ class ExpenseDetailScreen extends ConsumerWidget {
   ) async {
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Harcama silinsin mi?',
-      message:
-          '"${expense.title}" (${MoneyFormatter.formatCents(expense.amountInCents)}) kaydı silinecek.',
-      confirmLabel: 'Sil',
+      title: 'Harcama silinsin mi?'.tr,
+      message: '"{0}" ({1}) kaydı silinecek.'.trArgs([
+        expense.title,
+        MoneyFormatter.formatCents(expense.amountInCents),
+      ]),
+      confirmLabel: 'Sil'.tr,
       destructive: true,
     );
     if (!confirmed || !context.mounted) return;
@@ -44,7 +47,7 @@ class ExpenseDetailScreen extends ConsumerWidget {
           .read(expenseRepositoryProvider)
           .softDeleteExpense(expense.id, uid);
       if (context.mounted) {
-        context.showSuccess('Harcama silindi.');
+        context.showSuccess('Harcama silindi.'.tr);
         context.canPop() ? context.pop() : context.go('/expenses');
       }
     } catch (e) {
@@ -65,17 +68,17 @@ class ExpenseDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Harcama detayı'),
+        title: Text('Harcama detayı'.tr),
         actions: [
           if (canEdit)
             IconButton(
-              tooltip: 'Düzenle',
+              tooltip: 'Düzenle'.tr,
               icon: const Icon(Icons.edit_outlined),
               onPressed: () => context.push('/expenses/$expenseId/edit'),
             ),
           if (canDelete)
             IconButton(
-              tooltip: 'Sil',
+              tooltip: 'Sil'.tr,
               icon: Icon(
                 Icons.delete_outline_rounded,
                 color: context.colors.error,
@@ -90,15 +93,15 @@ class ExpenseDetailScreen extends ConsumerWidget {
         onRetry: () => ref.invalidate(expenseByIdProvider(expenseId)),
         data: (expense) {
           if (expense == null) {
-            return const EmptyStateView(
+            return EmptyStateView(
               icon: Icons.search_off_rounded,
-              title: 'Harcama bulunamadı',
-              message: 'Bu kayıt silinmiş veya görüntüleme yetkiniz yok.',
+              title: 'Harcama bulunamadı'.tr,
+              message: 'Bu kayıt silinmiş veya görüntüleme yetkiniz yok.'.tr,
             );
           }
           final payment = AppConstants.getPaymentMethod(expense.paymentMethod);
           final owner = expense.ownerUid == uid
-              ? 'Siz'
+              ? 'Siz'.tr
               : memberNames[expense.ownerUid];
           return PageListView(
             maxWidth: AppSpacing.maxFormWidth,
@@ -132,49 +135,53 @@ class ExpenseDetailScreen extends ConsumerWidget {
                   children: [
                     _DetailRow(
                       icon: Icons.event_rounded,
-                      label: 'Tarih',
+                      label: 'Tarih'.tr,
                       value: DateFormats.dayTime(expense.date),
                     ),
                     _DetailRow(
                       icon: payment.icon,
-                      label: 'Ödeme',
+                      label: 'Ödeme'.tr,
                       value: payment.name,
                     ),
                     if (expense.cardLast4 != null)
                       _DetailRow(
                         icon: Icons.credit_card_rounded,
-                        label: 'Kart',
+                        label: 'Kart'.tr,
                         value: '•••• ${expense.cardLast4}',
                       ),
                     _DetailRow(
                       icon: Icons.receipt_rounded,
-                      label: expense.isCreditCard ? 'Ekstre dönemi' : 'Dönem',
+                      label: expense.isCreditCard
+                          ? 'Ekstre dönemi'.tr
+                          : 'Dönem'.tr,
                       value: DateFormats.period(expense.statementPeriod),
                     ),
                     _DetailRow(
                       icon: expense.isTeam
                           ? Icons.groups_rounded
                           : Icons.person_rounded,
-                      label: 'Görünürlük',
-                      value: expense.isTeam ? 'Takım harcaması' : 'Bireysel',
+                      label: 'Görünürlük'.tr,
+                      value: expense.isTeam
+                          ? 'Takım harcaması'.tr
+                          : 'Bireysel'.tr,
                     ),
                     if (expense.isTeam && owner != null)
                       _DetailRow(
                         icon: Icons.badge_outlined,
-                        label: 'Ekleyen',
+                        label: 'Ekleyen'.tr,
                         value: owner,
                       ),
                     if (expense.isInstallment)
                       _DetailRow(
                         icon: Icons.splitscreen_rounded,
-                        label: 'Taksit',
+                        label: 'Taksit'.tr,
                         value:
                             '${expense.installmentNumber} / ${expense.totalInstallments}',
                       ),
                     if (expense.notes != null)
                       _DetailRow(
                         icon: Icons.notes_rounded,
-                        label: 'Not',
+                        label: 'Not'.tr,
                         value: expense.notes!,
                         multiline: true,
                       ),
@@ -185,7 +192,7 @@ class ExpenseDetailScreen extends ConsumerWidget {
                   expense.installmentPlanId != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 AppButton(
-                  label: 'Taksit planını görüntüle',
+                  label: 'Taksit planını görüntüle'.tr,
                   outlined: true,
                   icon: Icons.splitscreen_rounded,
                   onPressed: () => context.push(
@@ -195,7 +202,9 @@ class ExpenseDetailScreen extends ConsumerWidget {
               ],
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Son güncelleme: ${DateFormats.dayTime(expense.updatedAt)}',
+                'Son güncelleme: {0}'.trArgs([
+                  DateFormats.dayTime(expense.updatedAt),
+                ]),
                 textAlign: TextAlign.center,
                 style: context.textStyles.bodySmall?.copyWith(
                   color: context.colors.onSurfaceVariant,
@@ -235,10 +244,15 @@ class _DetailRow extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: scheme.onSurfaceVariant),
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              label,
-              style: context.textStyles.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width * 0.4,
+              ),
+              child: Text(
+                label,
+                style: context.textStyles.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.md),

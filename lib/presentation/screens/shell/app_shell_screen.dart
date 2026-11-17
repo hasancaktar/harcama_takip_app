@@ -1,3 +1,5 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -5,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../application/providers/admin_providers.dart';
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/installment_providers.dart';
 import '../../../application/providers/repository_providers.dart';
@@ -21,24 +24,24 @@ class _Destination {
   const _Destination(this.label, this.icon, this.selectedIcon);
 }
 
-const _destinations = [
+List<_Destination> get _destinations => [
   _Destination(
-    'Özet',
+    'Özet'.tr,
     Icons.space_dashboard_outlined,
     Icons.space_dashboard_rounded,
   ),
   _Destination(
-    'Harcamalar',
+    'Harcamalar'.tr,
     Icons.receipt_long_outlined,
     Icons.receipt_long_rounded,
   ),
   _Destination(
-    'Kartlar',
+    'Kartlar'.tr,
     Icons.credit_card_outlined,
     Icons.credit_card_rounded,
   ),
-  _Destination('Raporlar', Icons.insights_outlined, Icons.insights_rounded),
-  _Destination('Ayarlar', Icons.settings_outlined, Icons.settings_rounded),
+  _Destination('Raporlar'.tr, Icons.insights_outlined, Icons.insights_rounded),
+  _Destination('Ayarlar'.tr, Icons.settings_outlined, Icons.settings_rounded),
 ];
 
 /// Ana iskelet: telefonda alt gezinme çubuğu, tablet/masaüstünde yan gezinme rayı.
@@ -84,6 +87,23 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
 
     // 3) Takım bildirimleri için cihaz anahtarını kaydet.
     unawaited(ref.read(pushTokenServiceProvider).register(user.uid));
+
+    // Sunucu bildirimleri kullanıcının dilinde gitsin diye dili profile yaz.
+    unawaited(
+      ref
+          .read(userRepositoryProvider)
+          .setLanguage(user.uid, AppLocale.code)
+          .catchError((_) {}),
+    );
+
+    // Bildirim iznini ilk girişte bir kez iste (Android 13+ için gerekli).
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (ref.read(notificationServiceProvider).isSupported &&
+        prefs != null &&
+        prefs.getBool('notification_permission_asked') != true) {
+      await prefs.setBool('notification_permission_asked', true);
+      unawaited(ref.read(notificationServiceProvider).requestPermission());
+    }
 
     // 4) Hatırlatıcıları profil ayarlarıyla senkron tut ve bildirime dokunmayı yönlendir.
     final notifications = ref.read(notificationServiceProvider);
@@ -148,11 +168,23 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
     final width = MediaQuery.sizeOf(context).width;
     final shell = widget.navigationShell;
     final isOnline = ref.watch(isOnlineProvider).valueOrNull ?? true;
+    // Yönetici kategorileri değiştirdiğinde sekmeler yeni listeyle yeniden çizilir.
+    final categories = ref.watch(categoriesProvider).valueOrNull;
+    final categoryKey = ValueKey(
+      categories
+          ?.map(
+            (c) =>
+                '${c.id}${c.nameTr}${c.nameEn}${c.iconKey}${c.colorHex}${c.isActive}${c.isDeleted}${c.order}',
+          )
+          .join('|'),
+    );
 
     final body = Column(
       children: [
         if (!isOnline) const _OfflineBanner(),
-        Expanded(child: shell),
+        Expanded(
+          child: KeyedSubtree(key: categoryKey, child: shell),
+        ),
       ],
     );
 
@@ -249,7 +281,8 @@ class _OfflineBanner extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
-                  'Çevrimdışısınız. Değişiklikler bağlantı geldiğinde senkronize edilecek.',
+                  'Çevrimdışısınız. Değişiklikler bağlantı geldiğinde senkronize edilecek.'
+                      .tr,
                   style: context.textStyles.bodySmall?.copyWith(
                     color: context.colors.onSurface,
                   ),

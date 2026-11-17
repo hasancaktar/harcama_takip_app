@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/l10n/app_locale.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_formats.dart';
@@ -88,33 +89,44 @@ class ExpenseTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    amount,
-                    style: context.textStyles.titleSmall?.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  if (expense.isInstallment)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Pill(
-                        label:
-                            '${expense.installmentNumber}/${expense.totalInstallments} taksit',
-                        color: scheme.primary,
-                      ),
-                    )
-                  else if (periodDiffers)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Pill(
-                        label:
-                            '${DateFormats.periodShort(expense.statementPeriod)} ekstresi',
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.42,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        amount,
+                        style: context.textStyles.titleSmall?.copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
-                ],
+                    if (expense.isInstallment)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Pill(
+                          label: '{0}/{1} taksit'.trArgs([
+                            expense.installmentNumber,
+                            expense.totalInstallments,
+                          ]),
+                          color: scheme.primary,
+                        ),
+                      )
+                    else if (periodDiffers)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Pill(
+                          label: '{0} ekstresi'.trArgs([
+                            DateFormats.periodShort(expense.statementPeriod),
+                          ]),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ],
           ),

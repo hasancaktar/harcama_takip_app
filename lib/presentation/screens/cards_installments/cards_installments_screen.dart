@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,22 +53,23 @@ class _CardsInstallmentsScreenState
     final onCards = _tabController.index == 0;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kartlar ve taksitler'),
+        title: Text('Kartlar ve taksitler'.tr),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Kredi kartları'),
-            Tab(text: 'Taksit planları'),
+          tabs: [
+            Tab(text: 'Kredi kartları'.tr),
+            Tab(text: 'Taksit planları'.tr),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab-cards',
         onPressed: () =>
             context.push(onCards ? '/cards/new' : '/installments/new'),
         icon: Icon(
           onCards ? Icons.add_card_rounded : Icons.playlist_add_rounded,
         ),
-        label: Text(onCards ? 'Kart ekle' : 'Taksit ekle'),
+        label: Text(onCards ? 'Kart ekle'.tr : 'Taksit ekle'.tr),
       ),
       body: TabBarView(
         controller: _tabController,
@@ -94,9 +96,10 @@ class _CardsTab extends ConsumerWidget {
         if (cards.isEmpty) {
           return EmptyStateView(
             icon: Icons.credit_card_off_rounded,
-            title: 'Henüz kart eklemediniz',
-            message: 'Kartınızın kesim gününü girin; harcamalar doğru ekstreye yazılsın, son ödeme tarihini kaçırmayın. Kart numarası istenmez.',
-            actionLabel: 'Kart ekle',
+            title: 'Henüz kart eklemediniz'.tr,
+            message: 'Kartınızın kesim gününü girin; harcamalar doğru ekstreye yazılsın, son ödeme tarihini kaçırmayın. Kart numarası istenmez.'
+                .tr,
+            actionLabel: 'Kart ekle'.tr,
             actionIcon: Icons.add_card_rounded,
             onAction: () => context.push('/cards/new'),
           );
@@ -134,9 +137,12 @@ class _CardsTab extends ConsumerWidget {
                     onTap: () => context.push('/cards/${card.id}'),
                     footer: Text(
                       [
-                        'Sonraki kesim ${DateFormats.dayShort(cutoff)} (${DateFormats.daysUntil(cutoff, now: now)})',
-                        'Son ödeme ${DateFormats.dayShort(due)}',
-                        if (card.ownerUid != uid) 'Takım kartı',
+                        'Sonraki kesim {0} ({1})'.trArgs([
+                          DateFormats.dayShort(cutoff),
+                          DateFormats.daysUntil(cutoff, now: now),
+                        ]),
+                        'Son ödeme {0}'.trArgs([DateFormats.dayShort(due)]),
+                        if (card.ownerUid != uid) 'Takım kartı'.tr,
                       ].join(' · '),
                       style: context.textStyles.bodySmall?.copyWith(
                         color: DefaultTextStyle.of(context).style.color
@@ -170,9 +176,10 @@ class _InstallmentsTab extends ConsumerWidget {
         if (plans.isEmpty) {
           return EmptyStateView(
             icon: Icons.splitscreen_rounded,
-            title: 'Taksit planı yok',
-            message: 'Taksitli alışverişlerinizi ekleyin; her ay ilgili ekstreye otomatik yazılsın, kalan borcunuzu görün.',
-            actionLabel: 'Taksit planı ekle',
+            title: 'Taksit planı yok'.tr,
+            message: 'Taksitli alışverişlerinizi ekleyin; her ay ilgili ekstreye otomatik yazılsın, kalan borcunuzu görün.'
+                .tr,
+            actionLabel: 'Taksit planı ekle'.tr,
             actionIcon: Icons.playlist_add_rounded,
             onAction: () => context.push('/installments/new'),
           );
@@ -201,26 +208,26 @@ class _InstallmentsTab extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _MiniStat(
-                      label: 'Kalan taksit borcu',
+                      label: 'Kalan taksit borcu'.tr,
                       value: MoneyFormatter.formatCents(remaining),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: _MiniStat(
-                      label: 'Sonraki ay yükü',
+                      label: 'Sonraki ay yükü'.tr,
                       value: MoneyFormatter.formatCents(monthly),
                     ),
                   ),
                 ],
               ),
-            if (active.isNotEmpty) const SectionHeader(title: 'Devam eden'),
+            if (active.isNotEmpty) SectionHeader(title: 'Devam eden'.tr),
             for (final p in active) ...[
               _PlanCard(plan: p),
               const SizedBox(height: AppSpacing.sm),
             ],
             if (other.isNotEmpty)
-              const SectionHeader(title: 'Tamamlanan ve iptal edilen'),
+              SectionHeader(title: 'Tamamlanan ve iptal edilen'.tr),
             for (final p in other) ...[
               _PlanCard(plan: p),
               const SizedBox(height: AppSpacing.sm),
@@ -274,9 +281,9 @@ class _PlanCard extends StatelessWidget {
         ? 0.0
         : plan.postedCount / plan.totalInstallments;
     final (String statusLabel, Color statusColor) = switch (plan.status) {
-      'active' => ('Devam ediyor', scheme.primary),
-      'completed' => ('Tamamlandı', context.semantic.success),
-      _ => ('İptal edildi', scheme.onSurfaceVariant),
+      'active' => ('Devam ediyor'.tr, scheme.primary),
+      'completed' => ('Tamamlandı'.tr, context.semantic.success),
+      _ => ('İptal edildi'.tr, scheme.onSurfaceVariant),
     };
 
     return AppCard(
@@ -299,7 +306,10 @@ class _PlanCard extends StatelessWidget {
                       style: context.textStyles.titleSmall,
                     ),
                     Text(
-                      '•••• ${plan.cardLast4} · ${plan.totalInstallments} taksit',
+                      '•••• {0} · {1} taksit'.trArgs([
+                        plan.cardLast4,
+                        plan.totalInstallments,
+                      ]),
                       style: context.textStyles.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -318,7 +328,7 @@ class _PlanCard extends StatelessWidget {
             ratio: progress,
             color: statusColor,
             height: 6,
-            semanticsLabel: 'Ödenen taksit oranı',
+            semanticsLabel: 'Ödenen taksit oranı'.tr,
           ),
           const SizedBox(height: AppSpacing.xs),
           Row(
@@ -326,8 +336,16 @@ class _PlanCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   next != null && plan.isActive
-                      ? '${plan.postedCount}/${plan.totalInstallments} · sıradaki ${MoneyFormatter.formatCents(next.amountInCents)} (${DateFormats.periodShort(next.statementPeriod)})'
-                      : '${plan.postedCount}/${plan.totalInstallments} taksit işlendi',
+                      ? '{0}/{1} · sıradaki {2} ({3})'.trArgs([
+                          plan.postedCount,
+                          plan.totalInstallments,
+                          MoneyFormatter.formatCents(next.amountInCents),
+                          DateFormats.periodShort(next.statementPeriod),
+                        ])
+                      : '{0}/{1} taksit işlendi'.trArgs([
+                          plan.postedCount,
+                          plan.totalInstallments,
+                        ]),
                   style: context.textStyles.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

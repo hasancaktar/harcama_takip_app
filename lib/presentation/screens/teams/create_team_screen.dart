@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,7 +76,7 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
       await ref.read(workspaceControllerProvider).select(teamId);
       if (!mounted) return;
       context.showSuccess(
-        'Takım oluşturuldu. Şimdi üyeleri davet edebilirsiniz.',
+        'Takım oluşturuldu. Şimdi üyeleri davet edebilirsiniz.'.tr,
       );
       context.pushReplacement('/teams/$teamId');
     } catch (e) {
@@ -89,7 +90,7 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Yeni takım')),
+      appBar: AppBar(title: Text('Yeni takım'.tr)),
       body: Form(
         key: _formKey,
         child: PageListView(
@@ -103,12 +104,12 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                 LengthLimitingTextInputFormatter(AppConstants.maxNameLength),
               ],
               validator: Validators.requiredText(
-                'Takım adı',
+                'Takım adı'.tr,
                 maxLength: AppConstants.maxNameLength,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Takım adı',
-                hintText: 'Örn. Evimiz, Aile bütçesi',
+              decoration: InputDecoration(
+                labelText: 'Takım adı'.tr,
+                hintText: 'Örn. Evimiz, Aile bütçesi'.tr,
                 prefixIcon: Icon(Icons.groups_rounded),
               ),
             ),
@@ -117,13 +118,13 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
               controller: _descriptionController,
               maxLines: 2,
               inputFormatters: [LengthLimitingTextInputFormatter(200)],
-              decoration: const InputDecoration(
-                labelText: 'Açıklama (isteğe bağlı)',
+              decoration: InputDecoration(
+                labelText: 'Açıklama (isteğe bağlı)'.tr,
                 prefixIcon: Icon(Icons.notes_rounded),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Takım rengi', style: context.textStyles.titleSmall),
+            Text('Takım rengi'.tr, style: context.textStyles.titleSmall),
             const SizedBox(height: AppSpacing.xs),
             ColorPickerRow(
               selectedHex: _colorHex,
@@ -131,7 +132,7 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              label: 'Takımı oluştur',
+              label: 'Takımı oluştur'.tr,
               icon: Icons.check_rounded,
               onPressed: _create,
               isLoading: _saving,

@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -42,8 +43,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedPolicy) {
       setState(
-        () =>
-            _errorMessage = 'Devam etmek için gizlilik politikasını onaylayın.',
+        () => _errorMessage =
+            'Devam etmek için gizlilik politikasını onaylayın.'.tr,
       );
       return;
     }
@@ -73,8 +74,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final scheme = context.colors;
     return AuthScaffold(
       showBack: true,
-      title: 'Hesap oluşturun',
-      subtitle: 'Kayıttan sonra e-posta adresinize bir doğrulama bağlantısı göndereceğiz.',
+      title: 'Hesap oluşturun'.tr,
+      subtitle: 'Kayıttan sonra e-posta adresinize bir doğrulama bağlantısı göndereceğiz.'
+          .tr,
       children: [
         if (_errorMessage != null) ...[
           InlineMessage(message: _errorMessage!, tone: MessageTone.error),
@@ -92,8 +94,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textCapitalization: TextCapitalization.words,
                   autofillHints: const [AutofillHints.name],
                   validator: Validators.displayName,
-                  decoration: const InputDecoration(
-                    labelText: 'Ad soyad',
+                  decoration: InputDecoration(
+                    labelText: 'Ad soyad'.tr,
                     prefixIcon: Icon(Icons.person_outline_rounded),
                   ),
                 ),
@@ -116,12 +118,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   validator: Validators.newPassword,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.newPassword],
-                  helperText: 'En az 8 karakter; harf ve rakam içermeli',
+                  helperText: 'En az 8 karakter; harf ve rakam içermeli'.tr,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 PasswordField(
                   controller: _confirmController,
-                  label: 'Şifre (tekrar)',
+                  label: 'Şifre (tekrar)'.tr,
                   validator: Validators.confirmPassword(
                     () => _passwordController.text,
                   ),
@@ -139,7 +141,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
           title: Text(
-            'Verilerimin gizlilik politikasında açıklandığı şekilde işlenmesini kabul ediyorum.',
+            'Verilerimin gizlilik politikasında açıklandığı şekilde işlenmesini kabul ediyorum.'
+                .tr,
             style: context.textStyles.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -147,7 +150,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
         const SizedBox(height: AppSpacing.sm),
         AppButton(
-          label: 'Hesap oluştur',
+          label: 'Hesap oluştur'.tr,
           onPressed: _handleRegister,
           isLoading: _isLoading,
         ),
@@ -157,13 +160,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
-              'Zaten hesabınız var mı?',
+              'Zaten hesabınız var mı?'.tr,
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
             TextButton(
               onPressed: () =>
                   context.canPop() ? context.pop() : context.go('/login'),
-              child: const Text('Giriş yap'),
+              child: Text('Giriş yap'.tr),
             ),
           ],
         ),

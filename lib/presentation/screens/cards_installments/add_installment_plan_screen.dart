@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -106,7 +107,7 @@ class _AddInstallmentPlanScreenState
       initialDate: _startDate,
       firstDate: DateTime(now.year - 3),
       lastDate: now.add(const Duration(days: 365)),
-      helpText: 'Alışveriş tarihi',
+      helpText: 'Alışveriş tarihi'.tr,
     );
     if (picked != null && mounted) {
       setState(
@@ -121,7 +122,7 @@ class _AddInstallmentPlanScreenState
     final uid = ref.read(currentUserIdProvider);
     final plan = _buildPlan(cards, id: const Uuid().v4());
     if (plan == null || uid == null) {
-      context.showInfo('Lütfen bir kredi kartı seçin.');
+      context.showInfo('Lütfen bir kredi kartı seçin.'.tr);
       return;
     }
     setState(() => _saving = true);
@@ -137,8 +138,9 @@ class _AddInstallmentPlanScreenState
       if (!mounted) return;
       context.showSuccess(
         result.postings.isEmpty
-            ? 'Taksit planı oluşturuldu.'
-            : 'Taksit planı oluşturuldu; ${result.postings.length} taksit harcamalara eklendi.',
+            ? 'Taksit planı oluşturuldu.'.tr
+            : 'Taksit planı oluşturuldu; {0} taksit harcamalara eklendi.'
+                  .trArgs([result.postings.length]),
       );
       context.pop();
     } catch (e) {
@@ -161,16 +163,16 @@ class _AddInstallmentPlanScreenState
     final now = DateTime.now();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Yeni taksit planı')),
+      appBar: AppBar(title: Text('Yeni taksit planı'.tr)),
       body: cardsAsync.isLoading && cards.isEmpty
           ? const LoadingView()
           : cards.isEmpty
           ? EmptyStateView(
               icon: Icons.credit_card_off_rounded,
-              title: 'Önce bir kart ekleyin',
+              title: 'Önce bir kart ekleyin'.tr,
               message:
-                  'Taksitler kartın kesim gününe göre ekstrelere dağıtılır.',
-              actionLabel: 'Kart ekle',
+                  'Taksitler kartın kesim gününe göre ekstrelere dağıtılır.'.tr,
+              actionLabel: 'Kart ekle'.tr,
               actionIcon: Icons.add_card_rounded,
               onAction: () => context.push('/cards/new'),
             )
@@ -181,7 +183,7 @@ class _AddInstallmentPlanScreenState
                 children: [
                   AmountField(
                     controller: _amountController,
-                    label: 'Toplam alışveriş tutarı',
+                    label: 'Toplam alışveriş tutarı'.tr,
                     autofocus: true,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -195,12 +197,12 @@ class _AddInstallmentPlanScreenState
                       ),
                     ],
                     validator: Validators.requiredText(
-                      'Ürün / açıklama',
+                      'Ürün / açıklama'.tr,
                       maxLength: AppConstants.maxTitleLength,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Ürün / açıklama',
-                      hintText: 'Örn. Buzdolabı',
+                    decoration: InputDecoration(
+                      labelText: 'Ürün / açıklama'.tr,
+                      hintText: 'Örn. Buzdolabı'.tr,
                       prefixIcon: Icon(Icons.shopping_bag_outlined),
                     ),
                   ),
@@ -208,8 +210,8 @@ class _AddInstallmentPlanScreenState
                   DropdownButtonFormField<String>(
                     initialValue: _cardId,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Kredi kartı',
+                    decoration: InputDecoration(
+                      labelText: 'Kredi kartı'.tr,
                       prefixIcon: Icon(Icons.credit_card_rounded),
                     ),
                     items: [
@@ -217,7 +219,11 @@ class _AddInstallmentPlanScreenState
                         DropdownMenuItem(
                           value: c.id,
                           child: Text(
-                            '${c.name} •••• ${c.last4Digits} (kesim ${c.cutoffDay})',
+                            '{0} •••• {1} (kesim {2})'.trArgs([
+                              c.name,
+                              c.last4Digits,
+                              c.cutoffDay,
+                            ]),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -230,14 +236,18 @@ class _AddInstallmentPlanScreenState
                       Expanded(
                         child: DropdownButtonFormField<int>(
                           initialValue: _count,
-                          decoration: const InputDecoration(
-                            labelText: 'Taksit sayısı',
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            labelText: 'Taksit sayısı'.tr,
                           ),
                           items: [
                             for (final c in _countOptions)
                               DropdownMenuItem(
                                 value: c,
-                                child: Text('$c taksit'),
+                                child: Text(
+                                  '{0} taksit'.trArgs([c]),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                           ],
                           onChanged: (v) =>
@@ -252,7 +262,10 @@ class _AddInstallmentPlanScreenState
                             Icons.calendar_today_rounded,
                             size: 18,
                           ),
-                          label: Text(DateFormats.dayShort(_startDate)),
+                          label: Text(
+                            DateFormats.dayShort(_startDate),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ],
@@ -261,12 +274,12 @@ class _AddInstallmentPlanScreenState
                   DropdownButtonFormField<String>(
                     initialValue: _category,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Kategori',
+                    decoration: InputDecoration(
+                      labelText: 'Kategori'.tr,
                       prefixIcon: Icon(Icons.category_outlined),
                     ),
                     items: [
-                      for (final c in AppConstants.defaultCategories)
+                      for (final c in AppConstants.categories)
                         DropdownMenuItem(
                           value: c.id,
                           child: Row(
@@ -286,10 +299,10 @@ class _AddInstallmentPlanScreenState
                     SegmentedButton<String>(
                       showSelectedIcon: false,
                       segments: [
-                        const ButtonSegment(
+                        ButtonSegment(
                           value: 'personal',
                           icon: Icon(Icons.person_rounded),
-                          label: Text('Bireysel'),
+                          label: Text('Bireysel'.tr),
                         ),
                         ButtonSegment(
                           value: 'team',
@@ -306,7 +319,7 @@ class _AddInstallmentPlanScreenState
                     ),
                   ],
                   if (preview != null) ...[
-                    const SectionHeader(title: 'Ödeme planı önizlemesi'),
+                    SectionHeader(title: 'Ödeme planı önizlemesi'.tr),
                     AppCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -315,7 +328,9 @@ class _AddInstallmentPlanScreenState
                             4,
                           ))
                             _ScheduleRow(
-                              label: '${item.installmentNumber}. taksit',
+                              label: '{0}. taksit'.trArgs([
+                                item.installmentNumber,
+                              ]),
                               period: DateFormats.period(item.statementPeriod),
                               amount: MoneyFormatter.formatCents(
                                 item.amountInCents,
@@ -335,8 +350,12 @@ class _AddInstallmentPlanScreenState
                               ),
                             ),
                             _ScheduleRow(
-                              label:
-                                  '${preview.installmentSchedule.last.installmentNumber}. taksit',
+                              label: '{0}. taksit'.trArgs([
+                                preview
+                                    .installmentSchedule
+                                    .last
+                                    .installmentNumber,
+                              ]),
                               period: DateFormats.period(
                                 preview
                                     .installmentSchedule
@@ -351,8 +370,8 @@ class _AddInstallmentPlanScreenState
                           ],
                           const Divider(height: AppSpacing.lg),
                           Text(
-                            'Her taksit, ait olduğu ekstre ayı geldiğinde harcamalarınıza otomatik eklenir. '
-                            'Kuruş farkı ilk taksite yansıtılır.',
+                            'Her taksit, ait olduğu ekstre ayı geldiğinde harcamalarınıza otomatik eklenir. Kuruş farkı ilk taksite yansıtılır.'
+                                .tr,
                             style: context.textStyles.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,
                             ),
@@ -363,7 +382,7 @@ class _AddInstallmentPlanScreenState
                   ],
                   const SizedBox(height: AppSpacing.lg),
                   AppButton(
-                    label: 'Taksit planını oluştur',
+                    label: 'Taksit planını oluştur'.tr,
                     icon: Icons.check_rounded,
                     onPressed: () => _save(cards),
                     isLoading: _saving,
@@ -400,7 +419,7 @@ class _ScheduleRow extends StatelessWidget {
               children: [
                 Text(label, style: context.textStyles.titleSmall),
                 Text(
-                  willPost ? '$period · hemen eklenecek' : period,
+                  willPost ? '{0} · hemen eklenecek'.trArgs([period]) : period,
                   style: context.textStyles.bodySmall?.copyWith(
                     color: context.colors.onSurfaceVariant,
                   ),

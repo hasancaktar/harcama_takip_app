@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,7 +32,7 @@ class TeamDetailScreen extends ConsumerWidget {
     final uid = ref.watch(currentUserIdProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(teamAsync.valueOrNull?.name ?? 'Takım')),
+      appBar: AppBar(title: Text(teamAsync.valueOrNull?.name ?? 'Takım'.tr)),
       body: AsyncValueView<Team?>(
         value: teamAsync,
         onRetry: () => ref.invalidate(teamByIdProvider(teamId)),
@@ -41,9 +42,9 @@ class TeamDetailScreen extends ConsumerWidget {
               !team.memberUids.contains(uid)) {
             return EmptyStateView(
               icon: Icons.group_off_outlined,
-              title: 'Takıma erişilemiyor',
-              message: 'Takım kapatılmış ya da artık üyesi değilsiniz.',
-              actionLabel: 'Takımlara dön',
+              title: 'Takıma erişilemiyor'.tr,
+              message: 'Takım kapatılmış ya da artık üyesi değilsiniz.'.tr,
+              actionLabel: 'Takımlara dön'.tr,
               actionIcon: Icons.arrow_back_rounded,
               onAction: () => context.go('/teams'),
             );
@@ -76,9 +77,10 @@ class _TeamBody extends ConsumerWidget {
   Future<void> _leave(BuildContext context, WidgetRef ref) async {
     final ok = await showConfirmDialog(
       context,
-      title: 'Takımdan ayrılınsın mı?',
-      message: 'Takım harcamalarını artık göremeyeceksiniz. Eklediğiniz harcamalar takımda kalır.',
-      confirmLabel: 'Ayrıl',
+      title: 'Takımdan ayrılınsın mı?'.tr,
+      message: 'Takım harcamalarını artık göremeyeceksiniz. Eklediğiniz harcamalar takımda kalır.'
+          .tr,
+      confirmLabel: 'Ayrıl'.tr,
       destructive: true,
     );
     if (!ok || !context.mounted) return;
@@ -92,7 +94,7 @@ class _TeamBody extends ConsumerWidget {
           .read(teamRepositoryProvider)
           .leaveTeam(teamId: team.id, uid: uid);
       if (context.mounted) {
-        context.showSuccess('Takımdan ayrıldınız.');
+        context.showSuccess('Takımdan ayrıldınız.'.tr);
         context.go('/teams');
       }
     } catch (e) {
@@ -103,9 +105,10 @@ class _TeamBody extends ConsumerWidget {
   Future<void> _archive(BuildContext context, WidgetRef ref) async {
     final ok = await showConfirmDialog(
       context,
-      title: 'Takım kapatılsın mı?',
-      message: 'Takım tüm üyeler için listeden kaldırılır. Harcama kayıtları silinmez ancak takım üzerinden görüntülenemez.',
-      confirmLabel: 'Takımı kapat',
+      title: 'Takım kapatılsın mı?'.tr,
+      message: 'Takım tüm üyeler için listeden kaldırılır. Harcama kayıtları silinmez ancak takım üzerinden görüntülenemez.'
+          .tr,
+      confirmLabel: 'Takımı kapat'.tr,
       destructive: true,
     );
     if (!ok || !context.mounted) return;
@@ -115,7 +118,7 @@ class _TeamBody extends ConsumerWidget {
       }
       await ref.read(teamRepositoryProvider).archiveTeam(team.id);
       if (context.mounted) {
-        context.showSuccess('Takım kapatıldı.');
+        context.showSuccess('Takım kapatıldı.'.tr);
         context.go('/teams');
       }
     } catch (e) {
@@ -130,10 +133,10 @@ class _TeamBody extends ConsumerWidget {
   ) async {
     final ok = await showConfirmDialog(
       context,
-      title: 'Üye çıkarılsın mı?',
-      message:
-          '${member.label} takımdan çıkarılacak ve takım harcamalarını göremeyecek.',
-      confirmLabel: 'Çıkar',
+      title: 'Üye çıkarılsın mı?'.tr,
+      message: '{0} takımdan çıkarılacak ve takım harcamalarını göremeyecek.'
+          .trArgs([member.label]),
+      confirmLabel: 'Çıkar'.tr,
       destructive: true,
     );
     if (!ok || !context.mounted) return;
@@ -142,7 +145,7 @@ class _TeamBody extends ConsumerWidget {
           .read(teamRepositoryProvider)
           .removeMember(teamId: team.id, memberUid: member.uid);
       if (context.mounted) {
-        context.showSuccess('${member.label} takımdan çıkarıldı.');
+        context.showSuccess('{0} takımdan çıkarıldı.'.trArgs([member.label]));
       }
     } catch (e) {
       if (context.mounted) context.showError(e);
@@ -181,7 +184,7 @@ class _TeamBody extends ConsumerWidget {
                   ),
                   if (isOwner)
                     IconButton(
-                      tooltip: 'Takımı düzenle',
+                      tooltip: 'Takımı düzenle'.tr,
                       color: onColor,
                       icon: const Icon(Icons.edit_outlined),
                       onPressed: () => showModalBottomSheet<void>(
@@ -203,7 +206,7 @@ class _TeamBody extends ConsumerWidget {
               ],
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '${team.memberCount} üye',
+                '{0} üye'.trArgs([team.memberCount]),
                 style: context.textStyles.labelLarge?.copyWith(color: onColor),
               ),
             ],
@@ -212,24 +215,25 @@ class _TeamBody extends ConsumerWidget {
         const SizedBox(height: AppSpacing.md),
         if (!isActive)
           AppButton(
-            label: 'Bu takıma geç',
+            label: 'Bu takıma geç'.tr,
             icon: Icons.swap_horiz_rounded,
             outlined: true,
             onPressed: () async {
               await ref.read(workspaceControllerProvider).select(team.id);
               if (context.mounted) {
-                context.showSuccess('Çalışma alanı: ${team.name}');
+                context.showSuccess('Çalışma alanı: {0}'.trArgs([team.name]));
               }
             },
           )
         else
           InlineMessage(
             tone: MessageTone.success,
-            message: 'Bu takım aktif çalışma alanınız. Yeni harcamalar varsayılan olarak bu takıma eklenir.',
+            message: 'Bu takım aktif çalışma alanınız. Yeni harcamalar varsayılan olarak bu takıma eklenir.'
+                .tr,
           ),
         SectionHeader(
-          title: 'Üyeler',
-          actionLabel: isOwner ? 'Davet et' : null,
+          title: 'Üyeler'.tr,
+          actionLabel: isOwner ? 'Davet et'.tr : null,
           onAction: isOwner ? () => _invite(context, ref) : null,
         ),
         membersAsync.when(
@@ -243,22 +247,24 @@ class _TeamBody extends ConsumerWidget {
                 for (final m in members)
                   ListTile(
                     leading: UserAvatar(name: m.label),
-                    title: Text(m.uid == uid ? '${m.label} (siz)' : m.label),
+                    title: Text(
+                      m.uid == uid ? '{0} (siz)'.trArgs([m.label]) : m.label,
+                    ),
                     subtitle: Text(m.email),
                     trailing: isOwner && !m.isOwner
                         ? IconButton(
-                            tooltip: '${m.label} adlı üyeyi çıkar',
+                            tooltip: '{0} adlı üyeyi çıkar'.trArgs([m.label]),
                             icon: const Icon(Icons.person_remove_outlined),
                             onPressed: () => _removeMember(context, ref, m),
                           )
-                        : Pill(label: AppConstants.teamRoles[m.role] ?? 'Üye'),
+                        : Pill(label: AppConstants.teamRoleName(m.role)),
                   ),
               ],
             ),
           ),
         ),
         if (invitesAsync != null) ...[
-          const SectionHeader(title: 'Bekleyen davetler'),
+          SectionHeader(title: 'Bekleyen davetler'.tr),
           invitesAsync.when(
             skipLoadingOnReload: false,
             loading: () => const SizedBox(height: 80, child: LoadingView()),
@@ -266,7 +272,8 @@ class _TeamBody extends ConsumerWidget {
             data: (invites) => invites.isEmpty
                 ? AppCard(
                     child: Text(
-                      'Bekleyen davet yok. "Davet et" ile e-posta adresine özel bir davet kodu oluşturun.',
+                      'Bekleyen davet yok. "Davet et" ile e-posta adresine özel bir davet kodu oluşturun.'
+                          .tr,
                       style: context.textStyles.bodyMedium?.copyWith(
                         color: context.colors.onSurfaceVariant,
                       ),
@@ -288,14 +295,17 @@ class _TeamBody extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
-                              'Kod: ${i.code} · son gün ${DateFormats.dayShort(i.expiresAt)}',
+                              'Kod: {0} · son gün {1}'.trArgs([
+                                i.code,
+                                DateFormats.dayShort(i.expiresAt),
+                              ]),
                             ),
                             onTap: () => showDialog<void>(
                               context: context,
                               builder: (_) => _InviteCodeDialog(invite: i),
                             ),
                             trailing: IconButton(
-                              tooltip: 'Daveti iptal et',
+                              tooltip: 'Daveti iptal et'.tr,
                               icon: const Icon(Icons.cancel_outlined),
                               onPressed: () async {
                                 try {
@@ -306,7 +316,9 @@ class _TeamBody extends ConsumerWidget {
                                         inviteId: i.id,
                                       );
                                   if (context.mounted) {
-                                    context.showSuccess('Davet iptal edildi.');
+                                    context.showSuccess(
+                                      'Davet iptal edildi.'.tr,
+                                    );
                                   }
                                 } catch (e) {
                                   if (context.mounted) context.showError(e);
@@ -322,7 +334,7 @@ class _TeamBody extends ConsumerWidget {
         const SizedBox(height: AppSpacing.xl),
         if (isOwner)
           AppButton(
-            label: 'Takımı kapat',
+            label: 'Takımı kapat'.tr,
             icon: Icons.archive_outlined,
             outlined: true,
             destructive: true,
@@ -330,7 +342,7 @@ class _TeamBody extends ConsumerWidget {
           )
         else
           AppButton(
-            label: 'Takımdan ayrıl',
+            label: 'Takımdan ayrıl'.tr,
             icon: Icons.logout_rounded,
             outlined: true,
             destructive: true,
@@ -388,7 +400,7 @@ class _InviteDialogState extends ConsumerState<_InviteDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Üye davet et'),
+      title: Text('Üye davet et'.tr),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Form(
@@ -397,9 +409,9 @@ class _InviteDialogState extends ConsumerState<_InviteDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Davet edeceğiniz kişinin e-posta adresini girin. Size özel bir kod oluşturulur; '
-                'kişi bu adresle uygulamaya giriş yaptığında daveti görür veya kodla katılır.',
+              Text(
+                'Davet edeceğiniz kişinin e-posta adresini girin. Size özel bir kod oluşturulur; kişi bu adresle uygulamaya giriş yaptığında daveti görür veya kodla katılır.'
+                    .tr,
               ),
               const SizedBox(height: AppSpacing.md),
               if (_error != null) ...[
@@ -425,7 +437,7 @@ class _InviteDialogState extends ConsumerState<_InviteDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Vazgeç'),
+          child: Text('Vazgeç'.tr),
         ),
         FilledButton(
           onPressed: _busy ? null : _submit,
@@ -436,7 +448,7 @@ class _InviteDialogState extends ConsumerState<_InviteDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Davet oluştur'),
+              : Text('Davet oluştur'.tr),
         ),
       ],
     );
@@ -447,15 +459,14 @@ class _InviteCodeDialog extends StatelessWidget {
   final TeamInvite invite;
   const _InviteCodeDialog({required this.invite});
 
-  String get _shareText =>
-      '"${invite.teamName}" takımına katılmak için Harcama Takip uygulamasında ${invite.invitedEmail} '
-      'adresiyle giriş yapın ve Takımlar > Kodla katıl bölümüne ${invite.code} kodunu girin.';
+  String get _shareText => '"{0}" takımına katılmak için Harcama Takip uygulamasında {1} adresiyle giriş yapın ve Takımlar > Kodla katıl bölümüne {2} kodunu girin.'
+      .trArgs([invite.teamName, invite.invitedEmail, invite.code]);
 
   @override
   Widget build(BuildContext context) {
     final scheme = context.colors;
     return AlertDialog(
-      title: const Text('Davet kodu hazır'),
+      title: Text('Davet kodu hazır'.tr),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Column(
@@ -463,7 +474,9 @@ class _InviteCodeDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '${invite.invitedEmail} için davet oluşturuldu. Kodu kişiyle paylaşın:',
+              '{0} için davet oluşturuldu. Kodu kişiyle paylaşın:'.trArgs([
+                invite.invitedEmail,
+              ]),
             ),
             const SizedBox(height: AppSpacing.md),
             Container(
@@ -483,7 +496,8 @@ class _InviteCodeDialog extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Kod ${DateFormats.day(invite.expiresAt)} tarihine kadar ve yalnızca bu e-posta adresi için geçerlidir.',
+              'Kod {0} tarihine kadar ve yalnızca bu e-posta adresi için geçerlidir.'
+                  .trArgs([DateFormats.day(invite.expiresAt)]),
               style: context.textStyles.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -496,16 +510,16 @@ class _InviteCodeDialog extends StatelessWidget {
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: _shareText));
             if (context.mounted) {
-              context.showSuccess('Davet mesajı kopyalandı.');
+              context.showSuccess('Davet mesajı kopyalandı.'.tr);
             }
           },
           icon: const Icon(Icons.copy_rounded),
-          label: const Text('Mesajı kopyala'),
+          label: Text('Mesajı kopyala'.tr),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context),
           style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-          child: const Text('Tamam'),
+          child: Text('Tamam'.tr),
         ),
       ],
     );
@@ -552,7 +566,7 @@ class _EditTeamSheetState extends ConsumerState<_EditTeamSheet> {
           );
       if (mounted) {
         Navigator.pop(context);
-        context.showSuccess('Takım güncellendi.');
+        context.showSuccess('Takım güncellendi.'.tr);
       }
     } catch (e) {
       if (mounted) {
@@ -579,7 +593,7 @@ class _EditTeamSheetState extends ConsumerState<_EditTeamSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Takımı düzenle', style: context.textStyles.titleLarge),
+                Text('Takımı düzenle'.tr, style: context.textStyles.titleLarge),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
                   controller: _name,
@@ -589,17 +603,17 @@ class _EditTeamSheetState extends ConsumerState<_EditTeamSheet> {
                     ),
                   ],
                   validator: Validators.requiredText(
-                    'Takım adı',
+                    'Takım adı'.tr,
                     maxLength: AppConstants.maxNameLength,
                   ),
-                  decoration: const InputDecoration(labelText: 'Takım adı'),
+                  decoration: InputDecoration(labelText: 'Takım adı'.tr),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
                   controller: _description,
                   maxLines: 2,
                   inputFormatters: [LengthLimitingTextInputFormatter(200)],
-                  decoration: const InputDecoration(labelText: 'Açıklama'),
+                  decoration: InputDecoration(labelText: 'Açıklama'.tr),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 ColorPickerRow(
@@ -608,7 +622,7 @@ class _EditTeamSheetState extends ConsumerState<_EditTeamSheet> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppButton(
-                  label: 'Kaydet',
+                  label: 'Kaydet'.tr,
                   onPressed: _save,
                   isLoading: _saving,
                 ),

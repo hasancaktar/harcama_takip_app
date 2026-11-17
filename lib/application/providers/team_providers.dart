@@ -1,3 +1,5 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -27,7 +29,7 @@ class Workspace {
 
   bool get isTeam => team != null;
   String? get teamId => team?.id;
-  String get label => team?.name ?? 'Bireysel';
+  String get label => team?.name ?? 'Bireysel'.tr;
 }
 
 /// Profilde saklanan aktif takım seçimini, kullanıcının gerçekten üyesi olduğu

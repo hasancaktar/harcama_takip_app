@@ -27,6 +27,12 @@ service cloud.firestore {
       return signedIn() && request.auth.token.email_verified == true;
     }
 
+    // Yönetim paneli yetkisi: yalnızca bu e-posta adresi (doğrulanmış olmalı).
+    // Aynı denetim Cloud Functions'ta da yapılır (functions/lib/notifications.js).
+    function isAdmin() {
+      return verified() && request.auth.token.email.lower() == 'hasancaktar@gmail.com';
+    }
+
     function tokenEmail() {
       return request.auth.token.email.lower();
     }
@@ -87,19 +93,89 @@ service cloud.firestore {
 
     match /users/{userId} {
       // Profil, e-posta doğrulamasından önce de sahibince okunup yazılabilir (kayıt akışı).
-      allow read: if signedIn() && uid() == userId;
+      allow read: if (signedIn() && uid() == userId) || isAdmin();
       allow create: if signedIn() && uid() == userId
         && incoming().uid == userId
         && incoming().displayName is string && incoming().displayName.size() <= 60;
       allow update: if signedIn() && uid() == userId
         && incoming().get('uid', userId) == userId
         && (!('displayName' in incoming()) || (incoming().displayName is string && incoming().displayName.size() <= 60))
-        && (!('fcmTokens' in incoming()) || (incoming().fcmTokens is list && incoming().fcmTokens.size() <= 20));
+        && (!('fcmTokens' in incoming()) || (incoming().fcmTokens is list && incoming().fcmTokens.size() <= 20))
+        && (!('pushEnabled' in incoming()) || incoming().pushEnabled is bool)
+        && (!('language' in incoming()) || incoming().language in ['tr', 'en']);
       allow delete: if signedIn() && uid() == userId;
 
       match /devices/{deviceId} {
         allow read, write: if signedIn() && uid() == userId;
       }
+    }
+
+    // ---------------------------------------------------------------- Yönetim
+
+    // Kategoriler: herkes (doğrulanmış) okur, yalnızca yönetici yazar. Belge silinmez;
+    // "silme" isDeleted=true ile yapılır ki geçmiş harcamalar kategorisini kaybetmesin.
+    match /categories/{categoryId} {
+      allow read: if verified();
+      allow create, update: if isAdmin()
+        && categoryId.matches('^[a-z0-9_]{2,40}$')
+        && incoming().id == categoryId
+        && incoming().nameTr is string && incoming().nameTr.size() > 0 && incoming().nameTr.size() <= 40
+        && incoming().nameEn is string && incoming().nameEn.size() <= 40
+        && incoming().iconKey is string && incoming().iconKey.size() <= 40
+        && incoming().colorHex is string && incoming().colorHex.matches('^#[0-9A-Fa-f]{6}$')
+        && incoming().isActive is bool
+        && incoming().isDeleted is bool
+        && incoming().order is int && incoming().order >= 0 && incoming().order <= 1000;
+      allow delete: if false;
+    }
+
+    // Günlük hatırlatma ayarı: yalnızca yönetici. lastSentDate alanını sunucu yazar.
+    match /appConfig/{docId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && docId == 'dailyReminder'
+        && incoming().enabled is bool
+        && incoming().hour is int && incoming().hour >= 0 && incoming().hour <= 23
+        && incoming().minute is int && incoming().minute >= 0 && incoming().minute <= 59
+        && incoming().titleTr is string && incoming().titleTr.size() > 0 && incoming().titleTr.size() <= 80
+        && incoming().bodyTr is string && incoming().bodyTr.size() > 0 && incoming().bodyTr.size() <= 240
+        && incoming().titleEn is string && incoming().titleEn.size() <= 80
+        && incoming().bodyEn is string && incoming().bodyEn.size() <= 240
+        && incoming().target in ['all', 'selected']
+        && incoming().targetUids is list && incoming().targetUids.size() <= 500
+        && incoming().get('lastSentDate', null) == (resource == null ? null : resource.data.get('lastSentDate', null));
+      allow delete: if false;
+    }
+
+    // Bildirim gönderimleri: yönetici yalnızca kuyruğa ekler; gönderimi ve sonuç
+    // alanlarını Cloud Function (Admin SDK) yazar. İstemciden güncellenemez/silinemez.
+    match /notificationCampaigns/{campaignId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && incoming().id == campaignId
+        && incoming().type == 'manual'
+        && incoming().status == 'queued'
+        && incoming().createdBy == uid()
+        && incoming().titleTr is string && incoming().titleTr.size() > 0 && incoming().titleTr.size() <= 80
+        && incoming().bodyTr is string && incoming().bodyTr.size() > 0 && incoming().bodyTr.size() <= 240
+        && incoming().titleEn is string && incoming().titleEn.size() <= 80
+        && incoming().bodyEn is string && incoming().bodyEn.size() <= 240
+        && incoming().target in ['all', 'selected']
+        && incoming().targetUids is list && incoming().targetUids.size() <= 500
+        && (incoming().target == 'all' || incoming().targetUids.size() > 0)
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Yönetici işlem kayıtları: yalnızca eklenir, değiştirilemez ve silinemez.
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && incoming().adminUid == uid()
+        && incoming().action is string && incoming().action.size() <= 60
+        && incoming().summary is string && incoming().summary.size() <= 1000
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
     }
 
     // ---------------------------------------------------------------- Takımlar

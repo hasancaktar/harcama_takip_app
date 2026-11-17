@@ -14,6 +14,10 @@ class UserProfile {
   final int dailyReminderMinute; // 0 - 59
   final List<int> dailyReminderDays; // 1 (Pzt) - 7 (Paz)
   final String? activeTeamId;
+
+  /// Sunucudan gelen duyuru/hatırlatma bildirimlerini almak istiyor mu?
+  final bool pushEnabled;
+  final String language; // 'tr' | 'en'
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -28,6 +32,8 @@ class UserProfile {
     this.dailyReminderMinute = 0,
     this.dailyReminderDays = const [1, 2, 3, 4, 5, 6, 7],
     this.activeTeamId,
+    this.pushEnabled = true,
+    this.language = 'tr',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -44,6 +50,8 @@ class UserProfile {
       'dailyReminderMinute': dailyReminderMinute,
       'dailyReminderDays': dailyReminderDays,
       'activeTeamId': activeTeamId,
+      'pushEnabled': pushEnabled,
+      'language': language,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -79,6 +87,8 @@ class UserProfile {
           .clamp(0, 59),
       dailyReminderDays: days.isEmpty ? const [1, 2, 3, 4, 5, 6, 7] : days,
       activeTeamId: JsonParsers.stringOrNull(map['activeTeamId']),
+      pushEnabled: JsonParsers.boolValue(map['pushEnabled'], fallback: true),
+      language: JsonParsers.string(map['language'], fallback: 'tr'),
       createdAt: createdAt,
       updatedAt: JsonParsers.date(map['updatedAt'], fallback: createdAt),
     );

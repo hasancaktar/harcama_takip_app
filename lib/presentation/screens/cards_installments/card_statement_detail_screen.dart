@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,11 +39,11 @@ class _CardStatementDetailScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(card?.name ?? 'Kart'),
+        title: Text(card?.name ?? 'Kart'.tr),
         actions: [
           if (card != null && card.ownerUid == uid && card.isActive)
             IconButton(
-              tooltip: 'Kartı düzenle',
+              tooltip: 'Kartı düzenle'.tr,
               icon: const Icon(Icons.edit_outlined),
               onPressed: () => context.push('/cards/${card.id}/edit'),
             ),
@@ -53,10 +54,10 @@ class _CardStatementDetailScreenState
         onRetry: () => ref.invalidate(cardByIdProvider(widget.cardId)),
         data: (card) {
           if (card == null) {
-            return const EmptyStateView(
+            return EmptyStateView(
               icon: Icons.credit_card_off_rounded,
-              title: 'Kart bulunamadı',
-              message: 'Kart kaldırılmış veya görüntüleme yetkiniz yok.',
+              title: 'Kart bulunamadı'.tr,
+              message: 'Kart kaldırılmış veya görüntüleme yetkiniz yok.'.tr,
             );
           }
           // Varsayılan: içinde bulunulan (henüz kesilmemiş) ekstre dönemi.
@@ -122,7 +123,7 @@ class _StatementBody extends ConsumerWidget {
               Row(
                 children: [
                   IconButton(
-                    tooltip: 'Önceki ekstre',
+                    tooltip: 'Önceki ekstre'.tr,
                     onPressed: () => onPeriodChanged(
                       StatementCalculator.shiftPeriod(period, -1),
                     ),
@@ -132,12 +133,12 @@ class _StatementBody extends ConsumerWidget {
                     child: Column(
                       children: [
                         Text(
-                          '${DateFormats.period(period)} ekstresi',
+                          '{0} ekstresi'.trArgs([DateFormats.period(period)]),
                           style: context.textStyles.titleMedium,
                         ),
                         const SizedBox(height: 2),
                         Pill(
-                          label: isOpen ? 'Açık dönem' : 'Kesildi',
+                          label: isOpen ? 'Açık dönem'.tr : 'Kesildi'.tr,
                           color: isOpen
                               ? scheme.primary
                               : scheme.onSurfaceVariant,
@@ -146,7 +147,7 @@ class _StatementBody extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Sonraki ekstre',
+                    tooltip: 'Sonraki ekstre'.tr,
                     onPressed: () => onPeriodChanged(
                       StatementCalculator.shiftPeriod(period, 1),
                     ),
@@ -156,7 +157,7 @@ class _StatementBody extends ConsumerWidget {
               ),
               const Divider(height: AppSpacing.lg),
               Text(
-                'Dönem borcu',
+                'Dönem borcu'.tr,
                 textAlign: TextAlign.center,
                 style: context.textStyles.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
@@ -172,13 +173,13 @@ class _StatementBody extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _DateInfo(
-                      label: 'Kesim tarihi',
+                      label: 'Kesim tarihi'.tr,
                       value: DateFormats.day(cutoff),
                     ),
                   ),
                   Expanded(
                     child: _DateInfo(
-                      label: 'Son ödeme',
+                      label: 'Son ödeme'.tr,
                       value: DateFormats.day(due),
                     ),
                   ),
@@ -188,11 +189,14 @@ class _StatementBody extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.md),
                 UsageBar(
                   ratio: total / card.limitInCents,
-                  semanticsLabel: 'Limit kullanımı',
+                  semanticsLabel: 'Limit kullanımı'.tr,
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  'Limitin %${(total / card.limitInCents * 100).round()} kadarı bu ekstrede · Limit ${MoneyFormatter.formatCents(card.limitInCents)}',
+                  'Limitin %{0} kadarı bu ekstrede · Limit {1}'.trArgs([
+                    (total / card.limitInCents * 100).round(),
+                    MoneyFormatter.formatCents(card.limitInCents),
+                  ]),
                   style: context.textStyles.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -201,7 +205,7 @@ class _StatementBody extends ConsumerWidget {
             ],
           ),
         ),
-        const SectionHeader(title: 'Ekstredeki harcamalar'),
+        SectionHeader(title: 'Ekstredeki harcamalar'.tr),
         expensesAsync.when(
           skipLoadingOnReload: false,
           loading: () => const SizedBox(
@@ -210,12 +214,12 @@ class _StatementBody extends ConsumerWidget {
           ),
           error: (e, _) => ErrorStateView(error: e, compact: true),
           data: (expenses) => expenses.isEmpty
-              ? const AppCard(
+              ? AppCard(
                   child: EmptyStateView(
                     compact: true,
                     icon: Icons.receipt_long_outlined,
-                    title: 'Bu ekstrede harcama yok',
-                    message: 'Bu karta ve döneme ait kayıt bulunmuyor.',
+                    title: 'Bu ekstrede harcama yok'.tr,
+                    message: 'Bu karta ve döneme ait kayıt bulunmuyor.'.tr,
                   ),
                 )
               : AppCard(

@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -40,10 +41,12 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(firstName.isEmpty ? 'Özet' : 'Merhaba, $firstName'),
+        title: Text(
+          firstName.isEmpty ? 'Özet'.tr : 'Merhaba, {0}'.trArgs([firstName]),
+        ),
         actions: [
           IconButton(
-            tooltip: 'Bütçe',
+            tooltip: 'Bütçe'.tr,
             icon: const Icon(Icons.savings_outlined),
             onPressed: () => context.push('/budgets'),
           ),
@@ -51,9 +54,10 @@ class DashboardScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab-dashboard',
         onPressed: () => context.push('/expenses/new'),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Harcama ekle'),
+        label: Text('Harcama ekle'.tr),
       ),
       body: RefreshIndicator(
         onRefresh: () => _refresh(ref),
@@ -71,13 +75,15 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               InlineMessage(
                 tone: MessageTone.info,
-                title: 'Takım davetiniz var',
+                title: 'Takım davetiniz var'.tr,
                 message: invites.length == 1
-                    ? '"${invites.first.teamName}" takımına davet edildiniz.'
-                    : '${invites.length} takım davetiniz bekliyor.',
+                    ? '"{0}" takımına davet edildiniz.'.trArgs([
+                        invites.first.teamName,
+                      ])
+                    : '{0} takım davetiniz bekliyor.'.trArgs([invites.length]),
                 action: TextButton(
                   onPressed: () => context.push('/teams'),
-                  child: const Text('Davetleri görüntüle'),
+                  child: Text('Davetleri görüntüle'.tr),
                 ),
               ),
             ],
@@ -120,14 +126,14 @@ class _TeamFilterChips extends ConsumerWidget {
       spacing: AppSpacing.xs,
       children: [
         ChoiceChip(
-          label: const Text('Tüm takım'),
+          label: Text('Tüm takım'.tr),
           selected: filter == TeamExpenseFilter.all,
           onSelected: (_) =>
               ref.read(teamExpenseFilterProvider.notifier).state =
                   TeamExpenseFilter.all,
         ),
         ChoiceChip(
-          label: const Text('Benim eklediklerim'),
+          label: Text('Benim eklediklerim'.tr),
           selected: filter == TeamExpenseFilter.mine,
           onSelected: (_) =>
               ref.read(teamExpenseFilterProvider.notifier).state =
@@ -158,16 +164,16 @@ class _DashboardContent extends ConsumerWidget {
         _QuickStats(stats: stats),
         if (cards.isNotEmpty) ...[
           SectionHeader(
-            title: 'Yaklaşan kart tarihleri',
-            actionLabel: 'Kartlar',
+            title: 'Yaklaşan kart tarihleri'.tr,
+            actionLabel: 'Kartlar'.tr,
             onAction: () => context.go('/cards'),
           ),
           _UpcomingCardDates(cards: cards),
         ],
         if (stats.byCategory.isNotEmpty) ...[
           SectionHeader(
-            title: 'Kategoriler',
-            actionLabel: 'Raporlar',
+            title: 'Kategoriler'.tr,
+            actionLabel: 'Raporlar'.tr,
             onAction: () => context.go('/reports'),
           ),
           AppCard(
@@ -180,8 +186,8 @@ class _DashboardContent extends ConsumerWidget {
           ),
         ],
         SectionHeader(
-          title: 'Son harcamalar',
-          actionLabel: hasExpenses ? 'Tümünü gör' : null,
+          title: 'Son harcamalar'.tr,
+          actionLabel: hasExpenses ? 'Tümünü gör'.tr : null,
           onAction: hasExpenses ? () => context.go('/expenses') : null,
         ),
         if (!hasExpenses)
@@ -189,10 +195,11 @@ class _DashboardContent extends ConsumerWidget {
             child: EmptyStateView(
               compact: true,
               icon: Icons.receipt_long_outlined,
-              title: 'Bu dönem harcama yok',
+              title: 'Bu dönem harcama yok'.tr,
               message:
-                  'İlk harcamanızı ekleyerek bütçenizi takip etmeye başlayın.',
-              actionLabel: 'Harcama ekle',
+                  'İlk harcamanızı ekleyerek bütçenizi takip etmeye başlayın.'
+                      .tr,
+              actionLabel: 'Harcama ekle'.tr,
               onAction: () => context.push('/expenses/new'),
             ),
           )
@@ -242,15 +249,17 @@ class _SummaryHeroCard extends ConsumerWidget {
           Color.lerp(scheme.primary, scheme.secondary, 0.45)!,
         ],
       ),
-      semanticLabel:
-          '${DateFormats.period(period)} toplam harcama ${MoneyFormatter.formatCents(stats.totalCents)}',
+      semanticLabel: '{0} toplam harcama {1}'.trArgs([
+        DateFormats.period(period),
+        MoneyFormatter.formatCents(stats.totalCents),
+      ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             isTeam && filter == TeamExpenseFilter.mine
-                ? '${DateFormats.period(period)} · eklediklerim'
-                : '${DateFormats.period(period)} toplamı',
+                ? '{0} · eklediklerim'.trArgs([DateFormats.period(period)])
+                : '{0} toplamı'.trArgs([DateFormats.period(period)]),
             style: context.textStyles.titleSmall?.copyWith(
               color: onHero.withValues(alpha: 0.85),
             ),
@@ -267,8 +276,11 @@ class _SummaryHeroCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             stats.count == 0
-                ? 'Henüz harcama yok'
-                : '${stats.count} harcama · ortalama ${MoneyFormatter.formatCents(stats.averageCents)}',
+                ? 'Henüz harcama yok'.tr
+                : '{0} harcama · ortalama {1}'.trArgs([
+                    stats.count,
+                    MoneyFormatter.formatCents(stats.averageCents),
+                  ]),
             style: context.textStyles.bodySmall?.copyWith(
               color: onHero.withValues(alpha: 0.85),
             ),
@@ -286,14 +298,19 @@ class _SummaryHeroCard extends ConsumerWidget {
                     ? onHero
                     : const Color(0xFFFDE68A),
                 backgroundColor: onHero.withValues(alpha: 0.25),
-                semanticsLabel: 'Bütçe kullanımı',
+                semanticsLabel: 'Bütçe kullanımı'.tr,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               budget.remainingCents >= 0
-                  ? 'Bütçenin %${(budget.ratio * 100).round()} kullanıldı · ${MoneyFormatter.formatCents(budget.remainingCents)} kaldı'
-                  : 'Bütçe ${MoneyFormatter.formatCents(-budget.remainingCents)} aşıldı',
+                  ? 'Bütçenin %{0} kullanıldı · {1} kaldı'.trArgs([
+                      (budget.ratio * 100).round(),
+                      MoneyFormatter.formatCents(budget.remainingCents),
+                    ])
+                  : 'Bütçe {0} aşıldı'.trArgs([
+                      MoneyFormatter.formatCents(-budget.remainingCents),
+                    ]),
               style: context.textStyles.bodySmall?.copyWith(
                 color: onHero,
                 fontWeight: FontWeight.w600,
@@ -308,7 +325,7 @@ class _SummaryHeroCard extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               ),
               icon: const Icon(Icons.savings_outlined, size: 18),
-              label: const Text('Aylık bütçe belirle'),
+              label: Text('Aylık bütçe belirle'.tr),
             ),
         ],
       ),
@@ -328,22 +345,22 @@ class _QuickStats extends StatelessWidget {
     final items = [
       _StatItem(
         Icons.credit_card_rounded,
-        'Kredi kartı',
+        'Kredi kartı'.tr,
         MoneyFormatter.formatCents(stats.creditCardCents),
       ),
       _StatItem(
         Icons.splitscreen_rounded,
-        'Taksitler',
+        'Taksitler'.tr,
         MoneyFormatter.formatCents(stats.installmentCents),
       ),
       _StatItem(
         Icons.local_fire_department_outlined,
-        'En çok',
+        'En çok'.tr,
         topCategory?.name ?? '—',
       ),
       _StatItem(
         Icons.arrow_upward_rounded,
-        'En büyük',
+        'En büyük'.tr,
         stats.largest != null
             ? MoneyFormatter.formatCents(stats.largest!.amountInCents)
             : '—',
@@ -464,7 +481,10 @@ class _UpcomingCardDates extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                'Kesim ${DateFormats.dayShort(e.cutoff)} · Son ödeme ${DateFormats.dayShort(e.due)}',
+                'Kesim {0} · Son ödeme {1}'.trArgs([
+                  DateFormats.dayShort(e.cutoff),
+                  DateFormats.dayShort(e.due),
+                ]),
               ),
               trailing: Text(
                 DateFormats.daysUntil(e.cutoff, now: now),

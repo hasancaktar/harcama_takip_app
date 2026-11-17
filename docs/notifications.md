@@ -23,3 +23,48 @@
   taksitler için bildirim gönderilmez.
 - Bu özellik Cloud Functions'ın yayınlanmasını (Blaze planı) gerektirir.
 - Web için FCM etkin değildir (VAPID anahtarı ve servis çalışanı yapılandırması gerekir).
+
+## 3. Yönetici bildirimleri ve sunucu hatırlatması (FCM)
+
+Yönetim panelinden yönetilir ([admin-panel.md](admin-panel.md)); `announcements` kanalını kullanır.
+
+**Elle gönderim (`sendCampaign`)**
+
+- Yönetici başlık ve mesajı (Türkçe zorunlu, İngilizce isteğe bağlı) yazar, alıcıyı seçer:
+  tüm kullanıcılar veya seçilen kullanıcılar (en fazla 500).
+- İstemci `notificationCampaigns` koleksiyonuna `queued` kayıt ekler; fonksiyon gönderir ve
+  durumu yazar: `sending` → `sent` / `partial` / `failed` / `no_recipients`. Alıcı, cihaz,
+  başarılı, başarısız ve bildirimi kapalı kullanıcı sayıları geçmiş ekranında görünür.
+- Geçersiz cihaz anahtarları gönderim sırasında temizlenir.
+
+**Günlük otomatik hatırlatma (`sendDailyReminder`)**
+
+- Ayar `appConfig/dailyReminder` belgesindedir: açık/kapalı, saat, başlık/mesaj (TR ve EN),
+  alıcılar. Varsayılan mesaj: "Bugünkü harcamalarınızı girmeyi unutmayın!", varsayılan kapalı.
+- Zamanlayıcı 5 dakikada bir çalışır ve saati **Europe/Istanbul** saatine göre değerlendirir
+  (yaz saati kuralları `Intl` ile hesaplanır). Ayarlanan saatten sonraki 30 dakika içinde
+  gönderir; zamanlayıcı gecikse de bildirim kaçmaz, saatler sonra da gönderilmez.
+- **Günde bir kez:** `lastSentDate` bir Firestore işlemi (transaction) içinde atomik yazılır;
+  eşzamanlı iki çalıştırma veya yeniden deneme ikinci bildirimi gönderemez. Bu alan istemciden
+  değiştirilemez (kurallar engeller).
+- Her otomatik gönderim de `type: daily` olarak bildirim geçmişine düşer.
+
+**Kullanıcı tercihleri**
+
+- `users/{uid}.pushEnabled == false` olan kullanıcılara sunucu bildirimi gönderilmez
+  (Ayarlar > Bildirimler > "Duyuru ve hatırlatma bildirimleri").
+- Kendi yerel hatırlatıcısını açmış kullanıcı (`dailyReminderEnabled`) sunucunun günlük
+  hatırlatmasını almaz; aynı gün iki bildirim gelmez.
+- Mesaj kullanıcının dilinde gider (`users/{uid}.language`); İngilizce metin boşsa Türkçe gider.
+- Android 13+ bildirim izni ilk girişte bir kez istenir. İzin verilmezse cihaz anahtarı
+  kaydedilse de sistem bildirimi göstermez.
+- Uygulama açıkken gelen bildirim yerel bildirim olarak gösterilir; dokunmak "Yeni harcama"
+  ekranını açar.
+
+**Sınırlar**
+
+- Saat tüm kullanıcılar için Türkiye saatidir; kullanıcının bulunduğu saat dilimine göre
+  ayrı ayrı gönderim yapılmaz.
+- Her gönderimde tüm `users` koleksiyonu okunur. Binlerce kullanıcıya kadar sorun olmaz;
+  daha büyük ölçekte FCM konu (topic) aboneliğine geçilmelidir.
+- Cloud Functions yayınlanmadıysa bildirimler "Kuyrukta" kalır ve hiçbir şey gönderilmez.

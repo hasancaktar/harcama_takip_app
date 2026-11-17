@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,9 +57,8 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
       final matches = invites.where((i) => i.code == code);
       if (matches.isEmpty) {
         setState(
-          () => _error =
-              'Bu kodla e-posta adresinize (${user.email}) gönderilmiş geçerli bir davet bulunamadı. '
-              'Kodu kontrol edin veya takım sahibinden sizi bu adresle davet etmesini isteyin.',
+          () => _error = 'Bu kodla e-posta adresinize ({0}) gönderilmiş geçerli bir davet bulunamadı. Kodu kontrol edin veya takım sahibinden sizi bu adresle davet etmesini isteyin.'
+              .trArgs([user.email]),
         );
         return;
       }
@@ -66,7 +66,9 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
       await repo.acceptInvite(invite: invite, user: user);
       await workspace.select(invite.teamId);
       if (!mounted) return;
-      context.showSuccess('"${invite.teamName}" takımına katıldınız.');
+      context.showSuccess(
+        '"{0}" takımına katıldınız.'.trArgs([invite.teamName]),
+      );
       context.pushReplacement('/teams/${invite.teamId}');
     } catch (e) {
       if (mounted) setState(() => _error = ErrorMessages.from(e));
@@ -79,14 +81,15 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
   Widget build(BuildContext context) {
     final email = ref.watch(currentUserProvider)?.email ?? '';
     return Scaffold(
-      appBar: AppBar(title: const Text('Takıma katıl')),
+      appBar: AppBar(title: Text('Takıma katıl'.tr)),
       body: PageListView(
         maxWidth: AppSpacing.maxFormWidth,
         children: [
-          Text('Davet kodunu girin', style: context.textStyles.titleLarge),
+          Text('Davet kodunu girin'.tr, style: context.textStyles.titleLarge),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Takım sahibinin sizinle paylaştığı 8 karakterlik kodu girin. Davet, $email adresine gönderilmiş olmalıdır.',
+            'Takım sahibinin sizinle paylaştığı 8 karakterlik kodu girin. Davet, {0} adresine gönderilmiş olmalıdır.'
+                .trArgs([email]),
             style: context.textStyles.bodyMedium?.copyWith(
               color: context.colors.onSurfaceVariant,
             ),
@@ -112,8 +115,8 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
               validator: Validators.inviteCode,
               onFieldSubmitted: (_) => _join(),
               style: context.textStyles.titleLarge?.copyWith(letterSpacing: 4),
-              decoration: const InputDecoration(
-                labelText: 'Davet kodu',
+              decoration: InputDecoration(
+                labelText: 'Davet kodu'.tr,
                 hintText: 'ABCD2345',
                 prefixIcon: Icon(Icons.vpn_key_outlined),
               ),
@@ -121,7 +124,7 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: 'Takıma katıl',
+            label: 'Takıma katıl'.tr,
             icon: Icons.login_rounded,
             onPressed: _join,
             isLoading: _busy,

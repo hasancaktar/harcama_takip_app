@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,30 +32,39 @@ class PeriodSelector extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: 'Önceki ay',
+            tooltip: 'Önceki ay'.tr,
             icon: const Icon(Icons.chevron_left_rounded),
             onPressed: () => shift(-1),
           ),
-          Semantics(
-            label: 'Seçili dönem ${DateFormats.period(period)}',
-            button: period != current,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: period == current
-                  ? null
-                  : () => ref.read(selectedPeriodProvider.notifier).state =
-                        current,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Text(
-                  DateFormats.period(period),
-                  style: context.textStyles.titleSmall,
+          Flexible(
+            child: Semantics(
+              label: 'Seçili dönem {0}'.trArgs([DateFormats.period(period)]),
+              button: period != current,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: period == current
+                    ? null
+                    : () => ref.read(selectedPeriodProvider.notifier).state =
+                          current,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      DateFormats.period(period),
+                      maxLines: 1,
+                      style: context.textStyles.titleSmall,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
           IconButton(
-            tooltip: 'Sonraki ay',
+            tooltip: 'Sonraki ay'.tr,
             icon: const Icon(Icons.chevron_right_rounded),
             onPressed: () => shift(1),
           ),

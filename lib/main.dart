@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'application/providers/settings_providers.dart';
 import 'core/constants/app_constants.dart';
+import 'core/l10n/app_locale.dart';
 import 'core/firebase/firebase_initialization.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/navigation/app_router.dart';
@@ -21,8 +21,8 @@ Future<void> main() async {
   usePathUrlStrategy();
   // context.push ile açılan sayfalar da tarayıcı adres çubuğuna yansısın (yenileme/derin bağlantı).
   GoRouter.optionURLReflectsImperativeAPIs = true;
-  Intl.defaultLocale = AppConstants.defaultLocale;
-  await initializeDateFormatting(AppConstants.defaultLocale);
+  await initializeDateFormatting('tr_TR');
+  await initializeDateFormatting('en_US');
 
   SharedPreferences? prefs;
   try {
@@ -46,7 +46,7 @@ const _localizationsDelegates = [
   GlobalWidgetsLocalizations.delegate,
   GlobalCupertinoLocalizations.delegate,
 ];
-const _supportedLocales = [Locale('tr', 'TR')];
+const _supportedLocales = AppLocale.supportedLocales;
 
 class ExpenseTrackerApp extends ConsumerWidget {
   final FirebaseInitResult initResult;
@@ -56,6 +56,7 @@ class ExpenseTrackerApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
 
     if (!initResult.isSuccess) {
       return MaterialApp(
@@ -66,7 +67,7 @@ class ExpenseTrackerApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         localizationsDelegates: _localizationsDelegates,
         supportedLocales: _supportedLocales,
-        locale: const Locale('tr', 'TR'),
+        locale: locale,
         home: StartupErrorScreen(
           technicalDetails: kDebugMode ? initResult.errorMessage : null,
         ),
@@ -75,6 +76,7 @@ class ExpenseTrackerApp extends ConsumerWidget {
 
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
+      key: ValueKey('app-${locale.languageCode}'),
       title: AppConstants.appName,
       routerConfig: router,
       theme: AppTheme.lightTheme,
@@ -83,7 +85,7 @@ class ExpenseTrackerApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       localizationsDelegates: _localizationsDelegates,
       supportedLocales: _supportedLocales,
-      locale: const Locale('tr', 'TR'),
+      locale: locale,
     );
   }
 }

@@ -462,6 +462,88 @@ describe('Bütçeler', () => {
   });
 });
 
+describe('Yönetim paneli yetkisi', () => {
+  const ADMIN = { uid: 'admin', email: 'hasancaktar@gmail.com' };
+  const category = (id, o = {}) => ({
+    id, nameTr: 'Evcil hayvan', nameEn: 'Pets', iconKey: 'pets', colorHex: '#10B981',
+    isActive: true, isDeleted: false, order: 3, ...o,
+  });
+  const campaign = (id, by, o = {}) => ({
+    id, type: 'manual', status: 'queued', createdBy: by, createdByEmail: 'x', titleTr: 'Duyuru', bodyTr: 'Merhaba',
+    titleEn: '', bodyEn: '', target: 'all', targetUids: [], createdAt: serverTimestamp(), ...o,
+  });
+  const reminder = (o = {}) => ({
+    enabled: true, hour: 21, minute: 0, titleTr: 'Harcama Takip', bodyTr: 'Unutmayın', titleEn: '', bodyEn: '',
+    target: 'all', targetUids: [], timezone: 'Europe/Istanbul', ...o,
+  });
+  const log = (by) => ({
+    id: 'l', action: 'category.create', summary: 'x', adminUid: by, adminEmail: 'x', createdAt: serverTimestamp(),
+  });
+
+  test('kategorileri herkes okur, yalnızca yönetici yazar; belge silinemez', async () => {
+    await assertSucceeds(setDoc(doc(db(ADMIN), 'categories/pets'), category('pets')));
+    await assertSucceeds(getDocs(collection(db(USERS.alice), 'categories')));
+    await assertFails(setDoc(doc(db(USERS.alice), 'categories/hack'), category('hack')));
+    await assertFails(updateDoc(doc(db(USERS.alice), 'categories/pets'), { nameTr: 'x' }));
+    await assertFails(deleteDoc(doc(db(ADMIN), 'categories/pets')));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'categories/pets'), { isDeleted: true }));
+    await assertFails(setDoc(doc(db(ADMIN), 'categories/bad'), category('bad', { colorHex: 'red' })));
+    await assertFails(getDocs(collection(db(USERS.alice, { verified: false }), 'categories')));
+  });
+
+  test('yönetici e-postası doğrulanmamışsa yetkisi yoktur', async () => {
+    await assertFails(setDoc(doc(db(ADMIN, { verified: false }), 'categories/pets'), category('pets')));
+  });
+
+  test('benzer e-postalı farklı hesap yönetici sayılmaz', async () => {
+    const fake = { uid: 'fake', email: 'hasancaktar@gmail.com.evil.test' };
+    await assertFails(setDoc(doc(db(fake), 'categories/pets'), category('pets')));
+  });
+
+  test('bildirimi yalnızca yönetici kuyruğa ekler; sonuç alanları istemciden yazılamaz', async () => {
+    await assertSucceeds(setDoc(doc(db(ADMIN), 'notificationCampaigns/c1'), campaign('c1', 'admin')));
+    await assertFails(setDoc(doc(db(USERS.alice), 'notificationCampaigns/c2'), campaign('c2', 'alice')));
+    await assertFails(getDoc(doc(db(USERS.alice), 'notificationCampaigns/c1')));
+    await assertFails(setDoc(doc(db(ADMIN), 'notificationCampaigns/c3'), campaign('c3', 'admin', { status: 'sent' })));
+    await assertFails(setDoc(doc(db(ADMIN), 'notificationCampaigns/c4'),
+      campaign('c4', 'admin', { target: 'selected', targetUids: [] })));
+    await assertFails(updateDoc(doc(db(ADMIN), 'notificationCampaigns/c1'), { status: 'sent' }));
+    await assertFails(deleteDoc(doc(db(ADMIN), 'notificationCampaigns/c1')));
+  });
+
+  test('günlük hatırlatma ayarını yalnızca yönetici okur/yazar; lastSentDate değiştirilemez', async () => {
+    await assertSucceeds(setDoc(doc(db(ADMIN), 'appConfig/dailyReminder'), reminder()));
+    await assertFails(getDoc(doc(db(USERS.alice), 'appConfig/dailyReminder')));
+    await assertFails(setDoc(doc(db(USERS.alice), 'appConfig/dailyReminder'), reminder()));
+    await assertFails(setDoc(doc(db(ADMIN), 'appConfig/dailyReminder'), reminder({ hour: 25 })));
+    await assertFails(setDoc(doc(db(ADMIN), 'appConfig/dailyReminder'),
+      reminder({ lastSentDate: '2020-01-01' }), { merge: true }));
+    await assertFails(setDoc(doc(db(ADMIN), 'appConfig/other'), reminder()));
+  });
+
+  test('işlem kayıtları yalnızca eklenir; değiştirilemez, silinemez, kullanıcılar okuyamaz', async () => {
+    await assertSucceeds(setDoc(doc(db(ADMIN), 'adminLogs/l'), log('admin')));
+    await assertFails(updateDoc(doc(db(ADMIN), 'adminLogs/l'), { summary: 'değişti' }));
+    await assertFails(deleteDoc(doc(db(ADMIN), 'adminLogs/l')));
+    await assertFails(getDoc(doc(db(USERS.alice), 'adminLogs/l')));
+    await assertFails(setDoc(doc(db(USERS.alice), 'adminLogs/l2'), log('alice')));
+  });
+
+  test('yönetici kullanıcı listesini okur; normal kullanıcı okuyamaz', async () => {
+    await seed((fs) => setDoc(doc(fs, 'users/alice'), { uid: 'alice', email: USERS.alice.email, displayName: 'Alice' }));
+    await assertSucceeds(getDocs(collection(db(ADMIN), 'users')));
+    await assertFails(getDocs(collection(db(USERS.bob), 'users')));
+    // Yönetici başkasının profilini değiştiremez.
+    await assertFails(updateDoc(doc(db(ADMIN), 'users/alice'), { displayName: 'x' }));
+  });
+
+  test('kullanıcı bildirim tercihini ve dilini güncelleyebilir', async () => {
+    await seed((fs) => setDoc(doc(fs, 'users/alice'), { uid: 'alice', email: USERS.alice.email, displayName: 'Alice' }));
+    await assertSucceeds(updateDoc(doc(db(USERS.alice), 'users/alice'), { pushEnabled: false, language: 'en' }));
+    await assertFails(updateDoc(doc(db(USERS.alice), 'users/alice'), { language: 'xx' }));
+  });
+});
+
 describe('Taksit planları', () => {
   const plan = (id, owner, overrides = {}) => ({
     id, ownerUid: owner, teamId: null, visibility: 'personal', title: 'Telefon',

@@ -1,7 +1,9 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../application/providers/admin_providers.dart';
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/settings_providers.dart';
 import '../../../application/providers/team_providers.dart';
@@ -20,10 +22,11 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _signOut(BuildContext context, WidgetRef ref) async {
     final ok = await showConfirmDialog(
       context,
-      title: 'Çıkış yapılsın mı?',
+      title: 'Çıkış yapılsın mı?'.tr,
       message:
-          'Bu cihazdaki oturumunuz kapatılacak. Verileriniz hesabınızda kalır.',
-      confirmLabel: 'Çıkış yap',
+          'Bu cihazdaki oturumunuz kapatılacak. Verileriniz hesabınızda kalır.'
+              .tr,
+      confirmLabel: 'Çıkış yap'.tr,
     );
     if (!ok || !context.mounted) return;
     final router = GoRouter.of(context);
@@ -46,16 +49,19 @@ class SettingsScreen extends ConsumerWidget {
     final scheme = context.colors;
 
     final reminderText = profile?.dailyReminderEnabled == true
-        ? 'Her gün ${profile!.dailyReminderHour.toString().padLeft(2, '0')}:${profile.dailyReminderMinute.toString().padLeft(2, '0')}'
-        : 'Kapalı';
+        ? 'Her gün {0}:{1}'.trArgs([
+            profile!.dailyReminderHour.toString().padLeft(2, '0'),
+            profile.dailyReminderMinute.toString().padLeft(2, '0'),
+          ])
+        : 'Kapalı'.tr;
     final themeText = switch (themeMode) {
-      ThemeMode.light => 'Açık',
-      ThemeMode.dark => 'Koyu',
-      ThemeMode.system => 'Sistem',
+      ThemeMode.light => 'Açık'.tr,
+      ThemeMode.dark => 'Koyu'.tr,
+      ThemeMode.system => 'Sistem'.tr,
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ayarlar')),
+      appBar: AppBar(title: Text('Ayarlar'.tr)),
       body: PageListView(
         children: [
           AppCard(
@@ -76,7 +82,7 @@ class SettingsScreen extends ConsumerWidget {
                       Text(
                         user?.displayName.isNotEmpty == true
                             ? user!.displayName
-                            : 'Profilinizi tamamlayın',
+                            : 'Profilinizi tamamlayın'.tr,
                         style: context.textStyles.titleMedium,
                       ),
                       Text(
@@ -88,7 +94,7 @@ class SettingsScreen extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Pill(
                         icon: Icons.verified_rounded,
-                        label: 'E-posta doğrulandı',
+                        label: 'E-posta doğrulandı'.tr,
                         color: context.semantic.success,
                       ),
                     ],
@@ -98,72 +104,110 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SectionHeader(title: 'Yönetim'),
+          if (ref.watch(isAdminProvider)) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppCard(
+              onTap: () => context.push('/admin'),
+              borderColor: scheme.primary.withValues(alpha: 0.5),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.admin_panel_settings_outlined,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Yönetim paneli'.tr,
+                          style: context.textStyles.titleSmall,
+                        ),
+                        Text(
+                          'Bildirimler, kategoriler, kullanıcılar ve işlem kayıtları'
+                              .tr,
+                          style: context.textStyles.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded),
+                ],
+              ),
+            ),
+          ],
+          SectionHeader(title: 'Yönetim'.tr),
           _SettingsGroup(
             children: [
               _SettingsTile(
                 icon: Icons.groups_outlined,
-                title: 'Takımlar ve aile',
-                subtitle: 'Aktif: ${workspace?.label ?? 'Bireysel'}',
+                title: 'Takımlar ve aile'.tr,
+                subtitle: 'Aktif: {0}'.trArgs([
+                  workspace?.label ?? 'Bireysel'.tr,
+                ]),
                 badge: invites.isNotEmpty ? '${invites.length}' : null,
                 onTap: () => context.push('/teams'),
               ),
               _SettingsTile(
                 icon: Icons.savings_outlined,
-                title: 'Bütçe',
-                subtitle: 'Aylık ve kategori bazlı limitler',
+                title: 'Bütçe'.tr,
+                subtitle: 'Aylık ve kategori bazlı limitler'.tr,
                 onTap: () => context.push('/budgets'),
               ),
               _SettingsTile(
                 icon: Icons.credit_card_outlined,
-                title: 'Kartlar ve taksitler',
+                title: 'Kartlar ve taksitler'.tr,
                 onTap: () => context.go('/cards'),
               ),
               _SettingsTile(
                 icon: Icons.category_outlined,
-                title: 'Kategoriler',
+                title: 'Kategoriler'.tr,
                 onTap: () => context.push('/settings/categories'),
               ),
             ],
           ),
-          const SectionHeader(title: 'Tercihler'),
+          SectionHeader(title: 'Tercihler'.tr),
           _SettingsGroup(
             children: [
               _SettingsTile(
                 icon: Icons.notifications_outlined,
-                title: 'Hatırlatıcılar',
+                title: 'Bildirimler'.tr,
                 subtitle: reminderText,
                 onTap: () => context.push('/settings/notifications'),
               ),
               _SettingsTile(
                 icon: Icons.palette_outlined,
-                title: 'Görünüm',
-                subtitle: 'Tema: $themeText',
+                title: 'Görünüm ve dil'.tr,
+                subtitle: [
+                  'Tema: {0}'.trArgs([themeText]),
+                  ?AppLocale.languageNames[AppLocale.code],
+                ].join(' · '),
                 onTap: () => context.push('/settings/appearance'),
               ),
             ],
           ),
-          const SectionHeader(title: 'Hakkında'),
+          SectionHeader(title: 'Hakkında'.tr),
           _SettingsGroup(
             children: [
               _SettingsTile(
                 icon: Icons.privacy_tip_outlined,
-                title: 'Gizlilik politikası',
+                title: 'Gizlilik politikası'.tr,
                 subtitle: AppConstants.privacyPolicyUrl,
                 onTap: () => showDialog<void>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Gizlilik politikası'),
-                    content: const SelectableText(
-                      'Verileriniz yalnızca hesabınızla ve dahil olduğunuz takımlarla paylaşılır; '
-                      'kart numarası, CVV veya banka şifresi saklanmaz. Hesabınızı Profil ekranından '
-                      'istediğiniz zaman tüm verilerinizle birlikte silebilirsiniz.\n\n'
-                      'Politikanın tam metni: ${AppConstants.privacyPolicyUrl}',
+                    title: Text('Gizlilik politikası'.tr),
+                    content: SelectableText(
+                      'Verileriniz yalnızca hesabınızla ve dahil olduğunuz takımlarla paylaşılır; kart numarası, CVV veya banka şifresi saklanmaz. Hesabınızı Profil ekranından istediğiniz zaman tüm verilerinizle birlikte silebilirsiniz.\n\nPolitikanın tam metni: {0}'
+                          .trArgs([AppConstants.privacyPolicyUrl]),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Kapat'),
+                        child: Text('Kapat'.tr),
                       ),
                     ],
                   ),
@@ -171,7 +215,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
-                title: 'Uygulama hakkında',
+                title: 'Uygulama hakkında'.tr,
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: AppConstants.appName,
@@ -184,7 +228,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: 'Çıkış yap',
+            label: 'Çıkış yap'.tr,
             icon: Icons.logout_rounded,
             outlined: true,
             destructive: true,

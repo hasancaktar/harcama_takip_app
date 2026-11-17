@@ -6,6 +6,8 @@ import 'package:harcama_takip/application/providers/repository_providers.dart';
 import 'package:harcama_takip/application/providers/settings_providers.dart';
 import 'package:harcama_takip/application/services/notification_service.dart';
 import 'package:harcama_takip/application/services/push_token_service.dart';
+import 'package:harcama_takip/core/constants/app_constants.dart';
+import 'package:harcama_takip/domain/entities/admin_models.dart';
 import 'package:harcama_takip/domain/entities/app_user.dart';
 import 'package:harcama_takip/domain/entities/budget.dart';
 import 'package:harcama_takip/domain/entities/credit_card.dart';
@@ -15,6 +17,7 @@ import 'package:harcama_takip/domain/entities/team.dart';
 import 'package:harcama_takip/domain/entities/team_invite.dart';
 import 'package:harcama_takip/domain/entities/team_member.dart';
 import 'package:harcama_takip/domain/entities/user_profile.dart';
+import 'package:harcama_takip/domain/repositories/i_admin_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_auth_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_budget_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_card_repository.dart';
@@ -225,6 +228,12 @@ class FakeUserRepository implements IUserRepository {
         activeTeamId: teamId,
         clearTeam: teamId == null,
       );
+
+  @override
+  Future<void> setPushEnabled(String uid, bool enabled) async {}
+
+  @override
+  Future<void> setLanguage(String uid, String languageCode) async {}
 
   @override
   Future<void> addPushToken(String uid, String token) async {}
@@ -506,6 +515,139 @@ class FakePushTokenService extends PushTokenService {
   Future<void> unregister() async {}
 }
 
+class FakeCategoryRepository implements ICategoryRepository {
+  final categories = ValueStream<List<CategoryItem>>(const []);
+
+  @override
+  Stream<List<CategoryItem>> watchAll() => categories.stream;
+}
+
+/// Yönetim paneli işlemlerini bellekte tutar; her yazma bir işlem kaydı ekler.
+class FakeAdminRepository implements IAdminRepository {
+  final FakeCategoryRepository _categoryRepo;
+  final reminder = ValueStream<ReminderConfig>(const ReminderConfig());
+  final campaigns = ValueStream<List<NotificationCampaign>>(const []);
+  final logs = ValueStream<List<AdminLogEntry>>(const []);
+  List<AdminUserSummary> users = const [];
+
+  FakeAdminRepository(this._categoryRepo);
+
+  void _log(AppUser admin, String action, String summary) {
+    logs.value = [
+      AdminLogEntry(
+        id: 'log-${logs.value.length + 1}',
+        action: action,
+        summary: summary,
+        adminEmail: admin.email,
+        createdAt: DateTime.now(),
+      ),
+      ...logs.value,
+    ];
+  }
+
+  void _setCategories(List<CategoryItem> list) {
+    _categoryRepo.categories.value = [...list]
+      ..sort((a, b) => a.order.compareTo(b.order));
+  }
+
+  @override
+  Future<void> saveCategory(
+    AppUser admin,
+    CategoryItem category, {
+    required bool isNew,
+  }) async {
+    _setCategories([
+      for (final c in _categoryRepo.categories.value)
+        if (c.id != category.id) c,
+      category,
+    ]);
+    _log(admin, isNew ? 'category.create' : 'category.update', category.nameTr);
+  }
+
+  @override
+  Future<void> saveCategoryOrder(
+    AppUser admin,
+    List<CategoryItem> ordered,
+  ) async {
+    _setCategories([
+      for (var i = 0; i < ordered.length; i++) ordered[i].copyWith(order: i),
+    ]);
+    _log(admin, 'category.reorder', ordered.map((c) => c.nameTr).join(', '));
+  }
+
+  @override
+  Future<void> setCategoryDeleted(
+    AppUser admin,
+    CategoryItem category, {
+    required bool deleted,
+  }) async {
+    _setCategories([
+      for (final c in _categoryRepo.categories.value)
+        c.id == category.id ? c.copyWith(isDeleted: deleted) : c,
+    ]);
+    _log(
+      admin,
+      deleted ? 'category.delete' : 'category.restore',
+      category.nameTr,
+    );
+  }
+
+  @override
+  Future<void> importDefaultCategories(AppUser admin) async {
+    final defaults = AppConstants.defaultCategories;
+    _setCategories([
+      for (var i = 0; i < defaults.length; i++) defaults[i].copyWith(order: i),
+    ]);
+    _log(admin, 'category.import_defaults', '${defaults.length} kategori');
+  }
+
+  @override
+  Stream<ReminderConfig> watchReminderConfig() => reminder.stream;
+
+  @override
+  Future<void> saveReminderConfig(AppUser admin, ReminderConfig config) async {
+    reminder.value = config;
+    _log(admin, 'reminder.update', config.enabled ? 'açık' : 'kapalı');
+  }
+
+  @override
+  Stream<List<NotificationCampaign>> watchCampaigns({int limit = 50}) =>
+      campaigns.stream;
+
+  @override
+  Future<void> createCampaign(
+    AppUser admin, {
+    required String titleTr,
+    required String bodyTr,
+    required String titleEn,
+    required String bodyEn,
+    required String target,
+    required List<String> targetUids,
+  }) async {
+    campaigns.value = [
+      NotificationCampaign(
+        id: 'campaign-${campaigns.value.length + 1}',
+        titleTr: titleTr,
+        bodyTr: bodyTr,
+        titleEn: titleEn,
+        bodyEn: bodyEn,
+        target: target,
+        targetUids: targetUids,
+        createdByEmail: admin.email,
+        createdAt: DateTime.now(),
+      ),
+      ...campaigns.value,
+    ];
+    _log(admin, 'notification.send', titleTr);
+  }
+
+  @override
+  Future<List<AdminUserSummary>> fetchUsers({int limit = 500}) async => users;
+
+  @override
+  Stream<List<AdminLogEntry>> watchLogs({int limit = 100}) => logs.stream;
+}
+
 /// Tüm Firebase bağımlılıklarını sahteleriyle değiştiren test ortamı.
 class TestBackend {
   final auth = FakeAuthRepository();
@@ -515,6 +657,8 @@ class TestBackend {
   final installments = FakeInstallmentRepository();
   final budgets = FakeBudgetRepository();
   final teams = FakeTeamRepository();
+  final categories = FakeCategoryRepository();
+  late final admin = FakeAdminRepository(categories);
 
   List<Override> get overrides => [
     authRepositoryProvider.overrideWithValue(auth),
@@ -524,6 +668,8 @@ class TestBackend {
     installmentRepositoryProvider.overrideWithValue(installments),
     budgetRepositoryProvider.overrideWithValue(budgets),
     teamRepositoryProvider.overrideWithValue(teams),
+    categoryRepositoryProvider.overrideWithValue(categories),
+    adminRepositoryProvider.overrideWithValue(admin),
     notificationServiceProvider.overrideWithValue(FakeNotificationService()),
     pushTokenServiceProvider.overrideWithValue(FakePushTokenService(users)),
     isOnlineProvider.overrideWith((ref) => Stream.value(true)),

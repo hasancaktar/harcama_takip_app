@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,7 +32,7 @@ class AddEditCardScreen extends ConsumerWidget {
     final uid = ref.watch(currentUserIdProvider);
     return cardAsync.when(
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Kartı düzenle')),
+        appBar: AppBar(title: Text('Kartı düzenle'.tr)),
         body: const LoadingView(),
       ),
       error: (e, _) => Scaffold(
@@ -42,11 +43,12 @@ class AddEditCardScreen extends ConsumerWidget {
         if (card == null || !card.isActive || card.ownerUid != uid) {
           return Scaffold(
             appBar: AppBar(),
-            body: const EmptyStateView(
+            body: EmptyStateView(
               icon: Icons.credit_card_off_rounded,
-              title: 'Kart düzenlenemez',
+              title: 'Kart düzenlenemez'.tr,
               message:
-                  'Kart bulunamadı ya da yalnızca kart sahibi düzenleyebilir.',
+                  'Kart bulunamadı ya da yalnızca kart sahibi düzenleyebilir.'
+                      .tr,
             ),
           );
         }
@@ -114,10 +116,10 @@ class _CardFormState extends ConsumerState<_CardForm> {
       teamId: sharedTeam,
       isSharedWithTeam: _shared && sharedTeam != null,
       name: _nameController.text.trim().isEmpty
-          ? 'Kartım'
+          ? 'Kartım'.tr
           : _nameController.text.trim(),
       bankName: _bankController.text.trim().isEmpty
-          ? 'Banka'
+          ? 'Banka'.tr
           : _bankController.text.trim(),
       last4Digits: _last4Controller.text.trim().padLeft(4, '•'),
       colorHex: _colorHex,
@@ -139,7 +141,9 @@ class _CardFormState extends ConsumerState<_CardForm> {
       final card = _buildCard(uid, ref.read(activeTeamProvider)?.id);
       await ref.read(cardRepositoryProvider).saveCard(card);
       if (!mounted) return;
-      context.showSuccess(_isEdit ? 'Kart güncellendi.' : 'Kart eklendi.');
+      context.showSuccess(
+        _isEdit ? 'Kart güncellendi.'.tr : 'Kart eklendi.'.tr,
+      );
       context.pop();
     } catch (e) {
       if (mounted) {
@@ -153,17 +157,17 @@ class _CardFormState extends ConsumerState<_CardForm> {
     final card = widget.existing!;
     final ok = await showConfirmDialog(
       context,
-      title: 'Kart kaldırılsın mı?',
-      message:
-          '"${card.name}" listeden kaldırılacak. Bu karta ait geçmiş harcamalar ve taksit planları silinmez.',
-      confirmLabel: 'Kartı kaldır',
+      title: 'Kart kaldırılsın mı?'.tr,
+      message: '"{0}" listeden kaldırılacak. Bu karta ait geçmiş harcamalar ve taksit planları silinmez.'
+          .trArgs([card.name]),
+      confirmLabel: 'Kartı kaldır'.tr,
       destructive: true,
     );
     if (!ok || !mounted) return;
     try {
       await ref.read(cardRepositoryProvider).deactivateCard(card.id);
       if (!mounted) return;
-      context.showSuccess('Kart kaldırıldı.');
+      context.showSuccess('Kart kaldırıldı.'.tr);
       context.go('/cards');
     } catch (e) {
       if (mounted) context.showError(e);
@@ -180,11 +184,11 @@ class _CardFormState extends ConsumerState<_CardForm> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEdit ? 'Kartı düzenle' : 'Yeni kredi kartı'),
+        title: Text(_isEdit ? 'Kartı düzenle'.tr : 'Yeni kredi kartı'.tr),
         actions: [
           if (_isEdit)
             IconButton(
-              tooltip: 'Kartı kaldır',
+              tooltip: 'Kartı kaldır'.tr,
               icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
               onPressed: _deactivate,
             ),
@@ -197,9 +201,10 @@ class _CardFormState extends ConsumerState<_CardForm> {
           children: [
             ExcludeSemantics(child: CreditCardVisual(card: preview)),
             const SizedBox(height: AppSpacing.md),
-            const InlineMessage(
+            InlineMessage(
               tone: MessageTone.info,
-              message: 'Güvenliğiniz için yalnızca kart adı ve son 4 hane saklanır. Kart numarası, son kullanma tarihi ve CVV asla istenmez.',
+              message: 'Güvenliğiniz için yalnızca kart adı ve son 4 hane saklanır. Kart numarası, son kullanma tarihi ve CVV asla istenmez.'
+                  .tr,
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
@@ -207,12 +212,12 @@ class _CardFormState extends ConsumerState<_CardForm> {
               textCapitalization: TextCapitalization.words,
               textInputAction: TextInputAction.next,
               validator: Validators.requiredText(
-                'Kart adı',
+                'Kart adı'.tr,
                 maxLength: AppConstants.maxNameLength,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Kart adı',
-                hintText: 'Örn. Bonus Platinum',
+              decoration: InputDecoration(
+                labelText: 'Kart adı'.tr,
+                hintText: 'Örn. Bonus Platinum'.tr,
                 prefixIcon: Icon(Icons.credit_card_rounded),
               ),
             ),
@@ -222,12 +227,12 @@ class _CardFormState extends ConsumerState<_CardForm> {
               textCapitalization: TextCapitalization.words,
               textInputAction: TextInputAction.next,
               validator: Validators.requiredText(
-                'Banka adı',
+                'Banka adı'.tr,
                 maxLength: AppConstants.maxNameLength,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Banka',
-                hintText: 'Örn. Garanti BBVA',
+              decoration: InputDecoration(
+                labelText: 'Banka'.tr,
+                hintText: 'Örn. Garanti BBVA'.tr,
                 prefixIcon: Icon(Icons.account_balance_rounded),
               ),
             ),
@@ -245,8 +250,8 @@ class _CardFormState extends ConsumerState<_CardForm> {
                       LengthLimitingTextInputFormatter(4),
                     ],
                     validator: Validators.last4Digits,
-                    decoration: const InputDecoration(
-                      labelText: 'Son 4 hane',
+                    decoration: InputDecoration(
+                      labelText: 'Son 4 hane'.tr,
                       hintText: '1234',
                       prefixIcon: Icon(Icons.pin_outlined),
                     ),
@@ -263,8 +268,8 @@ class _CardFormState extends ConsumerState<_CardForm> {
                       FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                     ],
                     validator: Validators.optionalAmount,
-                    decoration: const InputDecoration(
-                      labelText: 'Limit (isteğe bağlı)',
+                    decoration: InputDecoration(
+                      labelText: 'Limit (isteğe bağlı)'.tr,
                       prefixText: '₺ ',
                     ),
                   ),
@@ -275,14 +280,18 @@ class _CardFormState extends ConsumerState<_CardForm> {
             DropdownButtonFormField<int>(
               initialValue: _cutoffDay,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Hesap kesim günü',
-                helperText: 'Ayın 31\'i seçilirse kısa aylarda son gün kesim kabul edilir.',
+              decoration: InputDecoration(
+                labelText: 'Hesap kesim günü'.tr,
+                helperText: 'Ayın 31\'i seçilirse kısa aylarda son gün kesim kabul edilir.'
+                    .tr,
                 prefixIcon: Icon(Icons.event_repeat_rounded),
               ),
               items: [
                 for (var d = 1; d <= 31; d++)
-                  DropdownMenuItem(value: d, child: Text('Her ayın $d. günü')),
+                  DropdownMenuItem(
+                    value: d,
+                    child: Text('Her ayın {0}. günü'.trArgs([d])),
+                  ),
               ],
               onChanged: (v) => setState(() => _cutoffDay = v ?? _cutoffDay),
             ),
@@ -290,21 +299,21 @@ class _CardFormState extends ConsumerState<_CardForm> {
             DropdownButtonFormField<int>(
               initialValue: _dueDays,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Son ödeme günü',
+              decoration: InputDecoration(
+                labelText: 'Son ödeme günü'.tr,
                 prefixIcon: Icon(Icons.event_available_rounded),
               ),
               items: [
                 for (final d in const [5, 7, 8, 10, 12, 14, 15, 20])
                   DropdownMenuItem(
                     value: d,
-                    child: Text('Kesimden $d gün sonra'),
+                    child: Text('Kesimden {0} gün sonra'.trArgs([d])),
                   ),
               ],
               onChanged: (v) => setState(() => _dueDays = v ?? _dueDays),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Kart rengi', style: context.textStyles.titleSmall),
+            Text('Kart rengi'.tr, style: context.textStyles.titleSmall),
             const SizedBox(height: AppSpacing.xs),
             ColorPickerRow(
               selectedHex: _colorHex,
@@ -316,15 +325,18 @@ class _CardFormState extends ConsumerState<_CardForm> {
                 contentPadding: EdgeInsets.zero,
                 value: _shared,
                 onChanged: (v) => setState(() => _shared = v),
-                title: Text('${activeTeam?.name ?? 'Takım'} ile paylaş'),
-                subtitle: const Text(
-                  'Takım üyeleri bu kartı takım harcamalarında seçebilir ve ekstresini görebilir.',
+                title: Text(
+                  '{0} ile paylaş'.trArgs([activeTeam?.name ?? 'Takım'.tr]),
+                ),
+                subtitle: Text(
+                  'Takım üyeleri bu kartı takım harcamalarında seçebilir ve ekstresini görebilir.'
+                      .tr,
                 ),
               ),
             ],
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              label: _isEdit ? 'Değişiklikleri kaydet' : 'Kartı kaydet',
+              label: _isEdit ? 'Değişiklikleri kaydet'.tr : 'Kartı kaydet'.tr,
               icon: Icons.check_rounded,
               onPressed: _save,
               isLoading: _saving,

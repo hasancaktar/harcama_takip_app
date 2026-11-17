@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +27,7 @@ class ReportsScreen extends ConsumerWidget {
     final expensesAsync = ref.watch(periodExpensesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Raporlar')),
+      appBar: AppBar(title: Text('Raporlar'.tr)),
       body: PageListView(
         children: [
           const ContextBar(),
@@ -46,7 +47,7 @@ class ReportsScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(periodExpensesProvider),
             ),
             data: (expenses) => expenses.isEmpty
-                ? const Column(
+                ? Column(
                     children: [
                       _TrendCard(),
                       SizedBox(height: AppSpacing.md),
@@ -54,8 +55,9 @@ class ReportsScreen extends ConsumerWidget {
                         child: EmptyStateView(
                           compact: true,
                           icon: Icons.insights_outlined,
-                          title: 'Bu dönem için veri yok',
-                          message: 'Harcama ekledikçe kategori dağılımı ve analizler burada görünür.',
+                          title: 'Bu dönem için veri yok'.tr,
+                          message: 'Harcama ekledikçe kategori dağılımı ve analizler burada görünür.'
+                              .tr,
                         ),
                       ),
                     ],
@@ -90,11 +92,11 @@ class _ReportContent extends ConsumerWidget {
             final cols = c.maxWidth >= 560 ? 4 : 2;
             final w = (c.maxWidth - (cols - 1) * AppSpacing.sm) / cols;
             final tiles = [
-              ('Toplam gider', MoneyFormatter.formatCents(stats.totalCents)),
-              ('İşlem sayısı', '${stats.count}'),
-              ('Ortalama', MoneyFormatter.formatCents(stats.averageCents)),
+              ('Toplam gider'.tr, MoneyFormatter.formatCents(stats.totalCents)),
+              ('İşlem sayısı'.tr, '${stats.count}'),
+              ('Ortalama'.tr, MoneyFormatter.formatCents(stats.averageCents)),
               (
-                'Bütçe kullanımı',
+                'Bütçe kullanımı'.tr,
                 budget != null ? '%${(budget.ratio * 100).round()}' : '—',
               ),
             ];
@@ -134,10 +136,10 @@ class _ReportContent extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         const _TrendCard(),
-        const SectionHeader(title: 'Kategori dağılımı'),
+        SectionHeader(title: 'Kategori dağılımı'.tr),
         _CategoryPieCard(stats: stats),
         if (isTeam && stats.byMember.length > 1) ...[
-          const SectionHeader(title: 'Üyelere göre'),
+          SectionHeader(title: 'Üyelere göre'.tr),
           AppCard(
             child: Column(
               children: [
@@ -148,8 +150,8 @@ class _ReportContent extends ConsumerWidget {
                       radius: 16,
                     ),
                     label: m.key == uid
-                        ? 'Siz'
-                        : (memberNames[m.key] ?? 'Eski üye'),
+                        ? 'Siz'.tr
+                        : (memberNames[m.key] ?? 'Eski üye'.tr),
                     cents: m.cents,
                     ratio: m.ratioOf(stats.totalCents),
                   ),
@@ -157,7 +159,7 @@ class _ReportContent extends ConsumerWidget {
             ),
           ),
         ],
-        const SectionHeader(title: 'Ödeme yöntemleri'),
+        SectionHeader(title: 'Ödeme yöntemleri'.tr),
         AppCard(
           child: Column(
             children: [
@@ -174,7 +176,7 @@ class _ReportContent extends ConsumerWidget {
             ],
           ),
         ),
-        const SectionHeader(title: 'En yüksek harcamalar'),
+        SectionHeader(title: 'En yüksek harcamalar'.tr),
         AppCard(
           padding: const EdgeInsets.all(AppSpacing.xxs),
           child: Column(
@@ -206,7 +208,7 @@ class _TrendCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Son 6 ay', style: context.textStyles.titleMedium),
+          Text('Son 6 ay'.tr, style: context.textStyles.titleMedium),
           const SizedBox(height: AppSpacing.md),
           SizedBox(
             height: 180,
@@ -222,7 +224,7 @@ class _TrendCard extends ConsumerWidget {
                 if (maxValue == 0) {
                   return Center(
                     child: Text(
-                      'Henüz karşılaştırılacak veri yok',
+                      'Henüz karşılaştırılacak veri yok'.tr,
                       style: context.textStyles.bodyMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -230,8 +232,14 @@ class _TrendCard extends ConsumerWidget {
                   );
                 }
                 return Semantics(
-                  label:
-                      'Son 6 ay harcama grafiği: ${points.map((p) => '${DateFormats.period(p.period)} ${MoneyFormatter.formatCents(p.totalCents)}').join(', ')}',
+                  label: 'Son 6 ay harcama grafiği: {0}'.trArgs([
+                    points
+                        .map(
+                          (p) =>
+                              '${DateFormats.period(p.period)} ${MoneyFormatter.formatCents(p.totalCents)}',
+                        )
+                        .join(', '),
+                  ]),
                   child: ExcludeSemantics(
                     child: BarChart(
                       BarChartData(

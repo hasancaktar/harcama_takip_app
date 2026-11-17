@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -135,7 +136,7 @@ class AppButton extends StatelessWidget {
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
               color: outlined ? scheme.primary : scheme.onPrimary,
-              semanticsLabel: 'İşleniyor',
+              semanticsLabel: 'İşleniyor'.tr,
             ),
           )
         : Row(
@@ -233,7 +234,7 @@ class ColorPickerRow extends StatelessWidget {
       children: [
         for (var i = 0; i < colors.length; i++)
           Semantics(
-            label: 'Renk ${i + 1}',
+            label: 'Renk {0}'.trArgs([i + 1]),
             selected: colors[i] == selectedHex,
             button: true,
             child: InkResponse(
@@ -307,6 +308,10 @@ class Pill extends StatelessWidget {
     final scheme = context.colors;
     final fg = color ?? scheme.onSurfaceVariant;
     return Container(
+      // Sınırsız genişlik verilen satırlarda da ekranın yarısını aşmaz.
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.sizeOf(context).width * 0.5,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: (color ?? scheme.onSurfaceVariant).withValues(alpha: 0.12),
@@ -319,11 +324,16 @@ class Pill extends StatelessWidget {
             Icon(icon, size: 12, color: fg),
             const SizedBox(width: 3),
           ],
-          Text(
-            label,
-            style: context.textStyles.labelSmall?.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.labelSmall?.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

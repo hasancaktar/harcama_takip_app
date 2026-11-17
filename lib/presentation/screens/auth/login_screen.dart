@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -59,8 +60,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final scheme = context.colors;
     return AuthScaffold(
-      title: 'Tekrar hoş geldiniz',
-      subtitle: 'Harcama, kart ve taksitlerinizi takip etmek için giriş yapın.',
+      title: 'Tekrar hoş geldiniz'.tr,
+      subtitle:
+          'Harcama, kart ve taksitlerinizi takip etmek için giriş yapın.'.tr,
       children: [
         if (_errorMessage != null) ...[
           InlineMessage(message: _errorMessage!, tone: MessageTone.error),
@@ -109,12 +111,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ).toString(),
               );
             },
-            child: const Text('Şifremi unuttum'),
+            child: Text('Şifremi unuttum'.tr),
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
         AppButton(
-          label: 'Giriş yap',
+          label: 'Giriş yap'.tr,
           onPressed: _handleLogin,
           isLoading: _isLoading,
         ),
@@ -124,12 +126,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
-              'Hesabınız yok mu?',
+              'Hesabınız yok mu?'.tr,
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
             TextButton(
               onPressed: () => context.push('/register'),
-              child: const Text('Hesap oluştur'),
+              child: Text('Hesap oluştur'.tr),
             ),
           ],
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_spacing.dart';
@@ -8,7 +9,7 @@ import '../../core/utils/validators.dart';
 /// Büyük ve hızlı tutar girişi. Yalnızca rakam, virgül ve nokta kabul eder.
 class AmountField extends StatelessWidget {
   final TextEditingController controller;
-  final String label;
+  final String? label;
   final bool autofocus;
   final ValueChanged<String>? onChanged;
   final FocusNode? focusNode;
@@ -17,7 +18,7 @@ class AmountField extends StatelessWidget {
   const AmountField({
     super.key,
     required this.controller,
-    this.label = 'Tutar',
+    this.label,
     this.autofocus = false,
     this.onChanged,
     this.focusNode,
@@ -43,7 +44,7 @@ class AmountField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label,
+            label ?? 'Tutar'.tr,
             style: context.textStyles.labelLarge?.copyWith(
               color: scheme.onSurfaceVariant,
             ),

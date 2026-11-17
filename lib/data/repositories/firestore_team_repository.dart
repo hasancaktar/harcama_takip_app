@@ -1,3 +1,5 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
+
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -144,7 +146,7 @@ class FirestoreTeamRepository implements ITeamRepository {
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
     if (normalizedEmail == invitedBy.email.toLowerCase()) {
-      throw const AppException('Kendinizi davet edemezsiniz.');
+      throw AppException('Kendinizi davet edemezsiniz.'.tr);
     }
 
     final existing = await _invites(team.id)
@@ -197,7 +199,7 @@ class FirestoreTeamRepository implements ITeamRepository {
     required AppUser user,
   }) async {
     if (!invite.isUsable()) {
-      throw const AppException('Bu davetin süresi dolmuş veya geçersiz.');
+      throw AppException('Bu davetin süresi dolmuş veya geçersiz.'.tr);
     }
     final batch = _firestore.batch();
     batch.set(_members(invite.teamId).doc(user.uid), {

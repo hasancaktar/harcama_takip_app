@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_spacing.dart';
@@ -35,8 +36,12 @@ class CreditCardVisual extends StatelessWidget {
         end: Alignment.bottomRight,
         colors: [base, Color.lerp(base, Colors.black, 0.35)!],
       ),
-      semanticLabel:
-          '${card.bankName} ${card.name}, son dört hane ${card.last4Digits}, kesim günü ${card.cutoffDay}',
+      semanticLabel: '{0} {1}, son dört hane {2}, kesim günü {3}'.trArgs([
+        card.bankName,
+        card.name,
+        card.last4Digits,
+        card.cutoffDay,
+      ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -82,7 +87,7 @@ class CreditCardVisual extends StatelessWidget {
                 ),
               ),
               Text(
-                'Kesim: ${card.cutoffDay}',
+                'Kesim: {0}'.trArgs([card.cutoffDay]),
                 style: context.textStyles.labelLarge?.copyWith(color: fg),
               ),
             ],

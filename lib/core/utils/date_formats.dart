@@ -1,10 +1,11 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:intl/intl.dart';
 
 import 'statement_calculator.dart';
 
 /// Uygulama genelinde tutarlı Türkçe tarih biçimleri.
 abstract class DateFormats {
-  static const String _locale = 'tr_TR';
+  static String get _locale => AppLocale.intlLocale;
 
   /// "Kasım 2026"
   static String period(String period) {
@@ -49,9 +50,9 @@ abstract class DateFormats {
     final today = _dateOnly(now ?? DateTime.now());
     final target = _dateOnly(date);
     final diff = today.difference(target).inDays;
-    if (diff == 0) return 'Bugün';
-    if (diff == 1) return 'Dün';
-    if (diff == -1) return 'Yarın';
+    if (diff == 0) return 'Bugün'.tr;
+    if (diff == 1) return 'Dün'.tr;
+    if (diff == -1) return 'Yarın'.tr;
     return weekdayDay(date);
   }
 
@@ -60,10 +61,10 @@ abstract class DateFormats {
     final diff = _dateOnly(date)
         .difference(_dateOnly(now ?? DateTime.now()))
         .inDays;
-    if (diff < 0) return '${-diff} gün önce';
-    if (diff == 0) return 'Bugün';
-    if (diff == 1) return 'Yarın';
-    return '$diff gün kaldı';
+    if (diff < 0) return '{0} gün önce'.trArgs([-diff]);
+    if (diff == 0) return 'Bugün'.tr;
+    if (diff == 1) return 'Yarın'.tr;
+    return '{0} gün kaldı'.trArgs([diff]);
   }
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);

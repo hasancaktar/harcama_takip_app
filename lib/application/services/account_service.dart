@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,7 +48,7 @@ class AccountService {
   Future<void> updateDisplayName(String displayName) async {
     final auth = _ref.read(authRepositoryProvider);
     final user = auth.currentUser;
-    if (user == null) throw const AppException('Oturum bulunamadı.');
+    if (user == null) throw AppException('Oturum bulunamadı.'.tr);
     await auth.updateDisplayName(displayName);
     await _ref
         .read(userRepositoryProvider)
@@ -58,7 +59,7 @@ class AccountService {
   Future<void> deleteAccount({required String password}) async {
     final auth = _ref.read(authRepositoryProvider);
     final user = auth.currentUser;
-    if (user == null) throw const AppException('Oturum bulunamadı.');
+    if (user == null) throw AppException('Oturum bulunamadı.'.tr);
 
     await auth.reauthenticate(password);
     await _ref.read(pushTokenServiceProvider).unregister();

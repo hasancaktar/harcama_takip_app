@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,7 +19,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(userProfileProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Hatırlatıcılar')),
+      appBar: AppBar(title: Text('Bildirimler'.tr)),
       body: AsyncValueView<UserProfile?>(
         value: profileAsync,
         onRetry: () => ref.invalidate(userProfileProvider),
@@ -38,15 +39,23 @@ class _ReminderForm extends ConsumerStatefulWidget {
 }
 
 class _ReminderFormState extends ConsumerState<_ReminderForm> {
-  static const _dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-  static const _dayFullNames = [
-    'Pazartesi',
-    'Salı',
-    'Çarşamba',
-    'Perşembe',
-    'Cuma',
-    'Cumartesi',
-    'Pazar',
+  static List<String> get _dayNames => [
+    'Pzt'.tr,
+    'Sal'.tr,
+    'Çar'.tr,
+    'Per'.tr,
+    'Cum'.tr,
+    'Cmt'.tr,
+    'Paz'.tr,
+  ];
+  static List<String> get _dayFullNames => [
+    'Pazartesi'.tr,
+    'Salı'.tr,
+    'Çarşamba'.tr,
+    'Perşembe'.tr,
+    'Cuma'.tr,
+    'Cumartesi'.tr,
+    'Pazar'.tr,
   ];
 
   late bool _enabled = widget.profile?.dailyReminderEnabled ?? false;
@@ -57,6 +66,7 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
   late final Set<int> _days = {
     ...(widget.profile?.dailyReminderDays ?? const [1, 2, 3, 4, 5, 6, 7]),
   };
+  late bool _push = widget.profile?.pushEnabled ?? true;
   bool _saving = false;
 
   Future<void> _save() async {
@@ -65,14 +75,16 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
     final service = ref.read(notificationServiceProvider);
     setState(() => _saving = true);
     try {
-      if (_enabled && service.isSupported) {
+      if ((_enabled || _push) && service.isSupported) {
         final granted = await service.requestPermission();
         if (!granted && mounted) {
           context.showInfo(
-            'Bildirim izni verilmedi. Hatırlatıcılar için cihaz ayarlarından izin verin.',
+            'Bildirim izni verilmedi. Hatırlatıcılar için cihaz ayarlarından izin verin.'
+                .tr,
           );
         }
       }
+      await ref.read(userRepositoryProvider).setPushEnabled(uid, _push);
       final days = _days.toList()..sort();
       // Profil güncellenince AppShell hatırlatıcıları otomatik olarak yeniden planlar.
       await ref
@@ -84,11 +96,7 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
             minute: _time.minute,
             days: days,
           );
-      if (mounted) {
-        context.showSuccess(
-          _enabled ? 'Hatırlatıcı kaydedildi.' : 'Hatırlatıcı kapatıldı.',
-        );
-      }
+      if (mounted) context.showSuccess('Bildirim tercihleri kaydedildi.'.tr);
     } catch (e) {
       if (mounted) context.showError(e);
     } finally {
@@ -107,9 +115,10 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
       maxWidth: AppSpacing.maxFormWidth,
       children: [
         if (!supported) ...[
-          const InlineMessage(
+          InlineMessage(
             tone: MessageTone.info,
-            message: 'Zamanlanmış hatırlatıcılar yalnızca mobil uygulamada çalışır. Buradaki ayar hesabınıza kaydedilir ve telefonunuzda uygulanır.',
+            message: 'Zamanlanmış hatırlatıcılar yalnızca mobil uygulamada çalışır. Buradaki ayar hesabınıza kaydedilir ve telefonunuzda uygulanır.'
+                .tr,
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -120,11 +129,29 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
           ),
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
+            value: _push,
+            onChanged: (v) => setState(() => _push = v),
+            title: Text('Duyuru ve hatırlatma bildirimleri'.tr),
+            subtitle: Text(
+              'Uygulama duyurularını ve otomatik günlük hatırlatmayı bu hesaba gönder. Kapatırsanız sunucudan bildirim almazsınız.'
+                  .tr,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppCard(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xxs,
+          ),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
             value: _enabled,
             onChanged: (v) => setState(() => _enabled = v),
-            title: const Text('Günlük harcama hatırlatıcısı'),
-            subtitle: const Text(
-              'Günün harcamalarını girmeyi unutmamanız için bildirim gönderir.',
+            title: Text('Kişisel günlük hatırlatıcı'.tr),
+            subtitle: Text(
+              'Günün harcamalarını girmeyi unutmamanız için bildirim gönderir.'
+                  .tr,
             ),
           ),
         ),
@@ -137,12 +164,12 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
           firstChild: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SectionHeader(title: 'Saat'),
+              SectionHeader(title: 'Saat'.tr),
               AppCard(
                 padding: EdgeInsets.zero,
                 child: ListTile(
                   leading: const Icon(Icons.schedule_rounded),
-                  title: const Text('Bildirim saati'),
+                  title: Text('Bildirim saati'.tr),
                   trailing: Text(
                     timeLabel,
                     style: context.textStyles.titleLarge?.copyWith(
@@ -158,7 +185,7 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
                   },
                 ),
               ),
-              const SectionHeader(title: 'Günler'),
+              SectionHeader(title: 'Günler'.tr),
               Wrap(
                 spacing: AppSpacing.xs,
                 runSpacing: AppSpacing.xs,
@@ -182,7 +209,7 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'En az bir gün seçili olmalıdır.',
+                'En az bir gün seçili olmalıdır.'.tr,
                 style: context.textStyles.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -192,7 +219,7 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
         ),
         const SizedBox(height: AppSpacing.lg),
         AppButton(
-          label: 'Kaydet',
+          label: 'Kaydet'.tr,
           icon: Icons.check_rounded,
           onPressed: _save,
           isLoading: _saving,

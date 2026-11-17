@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/l10n/app_locale.dart';
+
 /// `main()` içinde gerçek örnekle override edilir.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((ref) => null);
 
@@ -41,3 +43,31 @@ final isOnlineProvider = StreamProvider<bool>((ref) async* {
   }
   yield* connectivity.onConnectivityChanged.map(online);
 });
+
+/// Uygulama dili. Cihazda saklanır; ilk açılışta cihaz dili Türkçe değilse İngilizce seçilir.
+class LocaleController extends Notifier<Locale> {
+  static const _key = 'language';
+
+  @override
+  Locale build() {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    var code = prefs?.getString(_key);
+    if (code == null && prefs != null) {
+      final device =
+          WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+      code = device == 'tr' ? 'tr' : 'en';
+    }
+    AppLocale.set(code ?? AppLocale.fallback);
+    return AppLocale.locale;
+  }
+
+  Future<void> set(String code) async {
+    AppLocale.set(code);
+    state = AppLocale.locale;
+    await ref.read(sharedPreferencesProvider)?.setString(_key, AppLocale.code);
+  }
+}
+
+final localeProvider = NotifierProvider<LocaleController, Locale>(
+  LocaleController.new,
+);

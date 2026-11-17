@@ -59,6 +59,8 @@ Referrer-Policy, Permissions-Policy) ve önbellek kurallarını içerir.
 |---|---|---|
 | `postDueInstallments` | Her gece 00:10 (Europe/Istanbul) | Vadesi gelen taksitleri idempotent olarak harcamalara işler (uygulama açılmasa da). |
 | `notifyTeamOnExpense` | `expenses/{id}` oluşturulduğunda | Takım harcamasında diğer üyelere FCM bildirimi gönderir, geçersiz cihaz anahtarlarını temizler. |
+| `sendCampaign` | `notificationCampaigns/{id}` oluşturulduğunda | Yöneticinin kuyruğa eklediği bildirimi gönderir, göndereni Auth kaydından doğrular, sonucu belgeye yazar. |
+| `sendDailyReminder` | 5 dakikada bir (Europe/Istanbul) | Ayarlanan saatte günlük hatırlatmayı günde bir kez gönderir. Ayar kapalıyken yalnızca bir belge okur. |
 
 ```bash
 cd functions && npm install && npm test
@@ -69,7 +71,15 @@ firebase deploy --only functions
 ```
 
 Fonksiyonlar yayınlanmasa da uygulama çalışır: taksitler uygulama açılışında istemci tarafından
-işlenir; yalnızca takım push bildirimleri olmaz.
+işlenir. Ancak takım bildirimleri gitmez ve **yönetim panelinden gönderilen bildirimler ile
+günlük otomatik hatırlatma çalışmaz** (gönderimler "Kuyrukta" kalır).
+
+Yönetim paneli için kuralların (`firebase deploy --only firestore:rules`) da yayınlanmış olması
+gerekir; aksi halde kategori, bildirim ve işlem kaydı yazmaları reddedilir. Yeni koleksiyonlar
+tek alanlı sıralama kullandığından ek dizin gerekmez.
+
+`sendDailyReminder` ayda yaklaşık 8.600 kez çalışır (Cloud Scheduler'da 1 iş). Bu, Blaze
+planının ücretsiz kotası içindedir.
 
 > Önceki sürümdeki `api` HTTP fonksiyonu (sabit `dev-secret-key` yedek anahtarıyla herkese açıktı
 > ve hiçbir iş yapmıyordu) ve boş çalışan saatlik hatırlatıcı kaldırıldı. Daha önce yayınlandıysa

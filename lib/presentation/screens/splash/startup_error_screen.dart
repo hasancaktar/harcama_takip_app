@@ -1,3 +1,4 @@
+import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_spacing.dart';
@@ -28,13 +29,14 @@ class StartupErrorScreen extends StatelessWidget {
                   Icon(Icons.cloud_off_rounded, size: 56, color: scheme.error),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    'Uygulama başlatılamadı',
+                    'Uygulama başlatılamadı'.tr,
                     style: context.textStyles.headlineSmall,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Sunucu bağlantısı kurulamadı. İnternet bağlantınızı kontrol edip uygulamayı yeniden başlatın.',
+                    'Sunucu bağlantısı kurulamadı. İnternet bağlantınızı kontrol edip uygulamayı yeniden başlatın.'
+                        .tr,
                     style: context.textStyles.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
@@ -52,7 +54,9 @@ class StartupErrorScreen extends StatelessWidget {
                         ),
                       ),
                       child: SelectableText(
-                        'Geliştirici ayrıntısı:\n$technicalDetails',
+                        'Geliştirici ayrıntısı:\n{0}'.trArgs([
+                          technicalDetails,
+                        ]),
                         style: context.textStyles.bodySmall?.copyWith(
                           fontFamily: 'monospace',
                         ),

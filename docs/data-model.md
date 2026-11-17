@@ -48,6 +48,8 @@ Kullanıcının profil bilgileri ve global ayarları.
   "dailyReminderMinute": 0,
   "dailyReminderDays": [1, 2, 3, 4, 5, 6, 7],
   "fcmTokens": ["token1", "token2"],
+  "pushEnabled": true,
+  "language": "tr | en",
   "activeTeamId": "string?",
   "createdAt": "Timestamp",
   "updatedAt": "Timestamp"
@@ -229,6 +231,75 @@ Aylık bütçe tanımları.
 ```
 
 ---
+
+### 2.9. Yönetim koleksiyonları
+Yalnızca yönetici yazar; ayrıntılar [admin-panel.md](admin-panel.md).
+
+`categories/{categoryId}` — kimlik addan üretilir (`a-z0-9_`), belge hiç silinmez.
+```json
+{
+  "id": "market",
+  "nameTr": "Market",
+  "nameEn": "Groceries",
+  "iconKey": "shopping_basket",
+  "colorHex": "#10B981",
+  "isActive": true,
+  "isDeleted": false,
+  "order": 0,
+  "updatedAt": "Timestamp"
+}
+```
+
+`appConfig/dailyReminder` — sunucunun gönderdiği günlük hatırlatma ayarı.
+```json
+{
+  "enabled": false,
+  "hour": 21,
+  "minute": 0,
+  "titleTr": "Harcama Takip",
+  "bodyTr": "Bugünkü harcamalarınızı girmeyi unutmayın!",
+  "titleEn": "string",
+  "bodyEn": "string",
+  "target": "all | selected",
+  "targetUids": ["uid"],
+  "timezone": "Europe/Istanbul",
+  "lastSentDate": "YYYY-MM-DD (yalnızca sunucu yazar)",
+  "updatedAt": "Timestamp",
+  "updatedBy": "uid"
+}
+```
+
+`notificationCampaigns/{campaignId}` — her gönderim ve sonucu.
+```json
+{
+  "id": "string",
+  "type": "manual | daily",
+  "titleTr": "string", "bodyTr": "string",
+  "titleEn": "string", "bodyEn": "string",
+  "target": "all | selected",
+  "targetUids": ["uid"],
+  "status": "queued | sending | sent | partial | failed | no_recipients",
+  "createdBy": "uid | system",
+  "createdByEmail": "string",
+  "createdAt": "Timestamp",
+  "finishedAt": "Timestamp? (sunucu)",
+  "recipientCount": 0, "tokenCount": 0,
+  "successCount": 0, "failureCount": 0, "optedOutCount": 0,
+  "error": "string? (sunucu)"
+}
+```
+
+`adminLogs/{logId}` — yalnızca eklenir.
+```json
+{
+  "id": "string",
+  "action": "category.update",
+  "summary": "string",
+  "adminUid": "uid",
+  "adminEmail": "string",
+  "createdAt": "Timestamp"
+}
+```
 
 ## 3. Gerekli Composite Index'ler (`firestore.indexes.json`)
 
