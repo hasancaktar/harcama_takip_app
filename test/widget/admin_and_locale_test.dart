@@ -281,6 +281,8 @@ void main() {
       expect(campaign.titleTr, 'Bakım duyurusu');
       expect(campaign.target, 'all');
       expect(backend.admin.logs.value.single.action, 'notification.send');
+      // Gönderimden hemen sonra bildirim sunucusu tetiklenir.
+      expect(backend.notificationServer.triggered, [campaign.id]);
       // Gönderim sonrası geçmiş ekranı açılır.
       expect(find.text('Bildirim geçmişi'), findsOneWidget);
       expect(find.text('Bakım duyurusu'), findsOneWidget);

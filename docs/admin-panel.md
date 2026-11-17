@@ -48,9 +48,11 @@ ve fonksiyonları yeniden yayınlayın.
 Ayrıntılar: [notifications.md](notifications.md#3-yönetici-bildirimleri-ve-sunucu-hatırlatması-fcm).
 
 - İstemci bildirimi **göndermez**, yalnızca `notificationCampaigns` koleksiyonuna `queued`
-  durumunda bir kayıt ekler. Gönderimi `sendCampaign` Cloud Function'ı yapar ve sonucu aynı
+  durumunda bir kayıt ekler. Gönderimi bildirim sunucusu yapar ve sonucu aynı
   belgeye yazar. Sonuç alanları istemciden değiştirilemez.
-- Bir gönderim uzun süre "Kuyrukta" kalıyorsa Cloud Functions yayınlanmamıştır.
+- Gönderimi [bildirim sunucusu](notification-worker.md) (Cloudflare Workers) yapar. Bir gönderim
+  bir dakikadan uzun "Kuyrukta" kalıyorsa sunucu kurulmamış veya yapılandırması eksiktir
+  (`/health` adresini kontrol edin).
 
 ## İşlem kayıtları
 

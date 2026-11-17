@@ -19,6 +19,7 @@ import 'package:harcama_takip/domain/entities/team_invite.dart';
 import 'package:harcama_takip/domain/entities/team_member.dart';
 import 'package:harcama_takip/domain/entities/user_profile.dart';
 import 'package:harcama_takip/domain/repositories/i_admin_repository.dart';
+import 'package:harcama_takip/domain/repositories/i_notification_server.dart';
 import 'package:harcama_takip/domain/repositories/i_auth_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_budget_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_card_repository.dart';
@@ -668,7 +669,7 @@ class FakeAdminRepository implements IAdminRepository {
       campaigns.stream;
 
   @override
-  Future<void> createCampaign(
+  Future<String> createCampaign(
     AppUser admin, {
     required String titleTr,
     required String bodyTr,
@@ -692,6 +693,7 @@ class FakeAdminRepository implements IAdminRepository {
       ...campaigns.value,
     ];
     _log(admin, 'notification.send', titleTr);
+    return campaigns.value.first.id;
   }
 
   @override
@@ -699,6 +701,20 @@ class FakeAdminRepository implements IAdminRepository {
 
   @override
   Stream<List<AdminLogEntry>> watchLogs({int limit = 100}) => logs.stream;
+}
+
+/// Bildirim sunucusuna yapılan "hemen gönder" isteklerini kaydeder.
+class FakeNotificationServer implements INotificationServer {
+  final List<String> triggered = [];
+
+  @override
+  bool get isConfigured => true;
+
+  @override
+  Future<bool> triggerSend(String campaignId) async {
+    triggered.add(campaignId);
+    return true;
+  }
 }
 
 /// Tüm Firebase bağımlılıklarını sahteleriyle değiştiren test ortamı.
@@ -712,6 +728,7 @@ class TestBackend {
   final teams = FakeTeamRepository();
   final categories = FakeCategoryRepository();
   late final admin = FakeAdminRepository(categories);
+  final notificationServer = FakeNotificationServer();
 
   List<Override> get overrides => [
     authRepositoryProvider.overrideWithValue(auth),
@@ -723,6 +740,7 @@ class TestBackend {
     teamRepositoryProvider.overrideWithValue(teams),
     categoryRepositoryProvider.overrideWithValue(categories),
     adminRepositoryProvider.overrideWithValue(admin),
+    notificationServerProvider.overrideWithValue(notificationServer),
     notificationServiceProvider.overrideWithValue(FakeNotificationService()),
     pushTokenServiceProvider.overrideWithValue(FakePushTokenService(users)),
     isOnlineProvider.overrideWith((ref) => Stream.value(true)),

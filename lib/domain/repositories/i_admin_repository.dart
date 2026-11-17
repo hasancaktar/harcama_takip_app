@@ -30,7 +30,9 @@ abstract class IAdminRepository {
   Stream<ReminderConfig> watchReminderConfig();
   Future<void> saveReminderConfig(AppUser admin, ReminderConfig config);
   Stream<List<NotificationCampaign>> watchCampaigns({int limit = 50});
-  Future<void> createCampaign(
+
+  /// Kampanyayı kuyruğa ekler ve kimliğini döner.
+  Future<String> createCampaign(
     AppUser admin, {
     required String titleTr,
     required String bodyTr,

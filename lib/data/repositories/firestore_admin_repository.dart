@@ -184,7 +184,7 @@ class FirestoreAdminRepository implements IAdminRepository {
   }
 
   @override
-  Future<void> createCampaign(
+  Future<String> createCampaign(
     AppUser admin, {
     required String titleTr,
     required String bodyTr,
@@ -195,7 +195,7 @@ class FirestoreAdminRepository implements IAdminRepository {
   }) async {
     final ref = _campaigns.doc();
     final batch = _firestore.batch();
-    // Gönderimi Cloud Function yapar; istemci yalnızca kuyruğa ekler.
+    // Gönderimi bildirim sunucusu yapar; istemci yalnızca kuyruğa ekler.
     batch.set(ref, {
       'id': ref.id,
       'type': 'manual',
@@ -217,6 +217,7 @@ class FirestoreAdminRepository implements IAdminRepository {
       '"$titleTr" · ${target == 'all' ? 'tüm kullanıcılar' : '${targetUids.length} kullanıcı'}',
     );
     await batch.commit();
+    return ref.id;
   }
 
   @override

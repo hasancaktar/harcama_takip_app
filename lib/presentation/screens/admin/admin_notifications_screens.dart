@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -320,7 +322,7 @@ class _AdminSendNotificationScreenState
     if (!ok || !mounted) return;
     setState(() => _sending = true);
     try {
-      await ref
+      final campaignId = await ref
           .read(adminRepositoryProvider)
           .createCampaign(
             admin,
@@ -331,6 +333,9 @@ class _AdminSendNotificationScreenState
             target: _target,
             targetUids: _uids.toList(),
           );
+      // Sunucudan hemen göndermesini iste; sonucu beklemeden geçmişe geç.
+      // İstek başarısız olsa da sunucu kuyruğu dakikada bir tarar.
+      unawaited(ref.read(notificationServerProvider).triggerSend(campaignId));
       if (!mounted) return;
       context.showSuccess(
         'Bildirim gönderim kuyruğuna alındı. Durumu geçmişten izleyebilirsiniz.'
@@ -686,7 +691,7 @@ class _CampaignCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Sunucu işleyene kadar kuyrukta bekler. Uzun süre bu durumda kalırsa Cloud Functions yayınlanmamış olabilir.'
+                'Bildirim sunucusu işleyene kadar kuyrukta bekler (genellikle bir dakikadan kısa). Uzun süre bu durumda kalırsa bildirim sunucusu çalışmıyor olabilir.'
                     .tr,
                 style: muted,
               ),

@@ -188,6 +188,15 @@ abstract class AppConstants {
       'https://harcama-takip-app-7ff66.web.app/privacy-policy.html';
   static const String webAppUrl = 'https://harcama-takip-app-7ff66.web.app';
 
+  /// Push bildirimlerini gönderen Cloudflare Worker'ın adresi
+  /// (bkz. docs/notification-worker.md). Boş verilirse gönderimler yalnızca
+  /// kuyruğa yazılır ve sunucu dakikada bir taradığında gider. Derleme sırasında
+  /// `--dart-define=NOTIFICATION_SERVER_URL=...` ile de verilebilir.
+  static const String notificationServerUrl = String.fromEnvironment(
+    'NOTIFICATION_SERVER_URL',
+    defaultValue: 'https://harcama-bildirim.hasancaktar.workers.dev',
+  );
+
   static String get appTagline => 'Harcama, kart ve taksitleriniz tek yerde'.tr;
 
   /// Yönetim paneline erişebilen tek hesap. Asıl yetki kontrolü Firestore

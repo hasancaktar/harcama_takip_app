@@ -26,6 +26,11 @@
 
 ## 3. Yönetici bildirimleri ve sunucu hatırlatması (FCM)
 
+> **Gönderimi şu an Cloudflare Workers'taki bildirim sunucusu yapar**
+> ([notification-worker.md](notification-worker.md)); proje Firebase'in ücretsiz planında
+> olduğu için Cloud Functions yayınlanamıyor. Aşağıdaki kurallar iki sunucu için de aynıdır;
+> metindeki `sendCampaign` / `sendDailyReminder` adları Cloud Functions sürümünü anlatır.
+
 Yönetim panelinden yönetilir ([admin-panel.md](admin-panel.md)); `announcements` kanalını kullanır.
 
 **Elle gönderim (`sendCampaign`)**
@@ -67,4 +72,4 @@ Yönetim panelinden yönetilir ([admin-panel.md](admin-panel.md)); `announcement
   ayrı ayrı gönderim yapılmaz.
 - Her gönderimde tüm `users` koleksiyonu okunur. Binlerce kullanıcıya kadar sorun olmaz;
   daha büyük ölçekte FCM konu (topic) aboneliğine geçilmelidir.
-- Cloud Functions yayınlanmadıysa bildirimler "Kuyrukta" kalır ve hiçbir şey gönderilmez.
+- Bildirim sunucusu (`https://harcama-bildirim.hasancaktar.workers.dev`) çalışmıyorsa bildirimler "Kuyrukta" kalır ve hiçbir şey gönderilmez.

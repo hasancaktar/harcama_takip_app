@@ -477,7 +477,7 @@ const Map<String, String> translationsEn = {
   'Sonraki kesim {0} ({1})': 'Next closing {0} ({1})',
   'Sonuç bulunamadı': 'No results found',
   'Sunucu bağlantısı kurulamadı. İnternet bağlantınızı kontrol edip uygulamayı yeniden başlatın.': 'Could not connect to the server. Check your internet connection and restart the app.',
-  'Sunucu işleyene kadar kuyrukta bekler. Uzun süre bu durumda kalırsa Cloud Functions yayınlanmamış olabilir.': 'Waits in the queue until the server processes it. If it stays in this state for a long time, Cloud Functions may not be deployed.',
+  'Bildirim sunucusu işleyene kadar kuyrukta bekler (genellikle bir dakikadan kısa). Uzun süre bu durumda kalırsa bildirim sunucusu çalışmıyor olabilir.': 'Waits in the queue until the notification server processes it (usually under a minute). If it stays like this for a long time, the notification server may not be running.',
   'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edip tekrar deneyin.':
       'Cannot reach the server. Check your connection and try again.',
   'Sürükleyerek sıralayın. Pasif kategoriler yeni harcamalarda seçilemez; geçmiş harcamalarda görünmeye devam eder.': 'Drag to reorder. Inactive categories cannot be selected for new expenses; they keep appearing on past expenses.',

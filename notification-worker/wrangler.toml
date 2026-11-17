@@ -1,0 +1,23 @@
+# Harcama Takip bildirim sunucusu — Cloudflare Workers (ücretsiz plan).
+# Kurulum: ../docs/notification-worker.md
+name = "harcama-bildirim"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[vars]
+PROJECT_ID = "harcama-takip-app-7ff66"
+# Web uygulamasının /send çağrısı yapabileceği adresler (virgülle ayrılmış).
+ALLOWED_ORIGINS = "https://harcama-takip-app-7ff66.web.app,https://harcama-takip-app-7ff66.firebaseapp.com"
+# Bir çalıştırmada gönderilecek en fazla cihaz (ücretsiz planda 50 dış istek sınırı).
+CHUNK_SIZE = "35"
+
+# Gizli değer (kodda veya depoda tutulmaz):
+#   npx wrangler secret put GOOGLE_SERVICE_ACCOUNT < servis-hesabi.json
+
+[triggers]
+# Dakikada bir: günlük hatırlatma ve yarım kalan gönderimler.
+crons = ["* * * * *"]
+
+[observability]
+enabled = true

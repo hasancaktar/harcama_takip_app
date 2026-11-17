@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/firebase_auth_repository.dart';
+import '../../core/constants/app_constants.dart';
 import '../../data/repositories/firestore_admin_repository.dart';
+import '../../data/services/notification_server_client.dart';
+import '../../domain/repositories/i_notification_server.dart';
 import '../../domain/repositories/i_admin_repository.dart';
 import '../../data/repositories/firestore_account_data_repository.dart';
 import '../../data/repositories/firestore_budget_repository.dart';
@@ -67,4 +70,7 @@ final categoryRepositoryProvider = Provider<ICategoryRepository>(
 );
 final adminRepositoryProvider = Provider<IAdminRepository>(
   (ref) => FirestoreAdminRepository(),
+);
+final notificationServerProvider = Provider<INotificationServer>(
+  (ref) => HttpNotificationServer(baseUrl: AppConstants.notificationServerUrl),
 );

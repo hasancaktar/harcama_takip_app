@@ -38,6 +38,7 @@ lib/
 └── presentation/  GoRouter (oturum + e-posta doğrulama korumalı), ekranlar ve ortak bileşenler
 firestore.rules            güvenlik kuralları  ·  firestore.indexes.json  dizinler
 firestore-tests/           kural testleri (Firebase Emulator)
+notification-worker/       push bildirim sunucusu (Cloudflare Workers, ücretsiz)
 functions/                 Cloud Functions (2. nesil): gece taksit işleme, takım bildirimi,
                            yönetici bildirimleri ve günlük hatırlatma
 ```

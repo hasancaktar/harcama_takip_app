@@ -62,3 +62,8 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 .env
+
+# Cloudflare Worker
+.dev.vars
+.wrangler/
+notification-worker/dist/
