@@ -260,6 +260,8 @@ const Map<String, String> translationsEn = {
   'Harcama tarihi': 'Expense date',
   'Harcama, kart ve taksitleriniz tek yerde':
       'Your expenses, cards and installments in one place',
+  'Harcama Takip uygulamasını bilgisayarınızdan veya tabletinizden tarayıcı üzerinden de kullanabilirsiniz.\n\nWeb adresi: {0}':
+      'You can also use Harcama Takip from your computer or tablet via any web browser.\n\nWeb address: {0}',
   'Harcama, kart ve taksitlerinizi takip etmek için giriş yapın.':
       'Sign in to track your expenses, cards and installments.',
   'Harcamalar': 'Expenses',
@@ -565,9 +567,12 @@ const Map<String, String> translationsEn = {
       'App announcements and daily reminders',
   'Uygulama duyurularını ve otomatik günlük hatırlatmayı bu hesaba gönder. Kapatırsanız sunucudan bildirim almazsınız.': 'Send app announcements and the automatic daily reminder to this account. If you turn this off, you will not receive notifications from the server.',
   'Uygulama hakkında': 'About the app',
+  'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}':
+      'You can also use the app from your browser:\n{0}',
   'Varsayılan kategoriler içe aktarıldı': 'Default categories imported',
   'Varsayılanları içe aktar': 'Import defaults',
   'Vazgeç': 'Cancel',
+  'Web sürümü': 'Web version',
   'Veriler yüklenemedi': 'Could not load data',
   'Verilerimin gizlilik politikasında açıklandığı şekilde işlenmesini kabul ediyorum.':
       'I agree to my data being processed as described in the privacy policy.',

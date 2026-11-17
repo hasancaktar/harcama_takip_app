@@ -1,8 +1,8 @@
 # Gizlilik Politikası (Privacy Policy)
 
-**Son Güncelleme:** 12 Kasım 2026
+**Son Güncelleme:** 17 Kasım 2026
 
-**Harcama ve Taksit Takip** ("Uygulama"), kullanıcılarının gizliliğine ve kişisel verilerinin korunmasına azami önem vermektedir. Bu Gizlilik Politikası, uygulamamızı kullandığınızda toplanan, işlenen ve korunan veriler hakkında sizleri bilgilendirmek amacıyla hazırlanmıştır.
+**Harcama Takip** ("Uygulama"), kullanıcılarının gizliliğine ve kişisel verilerinin korunmasına azami önem vermektedir. Bu Gizlilik Politikası, uygulamamızı kullandığınızda toplanan, işlenen ve korunan veriler hakkında sizleri bilgilendirmek amacıyla hazırlanmıştır.
 
 ---
 

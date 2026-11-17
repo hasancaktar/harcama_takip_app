@@ -193,6 +193,27 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsGroup(
             children: [
               _SettingsTile(
+                icon: Icons.language_rounded,
+                title: 'Web sürümü'.tr,
+                subtitle: AppConstants.webAppUrl,
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text('Web sürümü'.tr),
+                    content: SelectableText(
+                      'Harcama Takip uygulamasını bilgisayarınızdan veya tabletinizden tarayıcı üzerinden de kullanabilirsiniz.\n\nWeb adresi: {0}'
+                          .trArgs([AppConstants.webAppUrl]),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text('Kapat'.tr),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              _SettingsTile(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Gizlilik politikası'.tr,
                 subtitle: AppConstants.privacyPolicyUrl,
@@ -219,9 +240,16 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: AppConstants.appName,
-                  applicationVersion: '1.0.0',
+                  applicationVersion: '1.1.0+2',
                   applicationIcon: const AppLogo(size: 48),
                   applicationLegalese: AppConstants.appTagline,
+                  children: [
+                    const SizedBox(height: 16),
+                    SelectableText(
+                      'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}'
+                          .trArgs([AppConstants.webAppUrl]),
+                    ),
+                  ],
                 ),
               ),
             ],
