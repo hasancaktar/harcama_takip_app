@@ -42,10 +42,10 @@ function shouldSendDailyReminder(config, now = new Date()) {
   const clock = localClock(now, config.timezone || TIME_ZONE);
   const target = Number(config.hour) * 60 + Number(config.minute);
   if (!Number.isFinite(target)) return false;
-  if (config.lastSentDate === clock.date) {
-    // Eski kayıtlarda saat yoksa (lastSentTime) gönderim saati bilinmez; aynı saat
-    // tekrar edilmesin diye yalnızca saat bilgisi eşleşirse atlanır.
-    if (!config.lastSentTime || config.lastSentTime === reminderTime(config)) return false;
+  // Bugün bu saat için zaten gönderildiyse atlanır. Saat bilgisi olmayan eski
+  // kayıtlarda gönderim saati bilinmediği için yeniden gönderilir.
+  if (config.lastSentDate === clock.date && config.lastSentTime === reminderTime(config)) {
+    return false;
   }
   const diff = clock.minutes - target;
   return diff >= 0 && diff < SEND_WINDOW_MINUTES;

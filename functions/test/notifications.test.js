@@ -23,7 +23,7 @@ test("günlük hatırlatma İstanbul saatine göre, ayarlanan saatte gönderilir
 
 test("aynı gün ikinci kez gönderilmez; kapalıyken gönderilmez", () => {
   const at = new Date("2026-11-16T18:05:00Z");
-  assert.equal(n.shouldSendDailyReminder(config({ lastSentDate: "2026-11-16" }), at), false);
+  assert.equal(n.shouldSendDailyReminder(config({ lastSentDate: "2026-11-16", lastSentTime: "21:00" }), at), false);
   assert.equal(n.shouldSendDailyReminder(config({ lastSentDate: "2026-11-15" }), at), true);
   assert.equal(n.shouldSendDailyReminder(config({ enabled: false }), at), false);
   assert.equal(n.shouldSendDailyReminder(null, at), false);
@@ -36,6 +36,8 @@ test("saat değiştirilirse aynı gün yeni saatte bir kez daha gönderilir", ()
   // Sabah 09:00'da gönderilmişti, yönetici saati 21:00 yaptı
   assert.equal(n.shouldSendDailyReminder(config({ lastSentDate: "2026-11-16", lastSentTime: "09:00" }), at), true);
   assert.equal(n.reminderTime({ hour: 9, minute: 5 }), "09:05");
+  // REGRESYON: saat bilgisi olmayan eski kayıt yeni saatteki gönderimi engellememeli.
+  assert.equal(n.shouldSendDailyReminder(config({ lastSentDate: "2026-11-16" }), at), true);
 });
 
 test("gece yarısına yakın saat ve gün değişimi doğru hesaplanır", () => {

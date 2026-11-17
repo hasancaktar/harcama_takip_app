@@ -227,3 +227,16 @@ test("zamanlayıcı bekleyen en eski kampanyayı işler", async () => {
   assert.equal(r.processed, "older");
   assert.equal(store.campaign("newer").status, "queued");
 });
+
+test("REGRESYON: saat bilgisi olmayan bugünkü kayıt yeni saatteki hatırlatmayı engellemez", async () => {
+  // Canlıdaki durum: 01:53'te gönderilmiş (lastSentTime yok), yönetici saati 02:12 yaptı.
+  const store = new MemoryStore({
+    users: [user("a", ["ta"], { dailyReminderEnabled: true })],
+    reminder: reminder({ hour: 2, minute: 12, lastSentDate: "2026-11-18" }),
+  });
+  const { send, sent } = fakeSender();
+  const r = await runScheduled({ store, send, now: new Date("2026-11-17T23:13:00Z"), newId: () => "d3" });
+  assert.equal(r.queuedDaily, "d3");
+  assert.deepEqual(sent.map((m) => m.token), ["ta"]);
+  assert.equal(store.reminder.data.lastSentTime, "02:12");
+});
