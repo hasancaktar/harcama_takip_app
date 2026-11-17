@@ -109,6 +109,7 @@ class AppButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool isLoading;
+  final String? loadingLabel;
   final IconData? icon;
   final bool expand;
   final bool outlined;
@@ -119,6 +120,7 @@ class AppButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.isLoading = false,
+    this.loadingLabel,
     this.icon,
     this.expand = true,
     this.outlined = false,
@@ -129,18 +131,44 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = context.colors;
     final effectiveOnPressed = isLoading ? null : onPressed;
+
+    final bg = destructive ? scheme.error : scheme.primary;
+    final fg = destructive ? scheme.onError : scheme.onPrimary;
+    final outlineColor = destructive ? scheme.error : scheme.primary;
+
     final child = isLoading
-        ? SizedBox(
-            height: 22,
-            width: 22,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              color: outlined ? scheme.primary : scheme.onPrimary,
-              semanticsLabel: 'İşleniyor'.tr,
-            ),
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    outlined ? outlineColor : fg,
+                  ),
+                  semanticsLabel: 'İşleniyor'.tr,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Text(
+                  loadingLabel ?? 'Kaydediliyor...'.tr,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: outlined ? outlineColor : fg,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 20),
@@ -152,25 +180,41 @@ class AppButton extends StatelessWidget {
 
     Widget button;
     if (outlined) {
+      final baseStyle = OutlinedButton.styleFrom(
+        foregroundColor: outlineColor,
+        side: BorderSide(
+          color: destructive
+              ? scheme.error.withValues(alpha: 0.6)
+              : scheme.outline,
+        ),
+      );
+
+      final loadingStyle = OutlinedButton.styleFrom(
+        disabledForegroundColor: outlineColor,
+        side: BorderSide(color: outlineColor.withValues(alpha: 0.8), width: 1.5),
+      );
+
       button = OutlinedButton(
         onPressed: effectiveOnPressed,
-        style: destructive
-            ? OutlinedButton.styleFrom(
-                foregroundColor: scheme.error,
-                side: BorderSide(color: scheme.error.withValues(alpha: 0.6)),
-              )
-            : null,
+        style: isLoading ? loadingStyle : (destructive ? baseStyle : null),
         child: child,
       );
     } else {
+      final baseStyle = destructive
+          ? FilledButton.styleFrom(
+              backgroundColor: scheme.error,
+              foregroundColor: scheme.onError,
+            )
+          : null;
+
+      final loadingStyle = FilledButton.styleFrom(
+        disabledBackgroundColor: bg,
+        disabledForegroundColor: fg,
+      );
+
       button = FilledButton(
         onPressed: effectiveOnPressed,
-        style: destructive
-            ? FilledButton.styleFrom(
-                backgroundColor: scheme.error,
-                foregroundColor: scheme.onError,
-              )
-            : null,
+        style: isLoading ? loadingStyle : baseStyle,
         child: child,
       );
     }

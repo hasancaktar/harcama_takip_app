@@ -44,9 +44,14 @@ abstract class MoneyFormatter {
     return _compactFormatter.format(amountInCents / 100.0);
   }
 
-  /// Form alanına geri yazmak için sembolsüz gösterim. Örnek: 125050 -> "1.250,50"
+  /// Form alanına geri yazmak için sembolsüz gösterim.
+  /// Kuruşsuz tutarlar için "50.000", kuruşlu tutarlar için "1.250,50" döner.
   static String formatForInput(int amountInCents) {
     if (amountInCents <= 0) return '';
+    if (amountInCents % 100 == 0) {
+      final whole = amountInCents ~/ 100;
+      return NumberFormat.decimalPattern('tr_TR').format(whole);
+    }
     return _plainFormatter.format(amountInCents / 100.0);
   }
 

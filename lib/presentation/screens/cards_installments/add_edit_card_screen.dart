@@ -14,6 +14,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money_formatter.dart';
+import '../../../core/utils/thousands_separator_input_formatter.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/credit_card.dart';
 import '../../widgets/common.dart';
@@ -264,8 +265,8 @@ class _CardFormState extends ConsumerState<_CardForm> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    inputFormatters: const [
+                      ThousandsSeparatorInputFormatter(),
                     ],
                     validator: Validators.optionalAmount,
                     decoration: InputDecoration(

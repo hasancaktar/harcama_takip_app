@@ -12,9 +12,17 @@ void main() {
 
     test('form alanı için sembolsüz biçim üretir ve geri çözülebilir', () {
       expect(MoneyFormatter.formatForInput(125050), '1.250,50');
+      expect(MoneyFormatter.formatForInput(5000000), '50.000');
+      expect(MoneyFormatter.formatForInput(15000000), '150.000');
+      expect(MoneyFormatter.formatForInput(125000000), '1.250.000');
+      expect(MoneyFormatter.formatForInput(5000000000), '50.000.000');
       expect(
         MoneyFormatter.parseToCents(MoneyFormatter.formatForInput(125050)),
         125050,
+      );
+      expect(
+        MoneyFormatter.parseToCents(MoneyFormatter.formatForInput(5000000)),
+        5000000,
       );
       expect(MoneyFormatter.formatForInput(0), '');
     });

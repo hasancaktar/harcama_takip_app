@@ -34,17 +34,14 @@ class ReportsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
           expensesAsync.when(
             skipLoadingOnReload: false,
-            loading: () => const SizedBox(
-              height: 400,
-              child: SkeletonList(
-                itemCount: 4,
-                padding: EdgeInsets.zero,
-                itemHeight: 90,
-              ),
-            ),
+            skipLoadingOnRefresh: false,
+            loading: () => const _ReportsLoadingView(),
             error: (e, _) => ErrorStateView(
               error: e,
-              onRetry: () => ref.invalidate(periodExpensesProvider),
+              onRetry: () {
+                ref.invalidate(periodExpensesProvider);
+                ref.invalidate(expenseTrendProvider);
+              },
             ),
             data: (expenses) => expenses.isEmpty
                 ? Column(
@@ -214,8 +211,18 @@ class _TrendCard extends ConsumerWidget {
             height: 180,
             child: trendAsync.when(
               skipLoadingOnReload: false,
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => ErrorStateView(error: e, compact: true),
+              skipLoadingOnRefresh: false,
+              loading: () => Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: scheme.primary,
+                ),
+              ),
+              error: (e, _) => ErrorStateView(
+                error: e,
+                compact: true,
+                onRetry: () => ref.invalidate(expenseTrendProvider),
+              ),
               data: (points) {
                 final maxValue = points.fold<int>(
                   0,
@@ -502,6 +509,56 @@ class _ShareRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReportsLoadingView extends StatelessWidget {
+  const _ReportsLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    return Column(
+      children: [
+        AppCard(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 36,
+                width: 36,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: scheme.primary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Dönem raporları yükleniyor...'.tr,
+                style: context.textStyles.titleSmall?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Grafikler ve harcama analizleri güncelleniyor.'.tr,
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        const SkeletonList(
+          itemCount: 3,
+          padding: EdgeInsets.zero,
+          itemHeight: 80,
+        ),
+      ],
     );
   }
 }

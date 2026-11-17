@@ -127,7 +127,7 @@ class _AddInstallmentPlanScreenState
     }
     setState(() => _saving = true);
     try {
-      final result = InstallmentPostingService.applyDuePostings(
+      final result = InstallmentPostingService.applyAllPostings(
         plan,
         now: DateTime.now(),
         actorUid: uid,

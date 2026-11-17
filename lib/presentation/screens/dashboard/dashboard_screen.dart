@@ -293,29 +293,68 @@ class _SummaryHeroCard extends ConsumerWidget {
                 value: budget.ratio.clamp(0.0, 1.0),
                 minHeight: 8,
                 color: budget.level == BudgetLevel.exceeded
-                    ? const Color(0xFFFFB4AB)
-                    : budget.level == BudgetLevel.safe
-                    ? onHero
-                    : const Color(0xFFFDE68A),
-                backgroundColor: onHero.withValues(alpha: 0.25),
+                    ? const Color(0xFFFF4D4D)
+                    : budget.level == BudgetLevel.critical
+                    ? const Color(0xFFF59E0B)
+                    : budget.level == BudgetLevel.warning
+                    ? const Color(0xFFFDE68A)
+                    : onHero,
+                backgroundColor: budget.level == BudgetLevel.exceeded
+                    ? Colors.black.withValues(alpha: 0.35)
+                    : onHero.withValues(alpha: 0.25),
                 semanticsLabel: 'Bütçe kullanımı'.tr,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              budget.remainingCents >= 0
-                  ? 'Bütçenin %{0} kullanıldı · {1} kaldı'.trArgs([
-                      (budget.ratio * 100).round(),
-                      MoneyFormatter.formatCents(budget.remainingCents),
-                    ])
-                  : 'Bütçe {0} aşıldı'.trArgs([
-                      MoneyFormatter.formatCents(-budget.remainingCents),
-                    ]),
-              style: context.textStyles.bodySmall?.copyWith(
-                color: onHero,
-                fontWeight: FontWeight.w600,
+            if (budget.level == BudgetLevel.exceeded)
+              Container(
+                margin: const EdgeInsets.only(top: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7F1D1D).withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(
+                    color: const Color(0xFFEF4444),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFFF8A80),
+                      size: 20,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        'Bütçenin %{0} harcandı · {1} aşıldı'.trArgs([
+                          (budget.ratio * 100).round(),
+                          MoneyFormatter.formatCents(-budget.remainingCents),
+                        ]),
+                        style: context.textStyles.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Text(
+                'Bütçenin %{0} kullanıldı · {1} kaldı'.trArgs([
+                  (budget.ratio * 100).round(),
+                  MoneyFormatter.formatCents(budget.remainingCents),
+                ]),
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: onHero,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
           ] else
             TextButton.icon(
               onPressed: () => context.push('/budgets'),

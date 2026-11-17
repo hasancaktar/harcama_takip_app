@@ -19,6 +19,7 @@ import '../../../core/utils/statement_calculator.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/credit_card.dart';
 import '../../../domain/entities/expense.dart';
+import '../../../domain/entities/installment_plan.dart';
 import '../../widgets/amount_field.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
@@ -93,6 +94,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   late String _category;
   late String _paymentMethod;
   String? _cardId;
+  int _installments = 1;
   late String _visibility;
   late DateTime _date;
   bool _saving = false;
@@ -219,30 +221,127 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     final now = DateTime.now();
     final existing = widget.existing;
     final isCredit = _paymentMethod == 'credit_card';
-    final expense = Expense(
-      id: existing?.id ?? const Uuid().v4(),
-      teamId: _teamIdForSave,
-      ownerUid: existing?.ownerUid ?? uid,
-      visibility: _visibility,
-      title: _titleController.text.trim(),
-      amountInCents: MoneyFormatter.parseToCents(_amountController.text),
-      currency: AppConstants.defaultCurrency,
-      category: _category,
-      date: _date,
-      paymentMethod: _paymentMethod,
-      cardId: isCredit ? _cardId : null,
-      cardLast4: isCredit ? (card?.last4Digits ?? existing?.cardLast4) : null,
-      statementPeriod: _resolvePeriod(cards),
-      notes: _notesController.text.trim().isEmpty
-          ? null
-          : _notesController.text.trim(),
-      tags: existing?.tags ?? const [],
-      createdBy: existing?.createdBy ?? uid,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
+    final rawTitle = _titleController.text.trim();
+    final categoryMeta = AppConstants.categories.firstWhere(
+      (c) => c.id == _category,
+      orElse: () => AppConstants.categories.first,
     );
+    final title = rawTitle.isEmpty ? categoryMeta.name : rawTitle;
+    final totalAmount = MoneyFormatter.parseToCents(_amountController.text);
 
     try {
+      if (!_isEdit && isCredit && _installments > 1 && card != null) {
+        final planId = const Uuid().v4();
+        final schedule = StatementCalculator.generateSchedule(
+          startDate: _date,
+          cutoffDay: card.cutoffDay,
+          totalInstallments: _installments,
+          installmentCentsList: MoneyFormatter.divideInstallmentCents(
+            totalAmount,
+            _installments,
+          ),
+          paymentDueDaysAfterCutoff: card.paymentDueDaysAfterCutoff,
+        );
+
+        final postings = <Expense>[];
+        final updatedSchedule = <StatementInstallmentScheduleItem>[];
+        for (final item in schedule) {
+          final postDate = item.installmentNumber == 1
+              ? _date
+              : item.statementCutoffDate;
+          final exp = Expense(
+            id: InstallmentPostingPolicy.expenseIdFor(planId, item),
+            teamId: _teamIdForSave,
+            ownerUid: uid,
+            visibility: _visibility,
+            title: '$title - ${item.installmentNumber}. Taksit', // l10n-ignore
+            amountInCents: item.amountInCents,
+            currency: AppConstants.defaultCurrency,
+            category: _category,
+            date: postDate,
+            paymentMethod: 'credit_card',
+            cardId: card.id,
+            cardLast4: card.last4Digits,
+            isInstallment: true,
+            installmentPlanId: planId,
+            installmentNumber: item.installmentNumber,
+            totalInstallments: _installments,
+            statementPeriod: item.statementPeriod,
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
+            tags: const [],
+            createdBy: uid,
+            createdAt: now,
+            updatedAt: now,
+          );
+          postings.add(exp);
+          updatedSchedule.add(item.copyWith(status: 'posted'));
+        }
+
+        final plan = InstallmentPlan(
+          id: planId,
+          ownerUid: uid,
+          teamId: _teamIdForSave,
+          visibility: _visibility,
+          title: title,
+          totalAmountInCents: totalAmount,
+          totalInstallments: _installments,
+          cardId: card.id,
+          cardLast4: card.last4Digits,
+          category: _category,
+          startDate: _date,
+          installmentSchedule: updatedSchedule,
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await ref
+            .read(installmentRepositoryProvider)
+            .savePlanWithPostings(plan, postings);
+
+        if (!mounted) return;
+        context.showSuccess(
+          '{0} taksitli harcama planı oluşturuldu ve taksitler ilgili aylara eklendi.'
+              .trArgs([_installments]),
+        );
+        if (addAnother) {
+          _amountController.clear();
+          _titleController.clear();
+          _notesController.clear();
+          _installments = 1;
+          _formKey.currentState!.reset();
+          setState(() => _saving = false);
+        } else {
+          context.pop();
+        }
+        return;
+      }
+
+      final expense = Expense(
+        id: existing?.id ?? const Uuid().v4(),
+        teamId: _teamIdForSave,
+        ownerUid: existing?.ownerUid ?? uid,
+        visibility: _visibility,
+        title: title,
+        amountInCents: totalAmount,
+        currency: AppConstants.defaultCurrency,
+        category: _category,
+        date: _date,
+        paymentMethod: _paymentMethod,
+        cardId: isCredit ? _cardId : null,
+        cardLast4: isCredit ? (card?.last4Digits ?? existing?.cardLast4) : null,
+        statementPeriod: _resolvePeriod(cards),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
+        tags: existing?.tags ?? const [],
+        createdBy: existing?.createdBy ?? uid,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      );
+
       final repo = ref.read(expenseRepositoryProvider);
       if (_isEdit) {
         await repo.updateExpense(expense);
@@ -265,6 +364,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         _amountController.clear();
         _titleController.clear();
         _notesController.clear();
+        _installments = 1;
         _formKey.currentState!.reset();
         setState(() => _saving = false);
       } else {
@@ -317,14 +417,14 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               inputFormatters: [
                 LengthLimitingTextInputFormatter(AppConstants.maxTitleLength),
               ],
-              validator: Validators.requiredText(
+              validator: Validators.optionalText(
                 'Açıklama'.tr,
                 maxLength: AppConstants.maxTitleLength,
               ),
               decoration: InputDecoration(
-                labelText: 'Açıklama'.tr,
+                labelText: 'Açıklama (isteğe bağlı)'.tr,
                 hintText: 'Örn. Haftalık market alışverişi'.tr,
-                prefixIcon: Icon(Icons.edit_note_rounded),
+                prefixIcon: const Icon(Icons.edit_note_rounded),
                 counterText: '',
               ),
             ),
@@ -422,6 +522,55 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                           DateFormats.period(period),
                         ]),
                 ),
+                if (!_isEdit) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _FieldLabel('Taksit sayısı'.tr),
+                  DropdownButtonFormField<int>(
+                    key: ValueKey('installments-$_installments'),
+                    initialValue: _installments,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Taksit sayısı'.tr,
+                      prefixIcon: const Icon(Icons.splitscreen_rounded),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: 1,
+                        child: Text('Tek çekim'.tr),
+                      ),
+                      for (final n in [2, 3, 4, 5, 6, 8, 9, 10, 12, 18, 24, 36])
+                        DropdownMenuItem(
+                          value: n,
+                          child: Text('{0} taksit'.trArgs([n])),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _installments = v ?? 1),
+                  ),
+                  if (_installments > 1) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Builder(
+                      builder: (context) {
+                        final total = MoneyFormatter.parseToCents(
+                          _amountController.text,
+                        );
+                        final perMonth = total > 0
+                            ? (total / _installments).round()
+                            : 0;
+                        return InlineMessage(
+                          tone: MessageTone.info,
+                          message: total > 0
+                              ? 'Aylık yaklaşık {0} olarak {1} ay boyunca ekstrenize yansıtılacak.'
+                                    .trArgs([
+                                      MoneyFormatter.formatCents(perMonth),
+                                      _installments,
+                                    ])
+                              : 'Toplam tutar {0} aya eşit şekilde paylaştırılacak.'
+                                    .trArgs([_installments]),
+                        );
+                      },
+                    ),
+                  ],
+                ],
               ],
             ],
             const SizedBox(height: AppSpacing.md),

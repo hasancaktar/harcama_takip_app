@@ -1,6 +1,5 @@
 import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers/auth_providers.dart';
@@ -13,6 +12,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_formats.dart';
 import '../../../core/utils/money_formatter.dart';
+import '../../../core/utils/thousands_separator_input_formatter.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/budget.dart';
 import '../../widgets/app_card.dart';
@@ -242,8 +242,8 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
           TextFormField(
             controller: _totalController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            inputFormatters: const [
+              ThousandsSeparatorInputFormatter(),
             ],
             validator: Validators.amount,
             decoration: InputDecoration(
@@ -382,8 +382,8 @@ class _CategoryLimitRow extends StatelessWidget {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  inputFormatters: const [
+                    ThousandsSeparatorInputFormatter(),
                   ],
                   validator: Validators.optionalAmount,
                   textAlign: TextAlign.end,

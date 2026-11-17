@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:harcama_takip/core/l10n/app_locale.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/thousands_separator_input_formatter.dart';
 import '../../core/utils/validators.dart';
 
 /// Büyük ve hızlı tutar girişi. Yalnızca rakam, virgül ve nokta kabul eder.
@@ -56,9 +56,8 @@ class AmountField extends StatelessWidget {
             onChanged: onChanged,
             textInputAction: textInputAction,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              LengthLimitingTextInputFormatter(16),
+            inputFormatters: const [
+              ThousandsSeparatorInputFormatter(),
             ],
             validator: Validators.amount,
             style: context.textStyles.displaySmall?.copyWith(

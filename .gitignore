@@ -54,6 +54,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+.claude/
 
 # Node / Firebase
 node_modules/

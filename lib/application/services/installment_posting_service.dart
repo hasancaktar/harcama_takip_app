@@ -56,6 +56,37 @@ class InstallmentPostingService {
     );
   }
 
+  /// Planın tüm taksitlerini harcama olarak işler; böylece gelecek ayların
+  /// harcama ve rapor ekranlarında taksitler otomatik görünür.
+  static PostingResult applyAllPostings(
+    InstallmentPlan plan, {
+    required DateTime now,
+    required String actorUid,
+  }) {
+    if (!plan.isActive) return PostingResult(plan, const []);
+
+    final postings = <Expense>[];
+    final schedule = <StatementInstallmentScheduleItem>[];
+    for (final item in plan.installmentSchedule) {
+      if (item.status != 'posted') {
+        postings.add(buildPosting(plan, item, actorUid: actorUid, now: now));
+        schedule.add(item.copyWith(status: 'posted'));
+      } else {
+        schedule.add(item);
+      }
+    }
+    if (postings.isEmpty) return PostingResult(plan, const []);
+
+    return PostingResult(
+      plan.copyWith(
+        installmentSchedule: schedule,
+        status: 'active',
+        updatedAt: now,
+      ),
+      postings,
+    );
+  }
+
   static Expense buildPosting(
     InstallmentPlan plan,
     StatementInstallmentScheduleItem item, {
@@ -67,8 +98,7 @@ class InstallmentPostingService {
       teamId: plan.teamId,
       ownerUid: plan.ownerUid,
       visibility: plan.visibility,
-      title:
-          '${plan.title} (${item.installmentNumber}/${plan.totalInstallments}. taksit)',
+      title: '${plan.title} - ${item.installmentNumber}. Taksit',
       amountInCents: item.amountInCents,
       currency: plan.currency,
       category: plan.category,
