@@ -40,7 +40,7 @@ Verileriniz hiçbir reklam ağıyla veya veri simsarıyla satılmaz ve paylaşı
 ## 4. Kullanıcı Hakları ve Hesap Silme
 
 - Kullanıcılar, diledikleri an **Ayarlar > Profil Bilgileri > Hesabımı Sil** bölümünden hesaplarını ve ilişkili tüm kişisel kayıtlarını kalıcı olarak silebilirler.
-- Herhangi bir veri talebi veya destek için geliştirici ile [hasancaktar@gmail.com](mailto:hasancaktar@gmail.com) adresi üzerinden iletişime geçebilirsiniz.
+- Herhangi bir veri talebi veya destek için geliştirici ile [faydalab3@gmail.com](mailto:faydalab3@gmail.com) adresi üzerinden iletişime geçebilirsiniz.
 
 ---
 

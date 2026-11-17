@@ -17,6 +17,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
 import '../splash/splash_screen.dart';
+import 'license_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -246,23 +247,81 @@ class SettingsScreen extends ConsumerWidget {
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
                 title: 'Uygulama hakkında'.tr,
-                onTap: () => showAboutDialog(
+                onTap: () => showDialog<void>(
                   context: context,
-                  applicationName: AppConstants.appName,
-                  applicationVersion: '1.1.0+2',
-                  applicationIcon: const AppLogo(size: 48),
-                  applicationLegalese: AppConstants.appTagline,
-                  children: [
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: () => _openUrl(context, AppConstants.webAppUrl),
-                      onLongPress: () => _copyUrl(context, AppConstants.webAppUrl),
-                      child: SelectableText(
-                        'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}'
-                            .trArgs([AppConstants.webAppUrl]),
+                  builder: (ctx) {
+                    final scheme = ctx.colors;
+                    return AlertDialog(
+                      title: Row(
+                        children: [
+                          const AppLogo(size: 32),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(AppConstants.appName),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '1.1.1+3',
+                            style: ctx.textStyles.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(AppConstants.appTagline),
+                          const SizedBox(height: AppSpacing.md),
+                          InkWell(
+                            onTap: () => _openUrl(context, AppConstants.webAppUrl),
+                            onLongPress: () => _copyUrl(context, AppConstants.webAppUrl),
+                            child: SelectableText(
+                              'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}'
+                                  .trArgs([AppConstants.webAppUrl]),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Powered by Faydalab', // l10n-ignore
+                              style: ctx.textStyles.labelMedium?.copyWith(
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AppLicensePage(),
+                              ),
+                            );
+                          },
+                          child: Text('Lisansları görüntüle'.tr),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text('Kapat'.tr),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],

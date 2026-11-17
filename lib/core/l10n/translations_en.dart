@@ -312,6 +312,7 @@ const Map<String, String> translationsEn = {
   'Kapalı': 'Off',
   'Kapalı: otomatik bildirim gönderilmez.':
       'Off: no automatic notification is sent.',
+  'Kapat': 'Close',
   'Kart': 'Card',
   'Kart adı': 'Card name',
   'Kart bulunamadı': 'Card not found',
@@ -399,6 +400,8 @@ const Map<String, String> translationsEn = {
   'Limit yok': 'No limit',
   'Limitin %{0} kadarı bu ekstrede · Limit {1}':
       '{0}% of the limit is on this statement · Limit {1}',
+  'Lisanslar': 'Licenses',
+  'Lisansları görüntüle': 'View licenses',
   'Lütfen bir kredi kartı seçin veya farklı bir ödeme yöntemi kullanın.':
       'Please select a credit card or use a different payment method.',
   'Lütfen bir kredi kartı seçin.': 'Please select a credit card.',
@@ -629,6 +632,7 @@ const Map<String, String> translationsEn = {
   '{0} kullanıcı · {1} cihaz · {2} başarılı · {3} başarısız · {4} bildirimi kapalı': 'Users: {0} · devices: {1} · delivered: {2} · failed: {3} · notifications off: {4}',
   '{0} kullanıcıdan {1} tanesi şu an bildirim alabiliyor.':
       '{1} of {0} users can currently receive notifications.',
+  '{0} lisans': '{0} licenses',
   '{0} limit kullanımı': '{0} limit usage',
   '{0} seçili kullanıcı': 'Selected users: {0}',
   '{0} sizi davet etti · ': 'Invited by {0} · ',
