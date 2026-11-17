@@ -218,6 +218,7 @@ exports.sendDailyReminder = onSchedule(
       if (!notifications.shouldSendDailyReminder(data, now)) return null;
       tx.update(configRef, {
         lastSentDate: notifications.localClock(now, data.timezone || notifications.TIME_ZONE).date,
+        lastSentTime: notifications.reminderTime(data),
       });
       return data;
     });

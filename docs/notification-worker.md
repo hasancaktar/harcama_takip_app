@@ -22,7 +22,8 @@ Zamanlayıcı (dakikada bir) ──▶ Worker: günlük hatırlatma saati geldiy
 - (2) numaralı istek başarısız olsa bile (ağ, uygulama kapandı…) zamanlayıcı kuyruğu
   dakikada bir taradığı için bildirim **en geç bir dakika** içinde gider.
 - Kampanyayı aynı anda iki çalıştırma işleyemez (`leaseUntil` kilidi ve koşullu yazma).
-- Günlük hatırlatma, `lastSentDate` koşullu yazıldığı için günde **bir kez** gider.
+- Günlük hatırlatma, gönderim günü ve saati (`lastSentDate`, `lastSentTime`) koşullu yazıldığı
+  için ayarlanan saatte **bir kez** gider; saat değiştirilirse aynı gün yeni saatte de gider.
 - Kullanıcı tercihleri, dil ve geçersiz cihaz anahtarlarının temizlenmesi Cloud Functions
   sürümüyle aynıdır; ortak mantık [`functions/lib/notifications.js`](../functions/lib/notifications.js)
   dosyasından kullanılır.

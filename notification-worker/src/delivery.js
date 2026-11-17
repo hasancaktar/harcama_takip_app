@@ -111,7 +111,8 @@ export async function maybeQueueDailyReminder({ store, now = new Date(), newId =
   const config = await store.getReminderConfig();
   if (!config || !notifications.shouldSendDailyReminder(config.data, now)) return null;
   const date = notifications.localClock(now, config.data.timezone || notifications.TIME_ZONE).date;
-  if (!(await store.markReminderSent(config.updateTime, date))) return null;
+  const time = notifications.reminderTime(config.data);
+  if (!(await store.markReminderSent(config.updateTime, date, time))) return null;
 
   const id = newId();
   const d = config.data;

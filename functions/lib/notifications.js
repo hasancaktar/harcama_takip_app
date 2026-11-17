@@ -31,7 +31,8 @@ function localClock(date, timeZone = TIME_ZONE) {
 /**
  * Günlük hatırlatma şimdi gönderilmeli mi?
  * - Ayar kapalıysa gönderilmez.
- * - Aynı yerel günde yalnızca bir kez gönderilir (lastSentDate).
+ * - Aynı yerel günde aynı saat için yalnızca bir kez gönderilir (lastSentDate +
+ *   lastSentTime). Yönetici saati değiştirirse aynı gün yeni saatte de gönderilir.
  * - Ayarlanan saatten sonraki SEND_WINDOW_MINUTES dakika içinde gönderilir; böylece
  *   zamanlayıcı gecikse de bildirim kaçmaz, saatler sonra da gönderilmez.
  *   Saat dilimi kuralları (yaz saati vb.) Intl tarafından hesaplanır.
@@ -39,18 +40,29 @@ function localClock(date, timeZone = TIME_ZONE) {
 function shouldSendDailyReminder(config, now = new Date()) {
   if (!config || config.enabled !== true) return false;
   const clock = localClock(now, config.timezone || TIME_ZONE);
-  if (config.lastSentDate === clock.date) return false;
   const target = Number(config.hour) * 60 + Number(config.minute);
   if (!Number.isFinite(target)) return false;
+  if (config.lastSentDate === clock.date) {
+    // Eski kayıtlarda saat yoksa (lastSentTime) gönderim saati bilinmez; aynı saat
+    // tekrar edilmesin diye yalnızca saat bilgisi eşleşirse atlanır.
+    if (!config.lastSentTime || config.lastSentTime === reminderTime(config)) return false;
+  }
   const diff = clock.minutes - target;
   return diff >= 0 && diff < SEND_WINDOW_MINUTES;
+}
+
+/** Ayarlanan saat "HH:MM" biçiminde. */
+function reminderTime(config) {
+  const pad = (n) => String(Number(n) || 0).padStart(2, "0");
+  return `${pad(config.hour)}:${pad(config.minute)}`;
 }
 
 /**
  * Alıcıları seçer ve dile göre gruplar.
  * Kullanıcı tercihleri dikkate alınır:
- *  - pushEnabled === false olanlara gönderilmez,
- *  - günlük hatırlatmada, kendi yerel hatırlatıcısını açmış kullanıcılar atlanır (çift bildirim olmasın).
+ *  - pushEnabled === false olanlara gönderilmez.
+ *  Günlük hatırlatma, kendi kişisel hatırlatıcısını açmış kullanıcılara da gider
+ *  (yönetici kararı, 2026-11-18).
  * @param {Array<{uid: string, data: object}>} users
  * @return {{groups: {tr: Array, en: Array}, recipientCount: number, optedOutCount: number, tokenCount: number}}
  */
@@ -65,7 +77,7 @@ function selectRecipients(users, { target = "all", targetUids = [], type = "manu
     if (target === "selected" && !selected.has(user.uid)) continue;
     const data = user.data || {};
     const tokens = Array.isArray(data.fcmTokens) ? data.fcmTokens.filter((t) => typeof t === "string" && t) : [];
-    if (data.pushEnabled === false || (type === "daily" && data.dailyReminderEnabled === true)) {
+    if (data.pushEnabled === false) {
       optedOutCount++;
       continue;
     }
@@ -99,5 +111,5 @@ function chunk(list, size) {
 
 module.exports = {
   ADMIN_EMAIL, TIME_ZONE, SEND_WINDOW_MINUTES,
-  isAdminUser, localClock, shouldSendDailyReminder, selectRecipients, messageFor, resultStatus, chunk,
+  isAdminUser, localClock, reminderTime, shouldSendDailyReminder, selectRecipients, messageFor, resultStatus, chunk,
 };

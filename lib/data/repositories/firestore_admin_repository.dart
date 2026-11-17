@@ -151,7 +151,8 @@ class FirestoreAdminRepository implements IAdminRepository {
   @override
   Future<void> saveReminderConfig(AppUser admin, ReminderConfig config) async {
     final batch = _firestore.batch();
-    // merge: sunucunun yazdığı `lastSentDate` korunur (aynı gün ikinci gönderimi önler).
+    // merge: sunucunun yazdığı `lastSentDate` / `lastSentTime` korunur (aynı saat için
+    // ikinci gönderimi önler).
     batch.set(_reminder, {
       ...config.toMap(),
       'updatedAt': FieldValue.serverTimestamp(),

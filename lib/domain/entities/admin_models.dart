@@ -22,6 +22,7 @@ class ReminderConfig {
   final String target; // 'all' | 'selected'
   final List<String> targetUids;
   final String? lastSentDate; // 'YYYY-MM-DD' (sunucu yazar)
+  final String? lastSentTime; // 'HH:MM' (sunucu yazar)
 
   const ReminderConfig({
     this.enabled = false,
@@ -34,6 +35,7 @@ class ReminderConfig {
     this.target = 'all',
     this.targetUids = const [],
     this.lastSentDate,
+    this.lastSentTime,
   });
 
   Map<String, dynamic> toMap() => {
@@ -61,6 +63,7 @@ class ReminderConfig {
       target: JsonParsers.string(map['target'], fallback: 'all'),
       targetUids: JsonParsers.stringList(map['targetUids']),
       lastSentDate: JsonParsers.stringOrNull(map['lastSentDate']),
+      lastSentTime: JsonParsers.stringOrNull(map['lastSentTime']),
     );
   }
 }

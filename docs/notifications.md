@@ -49,8 +49,9 @@ Yönetim panelinden yönetilir ([admin-panel.md](admin-panel.md)); `announcement
 - Zamanlayıcı 5 dakikada bir çalışır ve saati **Europe/Istanbul** saatine göre değerlendirir
   (yaz saati kuralları `Intl` ile hesaplanır). Ayarlanan saatten sonraki 30 dakika içinde
   gönderir; zamanlayıcı gecikse de bildirim kaçmaz, saatler sonra da gönderilmez.
-- **Günde bir kez:** `lastSentDate` bir Firestore işlemi (transaction) içinde atomik yazılır;
-  eşzamanlı iki çalıştırma veya yeniden deneme ikinci bildirimi gönderemez. Bu alan istemciden
+- **Günde bir kez:** gönderim günü ve saati (`lastSentDate`, `lastSentTime`) koşullu yazılır;
+  eşzamanlı iki çalıştırma veya yeniden deneme ikinci bildirimi gönderemez. Yönetici aynı gün
+  saati değiştirirse yeni saatte bir kez daha gönderilir. `lastSentDate` istemciden
   değiştirilemez (kurallar engeller).
 - Her otomatik gönderim de `type: daily` olarak bildirim geçmişine düşer.
 
@@ -58,8 +59,8 @@ Yönetim panelinden yönetilir ([admin-panel.md](admin-panel.md)); `announcement
 
 - `users/{uid}.pushEnabled == false` olan kullanıcılara sunucu bildirimi gönderilmez
   (Ayarlar > Bildirimler > "Duyuru ve hatırlatma bildirimleri").
-- Kendi yerel hatırlatıcısını açmış kullanıcı (`dailyReminderEnabled`) sunucunun günlük
-  hatırlatmasını almaz; aynı gün iki bildirim gelmez.
+- Kendi kişisel hatırlatıcısını açmış kullanıcılar da sunucunun günlük hatırlatmasını alır
+  (2026-11-18 kararı); bu kullanıcılar günde iki hatırlatma alabilir.
 - Mesaj kullanıcının dilinde gider (`users/{uid}.language`); İngilizce metin boşsa Türkçe gider.
 - Android 13+ bildirim izni ilk girişte bir kez istenir. İzin verilmezse cihaz anahtarı
   kaydedilse de sistem bildirimi göstermez.

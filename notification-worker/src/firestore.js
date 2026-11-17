@@ -149,7 +149,7 @@ export class FirestoreStore {
   // ---- Kullanıcılar
 
   async listUsers() {
-    const mask = ["fcmTokens", "pushEnabled", "language", "dailyReminderEnabled"]
+    const mask = ["fcmTokens", "pushEnabled", "language"]
       .map((f) => `mask.fieldPaths=${f}`).join("&");
     const users = [];
     let pageToken = "";
@@ -191,12 +191,15 @@ export class FirestoreStore {
     return this.getDoc("appConfig/dailyReminder");
   }
 
-  /** `lastSentDate` alanını yalnızca belge değişmediyse yazar (aynı gün çift gönderimi önler). */
-  async markReminderSent(updateTime, date) {
+  /** Gönderim gün ve saatini yalnızca belge değişmediyse yazar (çift gönderimi önler). */
+  async markReminderSent(updateTime, date, time) {
     try {
       await this.commit([{
-        update: { name: this.name("appConfig/dailyReminder"), fields: encodeFields({ lastSentDate: date }) },
-        updateMask: { fieldPaths: ["lastSentDate"] },
+        update: {
+          name: this.name("appConfig/dailyReminder"),
+          fields: encodeFields({ lastSentDate: date, lastSentTime: time }),
+        },
+        updateMask: { fieldPaths: ["lastSentDate", "lastSentTime"] },
         currentDocument: { updateTime },
       }]);
       return true;

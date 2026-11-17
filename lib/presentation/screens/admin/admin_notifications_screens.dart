@@ -488,10 +488,10 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
     final scheme = context.colors;
     final timeLabel =
         '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}';
-    final lastSent = ref
-        .watch(reminderConfigProvider)
-        .valueOrNull
-        ?.lastSentDate;
+    final config = ref.watch(reminderConfigProvider).valueOrNull;
+    final lastSent = config?.lastSentDate == null
+        ? null
+        : [config!.lastSentDate, ?config.lastSentTime].join(' ');
 
     return Form(
       key: _formKey,
@@ -563,7 +563,7 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
           const SizedBox(height: AppSpacing.md),
           InlineMessage(
             tone: MessageTone.info,
-            message: 'Günde en fazla bir kez gönderilir. Bildirimleri kapatan veya kendi kişisel hatırlatıcısını kullanan kullanıcılara gönderilmez (çift bildirim olmaması için).'
+            message: 'Her gün ayarlanan saatte bir kez gönderilir. Saati değiştirirseniz aynı gün yeni saatte de gönderilir. Bildirimleri kapatan kullanıcılara gönderilmez.'
                 .tr,
           ),
           const SizedBox(height: AppSpacing.lg),

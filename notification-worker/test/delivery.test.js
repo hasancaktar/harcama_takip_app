@@ -172,13 +172,27 @@ test("günlük hatırlatma saatinde bir kez kuyruğa eklenir ve gönderilir", as
   assert.equal(first.processed, "d1");
   assert.equal(store.campaign("d1").type, "daily");
   assert.equal(store.campaign("d1").status, "sent");
-  // Kendi yerel hatırlatıcısını kullanan kullanıcıya gönderilmez.
-  assert.deepEqual(sent.map((m) => m.token), ["ta"]);
+  // Kişisel hatırlatıcısı açık olan kullanıcıya da gider.
+  assert.deepEqual(sent.map((m) => m.token), ["ta", "tb"]);
   assert.equal(store.reminder.data.lastSentDate, "2026-11-18");
+  assert.equal(store.reminder.data.lastSentTime, "21:00");
 
   const again = await runScheduled({ store, send, now: new Date(at2102.getTime() + 60_000), newId });
   assert.equal(again.queuedDaily, null);
+  assert.equal(sent.length, 2);
+});
+
+test("yönetici saati değiştirirse aynı gün yeni saatte tekrar gönderilir", async () => {
+  const store = new MemoryStore({
+    users: [user("a", ["ta"])],
+    reminder: reminder({ hour: 21, minute: 30, lastSentDate: "2026-11-18", lastSentTime: "21:00" }),
+  });
+  const { send, sent } = fakeSender();
+  // 21:31 İstanbul
+  const r = await runScheduled({ store, send, now: new Date("2026-11-18T18:31:00Z"), newId: () => "d2" });
+  assert.equal(r.queuedDaily, "d2");
   assert.equal(sent.length, 1);
+  assert.equal(store.reminder.data.lastSentTime, "21:30");
 });
 
 test("hatırlatma kapalıyken veya saati gelmemişken gönderilmez", async () => {

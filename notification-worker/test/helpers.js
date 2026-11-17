@@ -59,9 +59,10 @@ export class MemoryStore {
     return this.reminder ? { id: "dailyReminder", data: { ...this.reminder.data }, updateTime: `v${this.reminder.version}` } : null;
   }
 
-  async markReminderSent(updateTime, date) {
+  async markReminderSent(updateTime, date, time) {
     if (!this.reminder || `v${this.reminder.version}` !== updateTime) return false;
     this.reminder.data.lastSentDate = date;
+    this.reminder.data.lastSentTime = time;
     this.reminder.version++;
     return true;
   }

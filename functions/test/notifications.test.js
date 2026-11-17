@@ -29,6 +29,15 @@ test("aynı gün ikinci kez gönderilmez; kapalıyken gönderilmez", () => {
   assert.equal(n.shouldSendDailyReminder(null, at), false);
 });
 
+test("saat değiştirilirse aynı gün yeni saatte bir kez daha gönderilir", () => {
+  const at = new Date("2026-11-16T18:05:00Z"); // 21:05 İstanbul
+  // 21:00 bugün zaten gönderildi
+  assert.equal(n.shouldSendDailyReminder(config({ lastSentDate: "2026-11-16", lastSentTime: "21:00" }), at), false);
+  // Sabah 09:00'da gönderilmişti, yönetici saati 21:00 yaptı
+  assert.equal(n.shouldSendDailyReminder(config({ lastSentDate: "2026-11-16", lastSentTime: "09:00" }), at), true);
+  assert.equal(n.reminderTime({ hour: 9, minute: 5 }), "09:05");
+});
+
 test("gece yarısına yakın saat ve gün değişimi doğru hesaplanır", () => {
   // 23:50 İstanbul = 20:50 UTC; yerel tarih 16 Kasım
   const c = config({ hour: 23, minute: 50 });
@@ -50,10 +59,11 @@ test("alıcı seçimi kullanıcı tercihlerine uyar ve dile göre gruplar", () =
   assert.equal(manual.tokenCount, 4);
   assert.deepEqual(manual.groups.en.map((x) => x.token), ["t3"]);
 
-  // Günlük hatırlatmada kendi yerel hatırlatıcısı açık olan kullanıcı atlanır.
+  // Günlük hatırlatma kişisel hatırlatıcısı açık olanlara da gider; yalnızca
+  // bildirimleri kapatan atlanır.
   const daily = n.selectRecipients(users, { target: "all", type: "daily" });
-  assert.equal(daily.recipientCount, 2);
-  assert.equal(daily.optedOutCount, 2);
+  assert.equal(daily.recipientCount, 3);
+  assert.equal(daily.optedOutCount, 1);
 
   const selected = n.selectRecipients(users, { target: "selected", targetUids: ["b", "c"] });
   assert.equal(selected.recipientCount, 1);

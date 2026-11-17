@@ -236,7 +236,7 @@ const Map<String, String> translationsEn = {
   'Göz yorgunluğunu azaltır': 'Reduces eye strain',
   'Grafikler ve harcama analizleri güncelleniyor.':
       'Charts and spending analyses are being updated.',
-  'Günde en fazla bir kez gönderilir. Bildirimleri kapatan veya kendi kişisel hatırlatıcısını kullanan kullanıcılara gönderilmez (çift bildirim olmaması için).': 'Sent at most once a day. Not sent to users who turned notifications off or who use their own personal reminder (to avoid duplicate notifications).',
+  'Her gün ayarlanan saatte bir kez gönderilir. Saati değiştirirseniz aynı gün yeni saatte de gönderilir. Bildirimleri kapatan kullanıcılara gönderilmez.': 'Sent once a day at the set time. If you change the time, it is sent again at the new time the same day. Not sent to users who turned notifications off.',
   'Günler': 'Days',
   'Günlük Harcama Hatırlatıcıları': 'Daily Expense Reminders',
   'Günlük hatırlatma': 'Daily reminder',

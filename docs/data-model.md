@@ -264,6 +264,7 @@ Yalnızca yönetici yazar; ayrıntılar [admin-panel.md](admin-panel.md).
   "targetUids": ["uid"],
   "timezone": "Europe/Istanbul",
   "lastSentDate": "YYYY-MM-DD (yalnızca sunucu yazar)",
+  "lastSentTime": "HH:MM (yalnızca sunucu yazar)",
   "updatedAt": "Timestamp",
   "updatedBy": "uid"
 }
