@@ -114,7 +114,11 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
         fireImmediately: true,
       );
       _notificationTapSub = notifications.onNotificationTap.listen(_openRoute);
-      final launchRoute = await notifications.launchRoute();
+      // Uygulama bir bildirime dokunularak açıldıysa ilgili sayfayı aç: önce
+      // yerel hatırlatıcı, yoksa sunucudan gelen (FCM) bildirim.
+      final launchRoute =
+          await notifications.launchRoute() ??
+          await ref.read(pushTokenServiceProvider).initialRoute();
       if (launchRoute != null) _openRoute(launchRoute);
     }
   }

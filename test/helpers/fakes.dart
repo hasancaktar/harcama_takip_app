@@ -567,6 +567,9 @@ class FakePushTokenService extends PushTokenService {
 
   @override
   Future<void> unregister() async {}
+
+  @override
+  Future<String?> initialRoute() async => null;
 }
 
 class FakeCategoryRepository implements ICategoryRepository {

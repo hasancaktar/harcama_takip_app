@@ -73,6 +73,20 @@ class PushTokenService {
     });
   }
 
+  /// Uygulama kapalıyken gelen bir sunucu bildirimine dokunularak açıldıysa
+  /// bildirimin yönlendirdiği sayfa (ör. `/expenses/new`).
+  Future<String?> initialRoute() async {
+    if (!isSupported) return null;
+    try {
+      final message = await _messaging().getInitialMessage();
+      final route = message?.data['route'];
+      return route is String && route.startsWith('/') ? route : null;
+    } catch (e) {
+      debugPrint('[PushTokenService] Açılış bildirimi okunamadı: $e');
+      return null;
+    }
+  }
+
   /// Oturum kapatılmadan önce çağrılır; bu cihaza artık bildirim gönderilmez.
   Future<void> unregister() async {
     if (!isSupported) return;

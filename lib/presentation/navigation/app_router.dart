@@ -35,6 +35,7 @@ import '../screens/teams/create_team_screen.dart';
 import '../screens/teams/team_detail_screen.dart';
 import '../screens/teams/teams_screen.dart';
 import 'auth_redirect.dart';
+import 'home_back_stack.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
@@ -142,99 +143,131 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
         path: '/expenses/new',
-        builder: (_, __) => const AddEditExpenseScreen(),
+        builder: (_, __) => HomeBackStack(child: const AddEditExpenseScreen()),
       ),
       GoRoute(
         path: '/expenses/:id',
-        builder: (_, state) =>
-            ExpenseDetailScreen(expenseId: state.pathParameters['id']!),
+        builder: (_, state) => HomeBackStack(
+          child: ExpenseDetailScreen(expenseId: state.pathParameters['id']!),
+        ),
         routes: [
           GoRoute(
             path: 'edit',
-            builder: (_, state) =>
-                AddEditExpenseScreen(expenseId: state.pathParameters['id']),
+            builder: (_, state) => HomeBackStack(
+              child: AddEditExpenseScreen(
+                expenseId: state.pathParameters['id'],
+              ),
+            ),
           ),
         ],
       ),
       GoRoute(
         path: '/cards/new',
-        builder: (_, __) => const AddEditCardScreen(),
+        builder: (_, __) => HomeBackStack(child: const AddEditCardScreen()),
       ),
       GoRoute(
         path: '/cards/:id',
-        builder: (_, state) =>
-            CardStatementDetailScreen(cardId: state.pathParameters['id']!),
+        builder: (_, state) => HomeBackStack(
+          child: CardStatementDetailScreen(cardId: state.pathParameters['id']!),
+        ),
         routes: [
           GoRoute(
             path: 'edit',
-            builder: (_, state) =>
-                AddEditCardScreen(cardId: state.pathParameters['id']),
+            builder: (_, state) => HomeBackStack(
+              child: AddEditCardScreen(cardId: state.pathParameters['id']),
+            ),
           ),
         ],
       ),
       GoRoute(
         path: '/installments/new',
-        builder: (_, __) => const AddInstallmentPlanScreen(),
+        builder: (_, __) =>
+            HomeBackStack(child: const AddInstallmentPlanScreen()),
       ),
       GoRoute(
         path: '/installments/:id',
-        builder: (_, state) =>
-            InstallmentPlanDetailScreen(planId: state.pathParameters['id']!),
+        builder: (_, state) => HomeBackStack(
+          child: InstallmentPlanDetailScreen(
+            planId: state.pathParameters['id']!,
+          ),
+        ),
       ),
-      GoRoute(path: '/budgets', builder: (_, __) => const BudgetsScreen()),
-      GoRoute(path: '/teams', builder: (_, __) => const TeamsScreen()),
-      GoRoute(path: '/teams/new', builder: (_, __) => const CreateTeamScreen()),
+      GoRoute(
+        path: '/budgets',
+        builder: (_, __) => const HomeBackStack(child: BudgetsScreen()),
+      ),
+      GoRoute(
+        path: '/teams',
+        builder: (_, __) => const HomeBackStack(child: TeamsScreen()),
+      ),
+      GoRoute(
+        path: '/teams/new',
+        builder: (_, __) => const HomeBackStack(child: CreateTeamScreen()),
+      ),
       GoRoute(
         path: '/teams/join',
         builder: (_, state) {
-          return AcceptInviteScreen(
-            initialCode: state.uri.queryParameters['code'],
+          return HomeBackStack(
+            child: AcceptInviteScreen(
+              initialCode: state.uri.queryParameters['code'],
+            ),
           );
         },
       ),
       GoRoute(
         path: '/teams/:id',
-        builder: (_, state) =>
-            TeamDetailScreen(teamId: state.pathParameters['id']!),
+        builder: (_, state) => HomeBackStack(
+          child: TeamDetailScreen(teamId: state.pathParameters['id']!),
+        ),
       ),
       // Yönetim paneli (yalnızca yönetici; bkz. resolveAuthRedirect ve firestore.rules)
-      GoRoute(path: '/admin', builder: (_, _) => const AdminHomeScreen()),
+      GoRoute(
+        path: '/admin',
+        builder: (_, _) => const HomeBackStack(child: AdminHomeScreen()),
+      ),
       GoRoute(
         path: '/admin/send',
-        builder: (_, _) => const AdminSendNotificationScreen(),
+        builder: (_, _) =>
+            HomeBackStack(child: const AdminSendNotificationScreen()),
       ),
       GoRoute(
         path: '/admin/daily-reminder',
-        builder: (_, _) => const AdminDailyReminderScreen(),
+        builder: (_, _) =>
+            HomeBackStack(child: const AdminDailyReminderScreen()),
       ),
       GoRoute(
         path: '/admin/history',
-        builder: (_, _) => const AdminNotificationHistoryScreen(),
+        builder: (_, _) =>
+            HomeBackStack(child: const AdminNotificationHistoryScreen()),
       ),
       GoRoute(
         path: '/admin/categories',
-        builder: (_, _) => const AdminCategoriesScreen(),
+        builder: (_, _) => HomeBackStack(child: const AdminCategoriesScreen()),
       ),
       GoRoute(
         path: '/admin/users',
-        builder: (_, _) => const AdminUsersScreen(),
+        builder: (_, _) => HomeBackStack(child: const AdminUsersScreen()),
       ),
-      GoRoute(path: '/admin/logs', builder: (_, _) => const AdminLogsScreen()),
+      GoRoute(
+        path: '/admin/logs',
+        builder: (_, _) => const HomeBackStack(child: AdminLogsScreen()),
+      ),
       GoRoute(
         path: '/settings/profile',
-        builder: (_, __) => const ProfileScreen(),
+        builder: (_, __) => HomeBackStack(child: const ProfileScreen()),
       ),
       GoRoute(
         path: '/settings/notifications',
-        builder: (_, __) => const NotificationSettingsScreen(),
+        builder: (_, __) =>
+            HomeBackStack(child: const NotificationSettingsScreen()),
       ),
       GoRoute(
         path: '/settings/appearance',
-        builder: (_, __) => const ThemeLanguageScreen(),
+        builder: (_, __) => HomeBackStack(child: const ThemeLanguageScreen()),
       ),
       GoRoute(
         path: '/settings/categories',
-        builder: (_, __) => const CategoriesScreen(),
+        builder: (_, __) => HomeBackStack(child: const CategoriesScreen()),
       ),
     ],
   );
