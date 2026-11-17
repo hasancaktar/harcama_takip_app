@@ -65,6 +65,8 @@ const Map<String, String> translationsEn = {
   'Aşım': 'Overspent',
   'Banka': 'Bank',
   'Banka adı': 'Bank name',
+  'Bağlantı açılamadı.': 'Could not open link.',
+  'Bağlantı kopyalandı.': 'Link copied.',
   'Bağlantının süresi dolmuş veya geçersiz. Yeni bir bağlantı isteyin.':
       'The link has expired or is invalid. Request a new one.',
   'Başarısız': 'Failed',
@@ -263,8 +265,6 @@ const Map<String, String> translationsEn = {
   'Harcama tarihi': 'Expense date',
   'Harcama, kart ve taksitleriniz tek yerde':
       'Your expenses, cards and installments in one place',
-  'Harcama Takip uygulamasını bilgisayarınızdan veya tabletinizden tarayıcı üzerinden de kullanabilirsiniz.\n\nWeb adresi: {0}':
-      'You can also use Harcama Takip from your computer or tablet via any web browser.\n\nWeb address: {0}',
   'Harcama, kart ve taksitlerinizi takip etmek için giriş yapın.':
       'Sign in to track your expenses, cards and installments.',
   'Harcamalar': 'Expenses',
@@ -312,7 +312,6 @@ const Map<String, String> translationsEn = {
   'Kapalı': 'Off',
   'Kapalı: otomatik bildirim gönderilmez.':
       'Off: no automatic notification is sent.',
-  'Kapat': 'Close',
   'Kart': 'Card',
   'Kart adı': 'Card name',
   'Kart bulunamadı': 'Card not found',
@@ -358,7 +357,6 @@ const Map<String, String> translationsEn = {
   'Kategorileri düzenlemek için önce yerleşik listeyi yönetilebilir kategorilere dönüştürün. Mevcut harcamalar etkilenmez.': 'To edit categories, first convert the built-in list into manageable categories. Existing expenses are not affected.',
   'Kategoriyi düzenle': 'Edit category',
   'Katıl': 'Join',
-  'Kaydediliyor...': 'Saving...',
   'Kaydet': 'Save',
   'Kaydet ve yenisini ekle': 'Save and add another',
   'Kayıt bulunamadı veya silinmiş.': 'Record not found or deleted.',
@@ -582,7 +580,6 @@ const Map<String, String> translationsEn = {
   'Veriler yüklenemedi': 'Could not load data',
   'Verilerimin gizlilik politikasında açıklandığı şekilde işlenmesini kabul ediyorum.':
       'I agree to my data being processed as described in the privacy policy.',
-  'Verileriniz yalnızca hesabınızla ve dahil olduğunuz takımlarla paylaşılır; kart numarası, CVV veya banka şifresi saklanmaz. Hesabınızı Profil ekranından istediğiniz zaman tüm verilerinizle birlikte silebilirsiniz.\n\nPolitikanın tam metni: {0}': 'Your data is shared only with your account and the teams you belong to; card numbers, CVV or bank passwords are not stored. You can delete your account with all your data at any time from the Profile screen.\n\nFull text of the policy: {0}',
   'Yaklaşan kart tarihleri': 'Upcoming card dates',
   'Yalnızca harcamayı ekleyen kişi düzenleyebilir.':
       'Only the person who added the expense can edit it.',

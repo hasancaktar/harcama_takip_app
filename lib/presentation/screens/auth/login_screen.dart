@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../application/providers/repository_providers.dart';
+import '../../../application/providers/settings_providers.dart';
 import '../../../core/errors/error_messages.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
@@ -27,6 +28,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    final savedEmail =
+        ref.read(sharedPreferencesProvider)?.getString('last_login_email');
+    if (savedEmail != null && savedEmail.isNotEmpty) {
+      _emailController.text = savedEmail;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_emailController.text.isEmpty) {
+        final postSaved =
+            ref.read(sharedPreferencesProvider)?.getString('last_login_email');
+        if (postSaved != null && postSaved.isNotEmpty) {
+          setState(() {
+            _emailController.text = postSaved;
+          });
+        }
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -42,12 +65,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
     });
     try {
+      final email = _emailController.text.trim();
       await ref
           .read(authRepositoryProvider)
           .signIn(
-            email: _emailController.text,
+            email: email,
             password: _passwordController.text,
           );
+      await ref
+          .read(sharedPreferencesProvider)
+          ?.setString('last_login_email', email);
       // Yönlendirme, oturum durumu değişince router tarafından yapılır.
     } catch (e) {
       if (mounted) setState(() => _errorMessage = ErrorMessages.from(e));

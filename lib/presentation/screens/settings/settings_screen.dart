@@ -1,7 +1,9 @@
 import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../application/providers/admin_providers.dart';
 import '../../../application/providers/auth_providers.dart';
@@ -30,6 +32,12 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (!ok || !context.mounted) return;
     try {
+      final currentEmail = ref.read(currentUserProvider)?.email;
+      if (currentEmail != null && currentEmail.isNotEmpty) {
+        await ref
+            .read(sharedPreferencesProvider)
+            ?.setString('last_login_email', currentEmail);
+      }
       await ref.read(accountServiceProvider).signOut();
       if (context.mounted) {
         context.go('/login');
@@ -39,6 +47,30 @@ class SettingsScreen extends ConsumerWidget {
       if (context.mounted) {
         context.showError(e);
       }
+    }
+  }
+
+  Future<void> _openUrl(BuildContext context, String urlString) async {
+    try {
+      final uri = Uri.parse(urlString);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && context.mounted) {
+        context.showError('Bağlantı açılamadı.'.tr);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        context.showError('Bağlantı açılamadı.'.tr);
+      }
+    }
+  }
+
+  Future<void> _copyUrl(BuildContext context, String urlString) async {
+    await Clipboard.setData(ClipboardData(text: urlString));
+    if (context.mounted) {
+      context.showSuccess('Bağlantı kopyalandı.'.tr);
     }
   }
 
@@ -199,43 +231,17 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.language_rounded,
                 title: 'Web sürümü'.tr,
                 subtitle: AppConstants.webAppUrl,
-                onTap: () => showDialog<void>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text('Web sürümü'.tr),
-                    content: SelectableText(
-                      'Harcama Takip uygulamasını bilgisayarınızdan veya tabletinizden tarayıcı üzerinden de kullanabilirsiniz.\n\nWeb adresi: {0}'
-                          .trArgs([AppConstants.webAppUrl]),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text('Kapat'.tr),
-                      ),
-                    ],
-                  ),
-                ),
+                trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                onTap: () => _openUrl(context, AppConstants.webAppUrl),
+                onLongPress: () => _copyUrl(context, AppConstants.webAppUrl),
               ),
               _SettingsTile(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Gizlilik politikası'.tr,
                 subtitle: AppConstants.privacyPolicyUrl,
-                onTap: () => showDialog<void>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text('Gizlilik politikası'.tr),
-                    content: SelectableText(
-                      'Verileriniz yalnızca hesabınızla ve dahil olduğunuz takımlarla paylaşılır; kart numarası, CVV veya banka şifresi saklanmaz. Hesabınızı Profil ekranından istediğiniz zaman tüm verilerinizle birlikte silebilirsiniz.\n\nPolitikanın tam metni: {0}'
-                          .trArgs([AppConstants.privacyPolicyUrl]),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text('Kapat'.tr),
-                      ),
-                    ],
-                  ),
-                ),
+                trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                onTap: () => _openUrl(context, AppConstants.privacyPolicyUrl),
+                onLongPress: () => _copyUrl(context, AppConstants.privacyPolicyUrl),
               ),
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
@@ -248,9 +254,13 @@ class SettingsScreen extends ConsumerWidget {
                   applicationLegalese: AppConstants.appTagline,
                   children: [
                     const SizedBox(height: 16),
-                    SelectableText(
-                      'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}'
-                          .trArgs([AppConstants.webAppUrl]),
+                    InkWell(
+                      onTap: () => _openUrl(context, AppConstants.webAppUrl),
+                      onLongPress: () => _copyUrl(context, AppConstants.webAppUrl),
+                      child: SelectableText(
+                        'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}'
+                            .trArgs([AppConstants.webAppUrl]),
+                      ),
                     ),
                   ],
                 ),
@@ -296,14 +306,18 @@ class _SettingsTile extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? badge;
+  final Widget? trailing;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const _SettingsTile({
     required this.icon,
     required this.title,
     this.subtitle,
     this.badge,
+    this.trailing,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -314,15 +328,17 @@ class _SettingsTile extends StatelessWidget {
       subtitle: subtitle != null
           ? Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
           : null,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (badge != null) Badge(label: Text(badge!)),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right_rounded),
-        ],
-      ),
+      trailing: trailing ??
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (badge != null) Badge(label: Text(badge!)),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
       onTap: onTap,
+      onLongPress: onLongPress,
     );
   }
 }

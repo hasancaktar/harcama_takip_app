@@ -109,7 +109,6 @@ class AppButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool isLoading;
-  final String? loadingLabel;
   final IconData? icon;
   final bool expand;
   final bool outlined;
@@ -120,7 +119,6 @@ class AppButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.loadingLabel,
     this.icon,
     this.expand = true,
     this.outlined = false,
@@ -137,34 +135,16 @@ class AppButton extends StatelessWidget {
     final outlineColor = destructive ? scheme.error : scheme.primary;
 
     final child = isLoading
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    outlined ? outlineColor : fg,
-                  ),
-                  semanticsLabel: 'İşleniyor'.tr,
-                ),
+        ? SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                outlined ? outlineColor : fg,
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: Text(
-                  loadingLabel ?? 'Kaydediliyor...'.tr,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: outlined ? outlineColor : fg,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-            ],
+              semanticsLabel: 'İşleniyor'.tr,
+            ),
           )
         : Row(
             mainAxisSize: MainAxisSize.min,

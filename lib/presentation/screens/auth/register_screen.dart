@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../application/providers/settings_providers.dart';
 import '../../../application/services/account_service.dart';
 import '../../../core/errors/error_messages.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -54,13 +55,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _errorMessage = null;
     });
     try {
+      final email = _emailController.text.trim();
       await ref
           .read(accountServiceProvider)
           .register(
-            email: _emailController.text,
+            email: email,
             password: _passwordController.text,
             displayName: _nameController.text,
           );
+      await ref
+          .read(sharedPreferencesProvider)
+          ?.setString('last_login_email', email);
       // Router, doğrulanmamış kullanıcıyı otomatik olarak doğrulama ekranına yönlendirir.
     } catch (e) {
       if (mounted) setState(() => _errorMessage = ErrorMessages.from(e));
