@@ -29,13 +29,16 @@ class SettingsScreen extends ConsumerWidget {
       confirmLabel: 'Çıkış yap'.tr,
     );
     if (!ok || !context.mounted) return;
-    final router = GoRouter.of(context);
     try {
       await ref.read(accountServiceProvider).signOut();
-      // Bilinçli çıkışta önceki sayfaya dönüş adresi taşınmaz.
-      router.go('/login');
+      if (context.mounted) {
+        context.go('/login');
+      }
     } catch (e) {
-      if (context.mounted) context.showError(e);
+      debugPrint('[SettingsScreen] Çıkış hatası: $e');
+      if (context.mounted) {
+        context.showError(e);
+      }
     }
   }
 

@@ -40,70 +40,76 @@ class NotificationService {
   Future<void> initialize() async {
     if (_initialized || !isSupported) return;
 
-    tz.initializeTimeZones();
     try {
-      final timeZone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(timeZone));
-    } catch (e) {
-      debugPrint(
-        '[NotificationService] Saat dilimi alınamadı, Europe/Istanbul kullanılıyor: $e',
+      tz.initializeTimeZones();
+      try {
+        final timeZone = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(timeZone));
+      } catch (e) {
+        debugPrint(
+          '[NotificationService] Saat dilimi alınamadı, Europe/Istanbul deneniyor: $e',
+        );
+        try {
+          tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
+        } catch (_) {}
+      }
+
+      const settings = InitializationSettings(
+        android: AndroidInitializationSettings('ic_stat_notification'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
       );
-      tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
+
+      await _plugin.initialize(
+        settings,
+        onDidReceiveNotificationResponse: (response) {
+          final payload = response.payload;
+          if (payload != null && payload.startsWith('/')) {
+            _tapController.add(payload);
+          }
+        },
+      );
+
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      await android?.createNotificationChannel(
+        AndroidNotificationChannel(
+          _channelId,
+          _channelName,
+          description: 'Günün harcamalarını girmeniz için hatırlatma gönderir'.tr,
+          importance: Importance.defaultImportance,
+        ),
+      );
+      // Cloud Functions'ın gönderdiği takım harcaması bildirimleri bu kanalı kullanır.
+      await android?.createNotificationChannel(
+        AndroidNotificationChannel(
+          'team_expenses',
+          'Takım harcamaları'.tr,
+          description:
+              'Takım üyeleri ortak harcama eklediğinde bildirim gönderir'.tr,
+          importance: Importance.high,
+        ),
+      );
+
+      // Yönetim panelinden gönderilen duyurular ve sunucu hatırlatmaları.
+      await android?.createNotificationChannel(
+        AndroidNotificationChannel(
+          'announcements',
+          'Duyurular ve hatırlatmalar'.tr,
+          description: 'Uygulama duyuruları ve günlük hatırlatmalar'.tr,
+          importance: Importance.high,
+        ),
+      );
+
+      _initialized = true;
+    } catch (e) {
+      debugPrint('[NotificationService] Başlatma hatası: $e');
     }
-
-    const settings = InitializationSettings(
-      android: AndroidInitializationSettings('ic_stat_notification'),
-      iOS: DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
-      ),
-    );
-
-    await _plugin.initialize(
-      settings,
-      onDidReceiveNotificationResponse: (response) {
-        final payload = response.payload;
-        if (payload != null && payload.startsWith('/')) {
-          _tapController.add(payload);
-        }
-      },
-    );
-
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await android?.createNotificationChannel(
-      AndroidNotificationChannel(
-        _channelId,
-        _channelName,
-        description: 'Günün harcamalarını girmeniz için hatırlatma gönderir'.tr,
-        importance: Importance.defaultImportance,
-      ),
-    );
-    // Cloud Functions'ın gönderdiği takım harcaması bildirimleri bu kanalı kullanır.
-    await android?.createNotificationChannel(
-      AndroidNotificationChannel(
-        'team_expenses',
-        'Takım harcamaları'.tr,
-        description:
-            'Takım üyeleri ortak harcama eklediğinde bildirim gönderir'.tr,
-        importance: Importance.high,
-      ),
-    );
-
-    // Yönetim panelinden gönderilen duyurular ve sunucu hatırlatmaları.
-    await android?.createNotificationChannel(
-      AndroidNotificationChannel(
-        'announcements',
-        'Duyurular ve hatırlatmalar'.tr,
-        description: 'Uygulama duyuruları ve günlük hatırlatmalar'.tr,
-        importance: Importance.high,
-      ),
-    );
-
-    _initialized = true;
   }
 
   /// Uygulama açıkken gelen push bildirimini hemen gösterir (Android, ön planda
@@ -233,9 +239,13 @@ class NotificationService {
 
   Future<void> cancelReminders() async {
     if (!isSupported) return;
-    await initialize();
-    for (var day = 1; day <= 7; day++) {
-      await _plugin.cancel(_baseId + day);
+    try {
+      await initialize();
+      for (var day = 1; day <= 7; day++) {
+        await _plugin.cancel(_baseId + day);
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] Hatırlatıcı iptal hatası: $e');
     }
   }
 }

@@ -40,8 +40,16 @@ class AccountService {
   }
 
   Future<void> signOut() async {
-    await _ref.read(pushTokenServiceProvider).unregister();
-    await _ref.read(notificationServiceProvider).cancelReminders();
+    try {
+      await _ref.read(pushTokenServiceProvider).unregister();
+    } catch (e) {
+      debugPrint('[AccountService] Push token silinemedi: $e');
+    }
+    try {
+      await _ref.read(notificationServiceProvider).cancelReminders();
+    } catch (e) {
+      debugPrint('[AccountService] Hatırlatıcılar iptal edilemedi: $e');
+    }
     await _ref.read(authRepositoryProvider).signOut();
   }
 
@@ -62,9 +70,17 @@ class AccountService {
     if (user == null) throw AppException('Oturum bulunamadı.'.tr);
 
     await auth.reauthenticate(password);
-    await _ref.read(pushTokenServiceProvider).unregister();
+    try {
+      await _ref.read(pushTokenServiceProvider).unregister();
+    } catch (e) {
+      debugPrint('[AccountService] Push token silinemedi: $e');
+    }
     await _ref.read(accountDataRepositoryProvider).deleteAllUserData(user.uid);
-    await _ref.read(notificationServiceProvider).cancelReminders();
+    try {
+      await _ref.read(notificationServiceProvider).cancelReminders();
+    } catch (e) {
+      debugPrint('[AccountService] Hatırlatıcılar iptal edilemedi: $e');
+    }
     await auth.deleteCurrentUser();
   }
 }

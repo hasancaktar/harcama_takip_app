@@ -55,7 +55,7 @@ String? resolveAuthRedirect({
       if (isPublic) return null;
       return _withFrom(
         AppRoutes.login,
-        (isSplash || isVerify) ? safeFrom : target,
+        (isSplash || isVerify || location == '/settings') ? safeFrom : target,
       );
     case AuthStatus.unverified:
       if (isVerify) return null;
@@ -73,7 +73,12 @@ String? resolveAuthRedirect({
 }
 
 String _withFrom(String path, String? from) {
-  if (from == null || from == '/' || from == AppRoutes.dashboard) return path;
+  if (from == null ||
+      from == '/' ||
+      from == AppRoutes.dashboard ||
+      from == '/settings') {
+    return path;
+  }
   return Uri(path: path, queryParameters: {'from': from}).toString();
 }
 

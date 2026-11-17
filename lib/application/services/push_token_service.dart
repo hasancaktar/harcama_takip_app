@@ -75,20 +75,21 @@ class PushTokenService {
 
   /// Oturum kapatılmadan önce çağrılır; bu cihaza artık bildirim gönderilmez.
   Future<void> unregister() async {
-    final uid = _registeredUid;
-    final token = _token;
-    await _refreshSub?.cancel();
-    await _foregroundSub?.cancel();
-    await _openedSub?.cancel();
-    _refreshSub = null;
-    _foregroundSub = null;
-    _openedSub = null;
-    _registeredUid = null;
-    if (uid == null || token == null) return;
+    if (!isSupported) return;
     try {
+      final uid = _registeredUid;
+      final token = _token;
+      await _refreshSub?.cancel();
+      await _foregroundSub?.cancel();
+      await _openedSub?.cancel();
+      _refreshSub = null;
+      _foregroundSub = null;
+      _openedSub = null;
+      _registeredUid = null;
+      if (uid == null || token == null) return;
       await _userRepository.removePushToken(uid, token);
     } catch (e) {
-      debugPrint('[PushTokenService] Token silinemedi: $e');
+      debugPrint('[PushTokenService] unregister hatası: $e');
     }
   }
 }

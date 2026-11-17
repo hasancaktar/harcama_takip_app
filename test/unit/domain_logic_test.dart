@@ -367,6 +367,13 @@ void main() {
         ),
         '/login',
       );
+      expect(
+        resolveAuthRedirect(
+          status: AuthStatus.signedOut,
+          location: '/settings',
+        ),
+        '/login',
+      );
     });
 
     test('doğrulanmamış kullanıcı yalnızca doğrulama ekranını görebilir', () {
