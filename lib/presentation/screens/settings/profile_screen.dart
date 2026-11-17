@@ -146,7 +146,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             readOnly: true,
             enabled: false,
             decoration: InputDecoration(
-              labelText: 'E-posta',
+              labelText: 'E-posta'.tr,
               prefixIcon: Icon(Icons.alternate_email_rounded),
               helperText: 'E-posta adresi değiştirilemez.'.tr,
             ),

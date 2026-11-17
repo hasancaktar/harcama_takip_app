@@ -84,8 +84,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                   autocorrect: false,
                   validator: Validators.email,
-                  decoration: const InputDecoration(
-                    labelText: 'E-posta',
+                  decoration: InputDecoration(
+                    labelText: 'E-posta'.tr,
                     prefixIcon: Icon(Icons.alternate_email_rounded),
                   ),
                 ),

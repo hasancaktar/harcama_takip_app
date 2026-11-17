@@ -108,8 +108,6 @@ class AdminHomeScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
           LayoutBuilder(
             builder: (context, c) {
-              final cols = c.maxWidth >= 720 ? 3 : (c.maxWidth >= 420 ? 3 : 1);
-              final w = (c.maxWidth - (cols - 1) * AppSpacing.sm) / cols;
               final stats = [
                 (
                   'Kullanıcı'.tr,
@@ -121,32 +119,47 @@ class AdminHomeScreen extends ConsumerWidget {
                 ),
                 ('Gönderim'.tr, '${campaigns.length}'),
               ];
-              return Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  for (final s in stats)
-                    SizedBox(
-                      width: w,
-                      child: AppCard(
-                        padding: const EdgeInsets.all(AppSpacing.sm + 2),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              s.$1,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.textStyles.labelMedium?.copyWith(
-                                color: context.colors.onSurfaceVariant,
-                              ),
-                            ),
-                            Text(s.$2, style: context.textStyles.titleLarge),
-                          ],
-                        ),
+              Widget tile((String, String) s) => AppCard(
+                padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      s.$1,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.textStyles.labelMedium?.copyWith(
+                        color: context.colors.onSurfaceVariant,
                       ),
                     ),
-                ],
+                    Text(s.$2, style: context.textStyles.titleLarge),
+                  ],
+                ),
+              );
+              // Çok dar ekranda alt alta; diğer tüm boyutlarda yan yana üç kutu.
+              if (c.maxWidth < 300) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final s in stats) ...[
+                      tile(s),
+                      if (s != stats.last)
+                        const SizedBox(height: AppSpacing.sm),
+                    ],
+                  ],
+                );
+              }
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final s in stats) ...[
+                      Expanded(child: tile(s)),
+                      if (s != stats.last) const SizedBox(width: AppSpacing.sm),
+                    ],
+                  ],
+                ),
               );
             },
           ),

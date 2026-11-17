@@ -20,6 +20,10 @@ abstract class AppSpacing {
   static const double maxFormWidth = 560;
   static const double maxAuthWidth = 440;
 
+  /// Diyalog ve bildirim çubuğunun geniş ekranlardaki en büyük genişliği.
+  static const double maxDialogWidth = 560;
+  static const double maxSnackBarWidth = 480;
+
   /// Material 3 pencere boyutu sınıfları.
   static const double compactBreakpoint = 600;
   static const double expandedBreakpoint = 1000;

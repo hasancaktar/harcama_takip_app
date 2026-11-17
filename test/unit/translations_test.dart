@@ -12,7 +12,16 @@ class _SourceKey {
   final int line;
   final bool hasInterpolation;
 
-  const _SourceKey(this.text, this.file, this.line, this.hasInterpolation);
+  /// Dizenin başladığı kaynak satırı (sarılmamış metin denetimindeki istisnalar için).
+  final String sourceLine;
+
+  const _SourceKey(
+    this.text,
+    this.file,
+    this.line,
+    this.hasInterpolation, [
+    this.sourceLine = '',
+  ]);
 
   @override
   String toString() => '$file:$line  "$text"';
@@ -22,8 +31,24 @@ bool _isIdentifierChar(String c) => RegExp(r'[A-Za-z0-9_$]').hasMatch(c);
 
 /// Bir Dart dosyasındaki dize sabitlerini (yorumlar hariç) okur ve hemen ardından
 /// `.tr` / `.trArgs` gelenleri döner. Kaçış dizileri çalışma anındaki karşılığına çevrilir.
-List<_SourceKey> _scan(String src, String file) {
+/// [untranslated] verilirse `.tr` ile sarılmamış diğer dizeler ona eklenir.
+List<_SourceKey> _scan(
+  String src,
+  String file, {
+  List<_SourceKey>? untranslated,
+}) {
   final keys = <_SourceKey>[];
+  var pendingTranslated = true;
+  var pendingRaw = false;
+
+  int lineOf(int offset) =>
+      '\n'.allMatches(src.substring(0, offset)).length + 1;
+  String lineTextAt(int offset) {
+    final start = src.lastIndexOf('\n', offset) + 1;
+    final end = src.indexOf('\n', offset);
+    return src.substring(start, end < 0 ? src.length : end);
+  }
+
   var i = 0;
   // Yan yana yazılmış dizeler ('a' 'b') tek bir dize sayılır.
   StringBuffer? pending;
@@ -130,23 +155,87 @@ List<_SourceKey> _scan(String src, String file) {
     if (adjacent) {
       pending.write(text);
       pendingInterpolation = pendingInterpolation || interpolation;
+      pendingRaw = pendingRaw || raw;
     } else {
+      if (pending != null && !pendingTranslated && !pendingRaw) {
+        untranslated?.add(
+          _SourceKey(
+            pending.toString(),
+            file,
+            lineOf(pendingStart),
+            pendingInterpolation,
+            lineTextAt(pendingStart),
+          ),
+        );
+      }
       pending = StringBuffer(text.toString());
       pendingStart = i;
       pendingInterpolation = interpolation;
+      pendingRaw = raw;
     }
+    pendingTranslated = false;
     pendingEnd = end;
 
     final rest = src.substring(end).trimLeft();
     if (RegExp(r'^\.tr(Args)?(?![A-Za-z0-9_])').hasMatch(rest)) {
-      final line = '\n'.allMatches(src.substring(0, pendingStart)).length + 1;
       keys.add(
-        _SourceKey(pending.toString(), file, line, pendingInterpolation),
+        _SourceKey(
+          pending.toString(),
+          file,
+          lineOf(pendingStart),
+          pendingInterpolation,
+        ),
       );
+      pendingTranslated = true;
     }
     i = end;
   }
+  if (pending != null && !pendingTranslated && !pendingRaw) {
+    untranslated?.add(
+      _SourceKey(
+        pending.toString(),
+        file,
+        lineOf(pendingStart),
+        pendingInterpolation,
+        lineTextAt(pendingStart),
+      ),
+    );
+  }
   return keys;
+}
+
+/// Sarılmamış bir dize kullanıcıya gösterilen bir metne benziyor mu?
+///
+/// Büyük harfle başlayan sözcükler ("E-posta") ve değişken içeren cümle parçaları
+/// ("\$sayi taksit") yakalanır. Yollar, kimlikler ve kodlar ("TRY") yakalanmaz.
+bool _looksLikeUiText(_SourceKey literal) {
+  final text = literal.text.trim();
+  const letters = 'A-Za-zçğıöşüÇĞİÖŞÜ';
+  if (RegExp('^[A-ZÇĞİÖŞÜ]').hasMatch(text) &&
+      RegExp('[a-zçğıöşü]{2,}').hasMatch(text)) {
+    return true;
+  }
+  return literal.hasInterpolation &&
+      literal.text.contains(' ') &&
+      RegExp('(^|\\s)[$letters]{3,}').hasMatch(literal.text);
+}
+
+/// Bilerek çevrilmeyen satırlar: günlük kayıtları, anahtarlar, biçim desenleri
+/// ve `// l10n-ignore` ile işaretlenenler.
+bool _isExemptLine(String line) {
+  const markers = [
+    'l10n-ignore',
+    'debugPrint(',
+    'Key(',
+    'RegExp(',
+    'DateFormat(',
+    'fontFamily',
+  ];
+  final trimmed = line.trimLeft();
+  return trimmed.startsWith('import ') ||
+      trimmed.startsWith('export ') ||
+      trimmed.startsWith('part ') ||
+      markers.any(line.contains);
 }
 
 Set<String> _placeholders(String text) =>
@@ -154,6 +243,7 @@ Set<String> _placeholders(String text) =>
 
 void main() {
   late final List<_SourceKey> sourceKeys;
+  final unwrapped = <_SourceKey>[];
 
   setUpAll(() {
     final files =
@@ -166,7 +256,11 @@ void main() {
           ..sort((a, b) => a.path.compareTo(b.path));
     sourceKeys = [
       for (final file in files)
-        ..._scan(file.readAsStringSync(), file.path.replaceAll(r'\', '/')),
+        ..._scan(
+          file.readAsStringSync(),
+          file.path.replaceAll(r'\', '/'),
+          untranslated: unwrapped,
+        ),
     ];
   });
 
@@ -180,6 +274,29 @@ void main() {
 
   test('kaynak tarayıcı yeterince metin bulur', () {
     expect(sourceKeys.length, greaterThan(600));
+  });
+
+  test('arayüz katmanında çeviriye bağlanmamış metin yoktur', () {
+    // Kullanıcıya metin gösteren katmanlar. Veri ve alan katmanındaki sabitler
+    // (kategori adları, veritabanına yazılan metinler) bilerek kapsam dışıdır.
+    const scopes = [
+      'lib/presentation/',
+      'lib/core/utils/validators.dart',
+      'lib/core/errors/error_messages.dart',
+    ];
+    final suspects = unwrapped
+        .where((l) => scopes.any(l.file.startsWith))
+        .where((l) => !_isExemptLine(l.sourceLine))
+        .where(_looksLikeUiText)
+        .toList();
+    expect(
+      suspects,
+      isEmpty,
+      reason:
+          'Bu metinler İngilizce arayüzde Türkçe kalır. `.tr` / `.trArgs([...])` '
+          'ekleyin; çevrilmemesi gerekiyorsa satıra `// l10n-ignore` yazın:\n'
+          "${suspects.join('\n')}",
+    );
   });
 
   test('enterpolasyonlu metinler .tr yerine .trArgs ile yer tutucu kullanır', () {

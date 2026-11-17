@@ -46,6 +46,9 @@ Test şunları doğrular ve eksik olanı dosya/satır ile raporlar:
 - tabloda kodda kullanılmayan anahtar yok,
 - yer tutucular (`{0}`, `{1}`) ve baş/son boşluklar kaynakla aynı,
 - `$değişken` içeren hiçbir metin `.tr` ile sarılmamış.
+- arayüz katmanında (`lib/presentation`, doğrulayıcılar, hata mesajları) çeviriye bağlanmamış
+  metin yok. Büyük harfle başlayan sözcükler ve değişken içeren cümle parçaları yakalanır;
+  bilerek çevrilmeyen bir satır `// l10n-ignore` yorumuyla işaretlenir.
 
 Çok sayıda eski metni toplu sarmak için `python tool/l10n_wrap.py apply` kullanılabilir
 (tekrar çalıştırmak güvenlidir); ardından `dart format lib` ve testi çalıştırın.

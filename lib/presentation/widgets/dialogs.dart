@@ -2,6 +2,7 @@ import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/errors/error_messages.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Onay diyaloğu. Onaylanırsa `true` döner.
@@ -158,11 +159,14 @@ extension SnackBarX on BuildContext {
     final messenger = ScaffoldMessenger.maybeOf(this);
     if (messenger == null) return;
     final scheme = Theme.of(this).colorScheme;
+    final wide = MediaQuery.sizeOf(this).width >= AppSpacing.compactBreakpoint;
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           content: Text(message),
+          // Telefonda kenardan kenara; geniş ekranda ortada ve okunabilir genişlikte.
+          width: wide ? AppSpacing.maxSnackBarWidth : null,
           backgroundColor: isError ? scheme.error : null,
           showCloseIcon: isError,
           closeIconColor: isError ? scheme.onError : null,

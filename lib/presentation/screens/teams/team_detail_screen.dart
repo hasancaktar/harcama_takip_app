@@ -425,8 +425,8 @@ class _InviteDialogState extends ConsumerState<_InviteDialog> {
                 autocorrect: false,
                 validator: Validators.email,
                 onFieldSubmitted: (_) => _submit(),
-                decoration: const InputDecoration(
-                  labelText: 'E-posta',
+                decoration: InputDecoration(
+                  labelText: 'E-posta'.tr,
                   prefixIcon: Icon(Icons.alternate_email_rounded),
                 ),
               ),

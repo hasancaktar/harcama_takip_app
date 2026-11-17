@@ -404,6 +404,11 @@ abstract class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surfaceContainerLowest,
         surfaceTintColor: Colors.transparent,
+        // Varsayılanın üst sınırı yoktur; uzun mesajlar masaüstünde ekranı kaplıyordu.
+        constraints: const BoxConstraints(
+          minWidth: 280,
+          maxWidth: AppSpacing.maxDialogWidth,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         ),

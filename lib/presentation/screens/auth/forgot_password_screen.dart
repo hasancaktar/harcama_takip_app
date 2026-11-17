@@ -91,8 +91,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               autocorrect: false,
               validator: Validators.email,
               onFieldSubmitted: (_) => _handleReset(),
-              decoration: const InputDecoration(
-                labelText: 'E-posta',
+              decoration: InputDecoration(
+                labelText: 'E-posta'.tr,
                 prefixIcon: Icon(Icons.alternate_email_rounded),
               ),
             ),

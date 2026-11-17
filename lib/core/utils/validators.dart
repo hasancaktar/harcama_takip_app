@@ -61,7 +61,7 @@ abstract class Validators {
   }) {
     return (value) {
       final v = value?.trim() ?? '';
-      if (v.isEmpty) return '$fieldName gerekli';
+      if (v.isEmpty) return '{0} gerekli'.trArgs([fieldName]);
       if (v.length > maxLength) {
         return '{0} en fazla {1} karakter olabilir'.trArgs([
           fieldName,

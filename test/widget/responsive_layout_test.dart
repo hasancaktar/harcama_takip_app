@@ -482,6 +482,74 @@ void main() {
     expect(problems, isEmpty, reason: problems.join('\n'));
   });
 
+  testWidgets(
+    'geniş ekranda diyalog ve bildirim çubuğu okunabilir genişlikte kalır',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      addTearDown(() => CategoryRegistry.update(const []));
+      SharedPreferences.setMockInitialValues({'language': 'tr'});
+      final prefs = await SharedPreferences.getInstance();
+      await _pumpApp(tester, _seededBackend(), prefs);
+
+      GoRouter.of(tester.element(find.byType(Scaffold).first))
+          .go('/admin/categories');
+      await _settle(tester);
+
+      // Uzun mesajlı onay diyaloğu (kategori silme) ekranı kaplamaz.
+      await tester.tap(find.byTooltip('Kategori işlemleri').first);
+      await _settle(tester, frames: 4);
+      await tester.tap(find.text('Sil').last);
+      await _settle(tester, frames: 4);
+      expect(find.text('Kategori silinsin mi?'), findsOneWidget);
+      final dialog = tester.getSize(
+        find
+            .descendant(
+              of: find.byType(Dialog),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(dialog.width, lessThanOrEqualTo(560));
+      expect(dialog.width, greaterThanOrEqualTo(280));
+      await tester.tap(find.text('Vazgeç'));
+      await _settle(tester, frames: 4);
+
+      // Bildirim çubuğu ortada ve dar; telefonda ise kenardan kenara.
+      await tester.tap(find.byType(Switch).first);
+      await _settle(tester, frames: 4);
+      expect(find.text('Kategori pasifleştirildi.'), findsOneWidget);
+      final snackBar = tester.getRect(
+        find
+            .descendant(
+              of: find.byType(SnackBar),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(snackBar.width, lessThanOrEqualTo(480));
+      expect(snackBar.center.dx, closeTo(720, 1));
+
+      tester.view.physicalSize = const Size(390, 844);
+      await _settle(tester, frames: 4);
+      await tester.tap(find.byType(Switch).first);
+      await _settle(tester, frames: 4);
+      final phoneSnackBar = tester.getRect(
+        find
+            .descendant(
+              of: find.byType(SnackBar),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(phoneSnackBar.width, closeTo(390 - 32, 1));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 5));
+    },
+  );
+
   testWidgets('ekran döndürülünce sekme ve girilen metin korunur', (
     tester,
   ) async {
