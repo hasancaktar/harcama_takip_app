@@ -240,7 +240,12 @@ service cloud.firestore {
               && get(/databases/$(database)/documents/teams/$(teamId)/invites/$(incoming().inviteId)).data.expiresAt > request.time)
           );
 
-        allow update: if false;
+        // Üye yalnızca kendi görünen adını (displayName) güncelleyebilir.
+        allow update: if verified()
+          && memberUid == uid()
+          && changedKeys().hasOnly(['displayName'])
+          && incoming().displayName is string
+          && incoming().displayName.size() <= 80;
 
         // Üye kendini çıkarabilir (sahip hariç); sahip başka üyeleri çıkarabilir.
         allow delete: if verified() && (

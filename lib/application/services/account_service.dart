@@ -57,10 +57,18 @@ class AccountService {
     final auth = _ref.read(authRepositoryProvider);
     final user = auth.currentUser;
     if (user == null) throw AppException('Oturum bulunamadı.'.tr);
-    await auth.updateDisplayName(displayName);
+    final trimmed = displayName.trim();
+    await auth.updateDisplayName(trimmed);
     await _ref
         .read(userRepositoryProvider)
-        .updateDisplayName(user.uid, displayName.trim());
+        .updateDisplayName(user.uid, trimmed);
+    try {
+      await _ref
+          .read(teamRepositoryProvider)
+          .updateMemberDisplayName(uid: user.uid, displayName: trimmed);
+    } catch (e) {
+      debugPrint('[AccountService] Takım üyeliği adı güncellenemedi: $e');
+    }
   }
 
   /// Hesabı ve kullanıcıya ait tüm verileri kalıcı olarak siler.

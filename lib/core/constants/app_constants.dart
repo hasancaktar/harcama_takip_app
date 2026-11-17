@@ -41,7 +41,7 @@ abstract class CategoryIcons {
     'sports': Icons.sports_soccer_rounded,
     'clothes': Icons.checkroom_rounded,
     'tools': Icons.build_rounded,
-    'savings': Icons.savings_rounded,
+    'savings': Icons.account_balance_wallet_rounded,
     'bank': Icons.account_balance_rounded,
     'work': Icons.work_rounded,
     'tax': Icons.gavel_rounded,

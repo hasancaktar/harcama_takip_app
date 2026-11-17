@@ -416,6 +416,7 @@ class FakeBudgetRepository implements IBudgetRepository {
 class FakeTeamRepository implements ITeamRepository {
   final ValueStream<List<Team>> teams = ValueStream(const []);
   final ValueStream<List<TeamInvite>> myInvites = ValueStream(const []);
+  final ValueStream<List<TeamMember>> members = ValueStream(const []);
 
   @override
   Stream<List<Team>> watchUserTeams(String uid) => teams.stream.map(
@@ -429,8 +430,7 @@ class FakeTeamRepository implements ITeamRepository {
     return null;
   });
   @override
-  Stream<List<TeamMember>> watchMembers(String teamId) =>
-      Stream.value(const []);
+  Stream<List<TeamMember>> watchMembers(String teamId) => members.stream;
   @override
   Stream<List<TeamInvite>> watchPendingTeamInvites(String teamId) =>
       Stream.value(const []);
@@ -494,6 +494,29 @@ class FakeTeamRepository implements ITeamRepository {
   }) async {}
   @override
   Future<void> leaveTeam({required String teamId, required String uid}) async {}
+  @override
+  Future<void> updateMemberDisplayName({
+    required String uid,
+    required String displayName,
+  }) async {
+    members.value = [
+      for (final m in members.value)
+        if (m.uid == uid)
+          TeamMember(
+            uid: m.uid,
+            teamId: m.teamId,
+            displayName: displayName,
+            email: m.email,
+            role: m.role,
+            status: m.status,
+            joinedAt: m.joinedAt,
+            invitedBy: m.invitedBy,
+            inviteId: m.inviteId,
+          )
+        else
+          m,
+    ];
+  }
   @override
   Future<void> archiveTeam(String teamId) async {}
 }

@@ -254,6 +254,22 @@ class FirestoreTeamRepository implements ITeamRepository {
       removeMember(teamId: teamId, memberUid: uid);
 
   @override
+  Future<void> updateMemberDisplayName({
+    required String uid,
+    required String displayName,
+  }) async {
+    final snap = await _teams.where('memberUids', arrayContains: uid).get();
+    if (snap.docs.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final doc in snap.docs) {
+      batch.update(_members(doc.id).doc(uid), {
+        'displayName': displayName,
+      });
+    }
+    await batch.commit();
+  }
+
+  @override
   Future<void> archiveTeam(String teamId) {
     return _team(teamId).update({'isArchived': true, 'updatedAt': _now});
   }

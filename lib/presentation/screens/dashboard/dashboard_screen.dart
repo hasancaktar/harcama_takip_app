@@ -47,7 +47,7 @@ class DashboardScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Bütçe'.tr,
-            icon: const Icon(Icons.savings_outlined),
+            icon: const Icon(Icons.account_balance_wallet_outlined),
             onPressed: () => context.push('/budgets'),
           ),
           const SizedBox(width: AppSpacing.xs),
@@ -363,7 +363,7 @@ class _SummaryHeroCard extends ConsumerWidget {
                 backgroundColor: onHero.withValues(alpha: 0.15),
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               ),
-              icon: const Icon(Icons.savings_outlined, size: 18),
+              icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
               label: Text('Aylık bütçe belirle'.tr),
             ),
         ],

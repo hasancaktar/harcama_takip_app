@@ -84,9 +84,25 @@ final activeTeamMembersProvider = StreamProvider<List<TeamMember>>((ref) {
 });
 
 /// Takım modunda harcamayı kimin eklediğini göstermek için uid -> ad eşlemesi.
+/// Oturumdaki kullanıcının güncel görünen adı (profil veya Auth) öncelikli olarak kullanılır.
 final memberNamesProvider = Provider<Map<String, String>>((ref) {
   final members = ref.watch(activeTeamMembersProvider).valueOrNull ?? const [];
-  return {for (final m in members) m.uid: m.label};
+  final map = {for (final m in members) m.uid: m.label};
+  final myUid =
+      ref.watch(currentUserIdProvider) ?? ref.watch(currentUserProvider)?.uid;
+  if (myUid != null) {
+    final profile = ref.watch(userProfileProvider).valueOrNull;
+    final user = ref.watch(currentUserProvider);
+    final myDisplayName = (profile?.displayName.trim().isNotEmpty == true)
+        ? profile!.displayName.trim()
+        : ((user != null && user.displayName.trim().isNotEmpty)
+            ? user.displayName.trim()
+            : null);
+    if (myDisplayName != null && myDisplayName.isNotEmpty) {
+      map[myUid] = myDisplayName;
+    }
+  }
+  return map;
 });
 
 final teamByIdProvider = StreamProvider.autoDispose.family<Team?, String>((

@@ -36,6 +36,12 @@ abstract class ITeamRepository {
   });
   Future<void> leaveTeam({required String teamId, required String uid});
 
+  /// Kullanıcının üyesi olduğu tüm takımlardaki üye kaydında görünen adı günceller.
+  Future<void> updateMemberDisplayName({
+    required String uid,
+    required String displayName,
+  });
+
   /// Takımı arşivler (silmez); üyelerin geçmiş harcamaları korunur.
   Future<void> archiveTeam(String teamId);
 }

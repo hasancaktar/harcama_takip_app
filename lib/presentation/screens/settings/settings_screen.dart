@@ -188,7 +188,7 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => context.push('/teams'),
               ),
               _SettingsTile(
-                icon: Icons.savings_outlined,
+                icon: Icons.account_balance_wallet_outlined,
                 title: 'Bütçe'.tr,
                 subtitle: 'Aylık ve kategori bazlı limitler'.tr,
                 onTap: () => context.push('/budgets'),

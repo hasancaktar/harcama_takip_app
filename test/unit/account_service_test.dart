@@ -1,10 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harcama_takip/application/providers/auth_providers.dart';
 import 'package:harcama_takip/application/providers/repository_providers.dart';
+import 'package:harcama_takip/application/providers/team_providers.dart';
 import 'package:harcama_takip/application/services/account_service.dart';
 import 'package:harcama_takip/application/services/notification_service.dart';
 import 'package:harcama_takip/application/services/push_token_service.dart';
 import 'package:harcama_takip/domain/entities/app_user.dart';
+import 'package:harcama_takip/domain/entities/team.dart';
+import 'package:harcama_takip/domain/entities/team_member.dart';
 
 import '../helpers/fakes.dart';
 
@@ -108,6 +112,68 @@ void main() {
       final service = container.read(accountServiceProvider);
       await expectLater(service.signOut(), completes);
       expect(backend.auth.currentUser, isNull);
+    });
+  });
+
+  group('AccountService.updateDisplayName ve üye adı güncelleme', () {
+    test('İsim güncellendiğinde auth, profil ve takım üyelerindeki isim güncellenir', () async {
+      final backend = TestBackend();
+      final user = await backend.auth.register(
+        email: 'hasan@test.com',
+        password: 'password123',
+        displayName: 'Eski İsim',
+      );
+      backend.auth.verifyOnReload = true;
+      await backend.auth.reloadUser();
+      await backend.users.ensureProfile(
+        uid: user.uid,
+        email: user.email,
+        displayName: 'Eski İsim',
+      );
+      final now = DateTime.now();
+      backend.teams.teams.value = [
+        Team(
+          id: 'team-1',
+          name: 'Aile',
+          ownerUid: user.uid,
+          memberUids: [user.uid],
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ];
+      backend.teams.members.value = [
+        TeamMember(
+          uid: user.uid,
+          teamId: 'team-1',
+          displayName: 'Eski İsim',
+          email: user.email,
+          role: 'owner',
+          joinedAt: now,
+          invitedBy: user.uid,
+        ),
+      ];
+
+      final container = ProviderContainer(overrides: backend.overrides);
+      addTearDown(container.dispose);
+      final sub = container.listen(currentUserProvider, (_, __) {});
+      addTearDown(sub.close);
+      final profileSub = container.listen(userProfileProvider, (_, __) {});
+      addTearDown(profileSub.close);
+      await container.read(authStateProvider.future);
+      await container.read(userProfileProvider.future);
+
+      final service = container.read(accountServiceProvider);
+      await service.updateDisplayName('Yeni İsim');
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(backend.auth.currentUser?.displayName, 'Yeni İsim');
+      final updatedProfile = await backend.users.getProfile(user.uid);
+      expect(updatedProfile?.displayName, 'Yeni İsim');
+      expect(backend.teams.members.value.first.displayName, 'Yeni İsim');
+
+      // memberNamesProvider oturumdaki kullanıcının güncel adını yansıtır
+      final memberNames = container.read(memberNamesProvider);
+      expect(memberNames[user.uid], 'Yeni İsim');
     });
   });
 }

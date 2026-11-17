@@ -249,7 +249,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
             decoration: InputDecoration(
               labelText: 'Toplam bütçe'.tr,
               prefixText: '₺ ',
-              prefixIcon: Icon(Icons.savings_outlined),
+              prefixIcon: Icon(Icons.account_balance_wallet_outlined),
               helperText: 'Seçili çalışma alanı ve ay için geçerlidir.'.tr,
             ),
           ),
