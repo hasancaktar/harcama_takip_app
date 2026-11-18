@@ -28,6 +28,43 @@ class Budget {
     required this.updatedAt,
   });
 
+  /// [period] için geçerli bütçe: o aya ait bütçe, yoksa önceki en yakın ayın
+  /// bütçesi (devredilir). Dönen bütçenin `period` alanı [period]'dan farklıysa
+  /// devredilmiştir; düzenlenip kaydedilince yalnızca [period] için yazılır.
+  /// Aynı ayda birden fazla kayıt varsa (eski sürümler) kanonik kimlik, yoksa
+  /// en son güncellenen seçilir.
+  static Budget? resolveForPeriod(
+    Iterable<Budget> budgets, {
+    required String period,
+    required String canonicalId,
+  }) {
+    Budget? best;
+    for (final b in budgets) {
+      if (b.period.compareTo(period) > 0) continue;
+      if (best == null) {
+        best = b;
+        continue;
+      }
+      final byPeriod = b.period.compareTo(best.period);
+      if (byPeriod > 0) {
+        best = b;
+      } else if (byPeriod == 0) {
+        final bCanonical = b.period == period && b.id == canonicalId;
+        final bestCanonical = best.period == period && best.id == canonicalId;
+        if (bCanonical && !bestCanonical) {
+          best = b;
+        } else if (bCanonical == bestCanonical &&
+            b.updatedAt.isAfter(best.updatedAt)) {
+          best = b;
+        }
+      }
+    }
+    return best;
+  }
+
+  /// Bu bütçe [period] ayına ait değil, önceki bir aydan devredilmiş mi?
+  bool isCarriedOverTo(String period) => this.period != period;
+
   /// Her çalışma alanı + dönem için tek bir bütçe belgesi olmasını garanti eden kimlik.
   /// (Önceki sürüm her kayıtta rastgele kimlik üretiyor, aynı aya birden fazla bütçe yazıyordu.)
   static String idFor({

@@ -444,16 +444,40 @@ describe('Bütçeler', () => {
     await assertFails(setDoc(doc(db(USERS.eve), 'budgets/user_alice_2026-12'), budget('user_alice_2026-12', 'alice', { period: '2026-12' })));
   });
 
-  test('takım bütçesini yalnızca takım üyeleri yazar ve okur', async () => {
-    await seedTeam();
+  test('takım bütçesini yalnızca takımı kuran yazar ve siler; üyeler okur', async () => {
+    await seedTeam(); // kurucu: alice, üye: bob
     const team = (owner) => budget('team_t1_2026-11', owner, { visibility: 'team', teamId: 't1' });
-    await assertSucceeds(setDoc(doc(db(USERS.bob), 'budgets/team_t1_2026-11'), team('bob')));
+    await assertSucceeds(setDoc(doc(db(USERS.alice), 'budgets/team_t1_2026-11'), team('alice')));
+    await assertFails(setDoc(doc(db(USERS.bob), 'budgets/team_t1_2026-11'), team('bob')));
+    await assertFails(setDoc(doc(db(USERS.bob), 'budgets/team_t1_2026-12'), budget('team_t1_2026-12', 'bob', { visibility: 'team', teamId: 't1', period: '2026-12' })));
+    await assertFails(deleteDoc(doc(db(USERS.bob), 'budgets/team_t1_2026-11')));
+    // Devretme için takımın tüm bütçeleri dönem filtresi olmadan okunur.
     await assertSucceeds(getDocs(query(
-      collection(db(USERS.alice), 'budgets'),
-      where('teamId', '==', 't1'), where('visibility', '==', 'team'), where('period', '==', '2026-11'),
+      collection(db(USERS.bob), 'budgets'),
+      where('teamId', '==', 't1'), where('visibility', '==', 'team'),
     )));
     await assertFails(setDoc(doc(db(USERS.eve), 'budgets/team_t1_2026-11'), team('eve')));
     await assertFails(getDoc(doc(db(USERS.eve), 'budgets/team_t1_2026-11')));
+    await assertSucceeds(deleteDoc(doc(db(USERS.alice), 'budgets/team_t1_2026-11')));
+  });
+
+  test('eski sürümde üyenin yazdığı takım bütçesini üye silemez, kurucu siler', async () => {
+    await seedTeam();
+    await seed((fs) => setDoc(doc(fs, 'budgets/legacy-1'), budget('legacy-1', 'bob', { visibility: 'team', teamId: 't1' })));
+    await assertFails(deleteDoc(doc(db(USERS.bob), 'budgets/legacy-1')));
+    await assertSucceeds(deleteDoc(doc(db(USERS.alice), 'budgets/legacy-1')));
+  });
+
+  test('kişisel bütçeler dönem filtresi olmadan sorgulanabilir (devretme)', async () => {
+    await seed((fs) => setDoc(doc(fs, 'budgets/user_alice_2026-10'), budget('user_alice_2026-10', 'alice', { period: '2026-10' })));
+    await assertSucceeds(getDocs(query(
+      collection(db(USERS.alice), 'budgets'),
+      where('ownerUid', '==', 'alice'), where('visibility', '==', 'personal'),
+    )));
+    await assertFails(getDocs(query(
+      collection(db(USERS.eve), 'budgets'),
+      where('ownerUid', '==', 'alice'), where('visibility', '==', 'personal'),
+    )));
   });
 
   test('eski sürümün açık kuralı (visibility=team ile herkesin yazması) kapatıldı', async () => {

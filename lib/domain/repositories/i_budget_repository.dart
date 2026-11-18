@@ -1,11 +1,9 @@
 import '../entities/budget.dart';
 
 abstract class IBudgetRepository {
-  Stream<Budget?> watchBudget({
-    required String ownerUid,
-    String? teamId,
-    required String period,
-  });
+  /// Çalışma alanının (kişisel veya takım) tüm aylardaki bütçeleri.
+  /// Seçili ay için geçerli bütçe [Budget.resolveForPeriod] ile bulunur.
+  Stream<List<Budget>> watchBudgets({required String ownerUid, String? teamId});
   Future<void> saveBudget(Budget budget);
   Future<void> deleteBudget(String budgetId);
 }

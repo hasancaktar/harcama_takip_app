@@ -454,8 +454,6 @@ const Map<String, String> translationsEn = {
       '{0} of the selected users can currently receive notifications.',
   'Seçili': 'Selected',
   'Seçili dönem {0}': 'Selected period {0}',
-  'Seçili çalışma alanı ve ay için geçerlidir.':
-      'Applies to the selected workspace and month.',
   'Seçimi onayla ({0})': 'Confirm selection ({0})',
   'Sil': 'Delete',
   'Silinen kategoriler': 'Deleted categories',
@@ -734,4 +732,8 @@ const Map<String, String> translationsEn = {
   'İletişim': 'Contact',
   'E-posta gönder': 'Send email',
   'İletişim: {0}': 'Contact: {0}',
+  '{0} bütçesi bu aya devredildi. Değiştirip kaydederseniz yalnızca {1} ve sonrası için geçerli olur.': 'The {0} budget was carried over to this month. If you change and save it, it applies only to {1} and later.',
+  'Takım bütçesini yalnızca takımı kuran kişi belirleyebilir.':
+      'Only the person who created the team can set the team budget.',
+  'Seçili ay ve sonraki aylar için geçerlidir; sonraki bir ayda değiştirebilirsiniz.': 'Applies to the selected month and the following months; you can change it in a later month.',
 };

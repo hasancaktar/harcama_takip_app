@@ -127,7 +127,8 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
         period: widget.period,
         totalBudgetInCents: total,
         categoryBudgetsInCents: categories,
-        createdAt: widget.budget?.createdAt ?? now,
+        // Devredilen bütçe kaydedilince bu ay için yeni bir kayıt oluşur.
+        createdAt: _ownBudget?.createdAt ?? now,
         updatedAt: now,
       );
       await ref.read(budgetRepositoryProvider).saveBudget(budget);
@@ -143,8 +144,14 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
     }
   }
 
+  /// Bu aya ait bütçe (devredilen bütçe değil).
+  Budget? get _ownBudget {
+    final b = widget.budget;
+    return b == null || b.isCarriedOverTo(widget.period) ? null : b;
+  }
+
   Future<void> _delete() async {
-    final budget = widget.budget;
+    final budget = _ownBudget;
     if (budget == null) return;
     final ok = await showConfirmDialog(
       context,
@@ -171,6 +178,13 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
     final scheme = context.colors;
     final semantic = context.semantic;
     final budget = widget.budget;
+    final carriedFrom = budget != null && budget.isCarriedOverTo(widget.period)
+        ? budget.period
+        : null;
+    final team = ref.watch(activeTeamProvider);
+    final uid = ref.watch(currentUserIdProvider);
+    // Takım bütçesini yalnızca takımı kuran kişi belirler (Firestore kuralı da aynı).
+    final canEdit = team == null || team.ownerUid == uid;
 
     final (String headline, Color tone) = switch (status?.level) {
       null => ('Bu ay için bütçe belirlenmedi'.tr, scheme.onSurfaceVariant),
@@ -238,8 +252,29 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
               ],
             ),
           ),
+          if (carriedFrom != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            InlineMessage(
+              tone: MessageTone.info,
+              message: '{0} bütçesi bu aya devredildi. Değiştirip kaydederseniz yalnızca {1} ve sonrası için geçerli olur.'
+                  .trArgs([
+                    DateFormats.period(carriedFrom),
+                    DateFormats.period(widget.period),
+                  ]),
+            ),
+          ],
+          if (!canEdit) ...[
+            const SizedBox(height: AppSpacing.md),
+            InlineMessage(
+              tone: MessageTone.info,
+              message:
+                  'Takım bütçesini yalnızca takımı kuran kişi belirleyebilir.'
+                      .tr,
+            ),
+          ],
           SectionHeader(title: 'Aylık toplam bütçe'.tr),
           TextFormField(
+            enabled: canEdit,
             controller: _totalController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: const [ThousandsSeparatorInputFormatter()],
@@ -248,7 +283,8 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
               labelText: 'Toplam bütçe'.tr,
               prefixText: '₺ ',
               prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-              helperText: 'Seçili çalışma alanı ve ay için geçerlidir.'.tr,
+              helperText: 'Seçili ay ve sonraki aylar için geçerlidir; sonraki bir ayda değiştirebilirsiniz.'
+                  .tr,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -274,6 +310,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
                       categoryId: c.id,
                       spentCents: stats.categoryCents(c.id),
                       limitCents: budget?.categoryBudgetsInCents[c.id] ?? 0,
+                      enabled: canEdit,
                       controller: _categoryControllers.putIfAbsent(
                         c.id,
                         TextEditingController.new,
@@ -282,14 +319,16 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
                 ],
               ),
             ),
-          const SizedBox(height: AppSpacing.lg),
-          AppButton(
-            label: 'Bütçeyi kaydet'.tr,
-            icon: Icons.check_rounded,
-            onPressed: _save,
-            isLoading: _saving,
-          ),
-          if (budget != null) ...[
+          if (canEdit) ...[
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: 'Bütçeyi kaydet'.tr,
+              icon: Icons.check_rounded,
+              onPressed: _save,
+              isLoading: _saving,
+            ),
+          ],
+          if (canEdit && _ownBudget != null) ...[
             const SizedBox(height: AppSpacing.sm),
             AppButton(
               label: 'Bütçeyi kaldır'.tr,
@@ -337,12 +376,14 @@ class _CategoryLimitRow extends StatelessWidget {
   final String categoryId;
   final int spentCents;
   final int limitCents;
+  final bool enabled;
   final TextEditingController controller;
 
   const _CategoryLimitRow({
     required this.categoryId,
     required this.spentCents,
     required this.limitCents,
+    required this.enabled,
     required this.controller,
   });
 
@@ -376,6 +417,7 @@ class _CategoryLimitRow extends StatelessWidget {
               SizedBox(
                 width: 130,
                 child: TextFormField(
+                  enabled: enabled,
                   controller: controller,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,

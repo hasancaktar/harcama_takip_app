@@ -423,19 +423,18 @@ class FakeBudgetRepository implements IBudgetRepository {
   final ValueStream<List<Budget>> budgets = ValueStream(const []);
 
   @override
-  Stream<Budget?> watchBudget({
+  Stream<List<Budget>> watchBudgets({
     required String ownerUid,
     String? teamId,
-    required String period,
-  }) {
-    final id = Budget.idFor(ownerUid: ownerUid, teamId: teamId, period: period);
-    return budgets.stream.map((l) {
-      for (final b in l) {
-        if (b.id == id) return b;
-      }
-      return null;
-    });
-  }
+  }) => budgets.stream.map(
+    (l) => l
+        .where(
+          (b) => teamId != null
+              ? b.teamId == teamId && b.visibility == 'team'
+              : b.ownerUid == ownerUid && b.visibility == 'personal',
+        )
+        .toList(),
+  );
 
   @override
   Future<void> saveBudget(Budget budget) async => budgets.value = [

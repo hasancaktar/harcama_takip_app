@@ -7,7 +7,8 @@ import 'expense_providers.dart';
 import 'repository_providers.dart';
 import 'team_providers.dart';
 
-/// Aktif çalışma alanının seçili dönemdeki bütçesi.
+/// Aktif çalışma alanının seçili dönemdeki bütçesi. O ay için bütçe yoksa önceki
+/// en yakın ayın bütçesi döner (devredilir; bkz. [Budget.isCarriedOverTo]).
 final currentBudgetProvider = StreamProvider<Budget?>((ref) async* {
   final uid = ref.watch(currentUserIdProvider);
   final period = ref.watch(selectedPeriodProvider);
@@ -20,7 +21,20 @@ final currentBudgetProvider = StreamProvider<Budget?>((ref) async* {
     return;
   }
   final teamId = await teamIdFuture;
-  yield* repo.watchBudget(ownerUid: uid, teamId: teamId, period: period);
+  final canonicalId = Budget.idFor(
+    ownerUid: uid,
+    teamId: teamId,
+    period: period,
+  );
+  yield* repo
+      .watchBudgets(ownerUid: uid, teamId: teamId)
+      .map(
+        (all) => Budget.resolveForPeriod(
+          all,
+          period: period,
+          canonicalId: canonicalId,
+        ),
+      );
 });
 
 enum BudgetLevel { safe, warning, critical, exceeded }

@@ -394,7 +394,9 @@ service cloud.firestore {
         // Her çalışma alanı + dönem için tek belge (deterministik kimlik).
         && budgetId == (d.visibility == 'team'
               ? 'team_' + d.teamId + '_' + d.period
-              : 'user_' + uid() + '_' + d.period);
+              : 'user_' + uid() + '_' + d.period)
+        // Takım bütçesini yalnızca takımı kuran kişi belirler.
+        && (d.visibility == 'personal' || isTeamOwner(d.teamId));
     }
 
     match /budgets/{budgetId} {
@@ -404,11 +406,11 @@ service cloud.firestore {
         && validBudget(incoming(), budgetId)
         && existing().visibility == incoming().visibility
         && (existing().visibility == 'team' || existing().ownerUid == uid());
+      // Eski sürümlerden kalan, kimliği kanonik olmayan kayıtlar da aynı kurala tabidir:
+      // kişisel bütçeyi sahibi, takım bütçesini takımı kuran kişi siler.
       allow delete: if verified() && (
         (existing().visibility == 'personal' && existing().ownerUid == uid())
-        || (existing().visibility == 'team' && isTeamMember(existing().get('teamId', null)))
-        // Eski sürümlerden kalan, kimliği kanonik olmayan kayıtlar için sahibin silme hakkı.
-        || existing().ownerUid == uid()
+        || (existing().visibility == 'team' && isTeamOwner(existing().get('teamId', null)))
       );
     }
   }
