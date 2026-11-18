@@ -8,7 +8,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +24,7 @@ import 'package:harcama_takip/presentation/navigation/app_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import '../helpers/fakes.dart';
+import '../helpers/fonts.dart';
 
 const _run = bool.fromEnvironment('STORE_SHOTS');
 const _uid = 'u-ayse';
@@ -44,28 +44,6 @@ class _Backend extends TestBackend {
 
   @override
   FakeAuthRepository get auth => _auth;
-}
-
-Future<void> _loadFonts() async {
-  final root = Platform.environment['FLUTTER_ROOT']!;
-  final dir = '$root/bin/cache/artifacts/material_fonts';
-  Future<ByteData> read(String name) async =>
-      ByteData.sublistView(await File('$dir/$name').readAsBytes());
-
-  final roboto = FontLoader('Roboto');
-  for (final f in [
-    'roboto-light.ttf',
-    'roboto-regular.ttf',
-    'roboto-medium.ttf',
-    'roboto-bold.ttf',
-    'roboto-black.ttf',
-  ]) {
-    roboto.addFont(read(f));
-  }
-  await roboto.load();
-  final icons = FontLoader('MaterialIcons')
-    ..addFont(read('materialicons-regular.otf'));
-  await icons.load();
 }
 
 void _seed(_Backend b, DateTime now) {
@@ -268,7 +246,7 @@ Future<void> _shot(WidgetTester tester, GlobalKey key, String name) async {
 void main() {
   setUpAll(() async {
     await initializeDateFormatting('tr_TR');
-    await _loadFonts();
+    await loadRealFonts();
     Directory(_outDir).createSync(recursive: true);
   });
 

@@ -44,6 +44,52 @@ List<_Destination> get _destinations => [
   _Destination('Ayarlar'.tr, Icons.settings_outlined, Icons.settings_rounded),
 ];
 
+/// Alt gezinme çubuğu etiketleri tek satıra sığmıyorsa yazı boyutunu küçültür.
+///
+/// [NavigationBar] etiketleri satır sınırı olmadan çizer; dar ekranlarda
+/// (ör. 360 dp) ve büyük yazı boyutunda "Harcamalar" iki satıra kırılıyordu.
+/// En geniş etiket (seçili, kalın hâliyle ve çubuğun izin verdiği en büyük yazı
+/// ölçeğiyle) ölçülür; sığmıyorsa tüm etiketler aynı oranda küçültülür.
+@visibleForTesting
+NavigationBarThemeData fitNavigationLabels(
+  BuildContext context, {
+  required List<String> labels,
+  required double barWidth,
+}) {
+  final theme = NavigationBarTheme.of(context);
+  final base = theme.labelTextStyle;
+  final selected = DefaultTextStyle.of(context).style
+      .merge(base?.resolve({WidgetState.selected}));
+  final padding = (theme.labelPadding ?? const EdgeInsets.all(4))
+      .resolve(Directionality.of(context))
+      .horizontal;
+  final available = barWidth / labels.length - padding;
+  // NavigationBar etiket ölçeğini 1.3 ile sınırlar.
+  final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3);
+
+  var widest = 0.0;
+  for (final label in labels) {
+    final painter = TextPainter(
+      text: TextSpan(text: label, style: selected),
+      textDirection: Directionality.of(context),
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    if (painter.width > widest) widest = painter.width;
+    painter.dispose();
+  }
+  if (widest <= available || available <= 0) return theme;
+
+  // Yazı tipi ölçümündeki küçük farklara karşı %3 pay bırakılır.
+  final factor = (available / widest * 0.97).clamp(0.5, 1.0);
+  return theme.copyWith(
+    labelTextStyle: WidgetStateProperty.resolveWith((states) {
+      final style = base?.resolve(states);
+      return style?.copyWith(fontSize: (style.fontSize ?? 12) * factor);
+    }),
+  );
+}
+
 /// Ana iskelet: telefonda alt gezinme çubuğu, tablet/masaüstünde yan gezinme rayı.
 /// Ayrıca oturum başında bir kez çalışması gereken arka plan işlerini başlatır.
 class AppShellScreen extends ConsumerStatefulWidget {
@@ -195,17 +241,24 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
     if (width < AppSpacing.compactBreakpoint) {
       return Scaffold(
         body: body,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: shell.currentIndex,
-          onDestinationSelected: _onSelect,
-          destinations: [
-            for (final d in _destinations)
-              NavigationDestination(
-                icon: Icon(d.icon),
-                selectedIcon: Icon(d.selectedIcon),
-                label: d.label,
-              ),
-          ],
+        bottomNavigationBar: NavigationBarTheme(
+          data: fitNavigationLabels(
+            context,
+            labels: [for (final d in _destinations) d.label],
+            barWidth: width,
+          ),
+          child: NavigationBar(
+            selectedIndex: shell.currentIndex,
+            onDestinationSelected: _onSelect,
+            destinations: [
+              for (final d in _destinations)
+                NavigationDestination(
+                  icon: Icon(d.icon),
+                  selectedIcon: Icon(d.selectedIcon),
+                  label: d.label,
+                ),
+            ],
+          ),
         ),
       );
     }
