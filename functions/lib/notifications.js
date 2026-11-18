@@ -76,6 +76,8 @@ function selectRecipients(users, { target = "all", targetUids = [], type = "manu
   for (const user of users) {
     if (target === "selected" && !selected.has(user.uid)) continue;
     const data = user.data || {};
+    // Yönetici tarafından pasife alınan hesaplara bildirim gönderilmez.
+    if (data.disabled === true) continue;
     const tokens = Array.isArray(data.fcmTokens) ? data.fcmTokens.filter((t) => typeof t === "string" && t) : [];
     if (data.pushEnabled === false) {
       optedOutCount++;

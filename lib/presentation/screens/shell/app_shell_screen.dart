@@ -17,6 +17,8 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/user_profile.dart';
+import '../../widgets/release_notes_dialog.dart';
+import '../../../application/services/account_service.dart';
 
 class _Destination {
   final String label;
@@ -105,6 +107,8 @@ class AppShellScreen extends ConsumerStatefulWidget {
 class _AppShellScreenState extends ConsumerState<AppShellScreen> {
   StreamSubscription<String>? _notificationTapSub;
   ProviderSubscription<AsyncValue<UserProfile?>>? _profileSub;
+  ProviderSubscription<AsyncValue<UserProfile?>>? _disabledSub;
+  bool _signingOutDisabled = false;
 
   @override
   void initState() {
@@ -115,6 +119,15 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
   Future<void> _bootstrap() async {
     final user = ref.read(currentUserProvider);
     if (user == null || !user.emailVerified) return;
+
+    // 0) Yönetici hesabı pasife aldıysa (oturum açıkken de) çıkış yap.
+    _disabledSub = ref.listenManual<AsyncValue<UserProfile?>>(
+      userProfileProvider,
+      (_, next) {
+        if (next.valueOrNull?.disabled == true) _signOutDisabled();
+      },
+      fireImmediately: true,
+    );
 
     // 1) Profil yoksa oluştur (kayıt sırasında yazılamamış olabilir).
     try {
@@ -170,6 +183,50 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
           await ref.read(pushTokenServiceProvider).initialRoute();
       if (launchRoute != null) _openRoute(launchRoute);
     }
+
+    // 5) Güncellemeden sonraki ilk açılışta "Yenilikler" penceresi.
+    unawaited(_maybeShowReleaseNotes());
+  }
+
+  Future<void> _signOutDisabled() async {
+    if (_signingOutDisabled) return;
+    _signingOutDisabled = true;
+    ref.read(accountDisabledNoticeProvider.notifier).state = true;
+    try {
+      await ref.read(accountServiceProvider).signOut();
+    } catch (e) {
+      debugPrint('[Shell] Pasif hesap çıkışı başarısız: $e');
+    }
+  }
+
+  static const _releaseNotesSeenKey = 'release_notes_seen_version';
+
+  /// Bu sürümün notları yayınlandıysa ve bu cihazda henüz gösterilmediyse bir
+  /// kez gösterir. Notlar yayınlanmadan önce açılmış hesaplara gösterilir;
+  /// yeni kayıt olanlar güncellemeyi yaşamadığı için görmez.
+  Future<void> _maybeShowReleaseNotes() async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (prefs == null ||
+        prefs.getString(_releaseNotesSeenKey) == AppConstants.appVersion) {
+      return;
+    }
+    try {
+      final notes = await ref
+          .read(currentReleaseNotesProvider.future)
+          .timeout(const Duration(seconds: 15));
+      final profile = await ref
+          .read(userProfileProvider.future)
+          .timeout(const Duration(seconds: 15));
+      if (notes == null || profile == null || !notes.published) return;
+      if (notes.shouldShowTo(accountCreatedAt: profile.createdAt)) {
+        // Ekran kapandıysa "görüldü" işaretlenmez; sonraki açılışta gösterilir.
+        if (!mounted) return;
+        await showReleaseNotesDialog(context, notes);
+      }
+      await prefs.setString(_releaseNotesSeenKey, AppConstants.appVersion);
+    } catch (e) {
+      debugPrint('[Shell] Sürüm notları gösterilemedi: $e');
+    }
   }
 
   Future<void> _syncReminders(UserProfile? prev, UserProfile? next) async {
@@ -206,6 +263,7 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
   void dispose() {
     _notificationTapSub?.cancel();
     _profileSub?.close();
+    _disabledSub?.close();
     super.dispose();
   }
 

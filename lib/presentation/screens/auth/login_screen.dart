@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/repository_providers.dart';
 import '../../../application/providers/settings_providers.dart';
 import '../../../core/errors/error_messages.dart';
@@ -68,9 +69,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     try {
       final email = _emailController.text.trim();
-      await ref
-          .read(authRepositoryProvider)
-          .signIn(email: email, password: _passwordController.text);
+      final auth = ref.read(authRepositoryProvider);
+      final users = ref.read(userRepositoryProvider);
+      final disabledNotice = ref.read(accountDisabledNoticeProvider.notifier);
+      disabledNotice.state = false;
+      await auth.signIn(email: email, password: _passwordController.text);
+      // Pasife alınmış hesap: oturumu hemen kapat ve nedenini göster.
+      final uid = auth.currentUser?.uid;
+      final profile = uid == null ? null : await users.getProfile(uid);
+      if (profile?.disabled == true) {
+        disabledNotice.state = true;
+        await auth.signOut();
+        if (mounted) {
+          setState(() => _errorMessage = ErrorMessages.accountDisabled);
+        }
+        return;
+      }
       await ref
           .read(sharedPreferencesProvider)
           ?.setString('last_login_email', email);
@@ -85,13 +99,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = context.colors;
+    final disabledNotice = ref.watch(accountDisabledNoticeProvider);
+    final error =
+        _errorMessage ??
+        (disabledNotice ? ErrorMessages.accountDisabled : null);
     return AuthScaffold(
       title: 'Tekrar hoş geldiniz'.tr,
       subtitle:
           'Harcama, kart ve taksitlerinizi takip etmek için giriş yapın.'.tr,
       children: [
-        if (_errorMessage != null) ...[
-          InlineMessage(message: _errorMessage!, tone: MessageTone.error),
+        if (error != null) ...[
+          InlineMessage(message: error, tone: MessageTone.error),
           const SizedBox(height: AppSpacing.md),
         ],
         AutofillGroup(

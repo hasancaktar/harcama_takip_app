@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../application/providers/admin_providers.dart';
 import '../../application/providers/auth_providers.dart';
 import '../screens/admin/admin_categories_screen.dart';
+import '../screens/admin/admin_content_screens.dart';
 import '../screens/admin/admin_home_screen.dart';
 import '../screens/admin/admin_notifications_screens.dart';
 import '../screens/auth/forgot_password_screen.dart';
@@ -25,6 +26,7 @@ import '../screens/expenses/expense_detail_screen.dart';
 import '../screens/expenses/expense_list_screen.dart';
 import '../screens/reports/reports_screen.dart';
 import '../screens/settings/categories_screen.dart';
+import '../screens/settings/feedback_screen.dart';
 import '../screens/settings/notification_settings_screen.dart';
 import '../screens/settings/profile_screen.dart';
 import '../screens/settings/settings_screen.dart';
@@ -264,6 +266,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => HomeBackStack(child: const AdminUsersScreen()),
       ),
       GoRoute(
+        path: '/admin/feedback',
+        builder: (_, _) => const HomeBackStack(child: AdminFeedbackScreen()),
+      ),
+      GoRoute(
+        path: '/admin/release-notes',
+        builder: (_, _) =>
+            const HomeBackStack(child: AdminReleaseNotesScreen()),
+      ),
+      GoRoute(
+        path: '/admin/release-notes/:version',
+        builder: (_, state) => HomeBackStack(
+          child: AdminReleaseNotesEditScreen(
+            version: state.pathParameters['version']!,
+          ),
+        ),
+      ),
+      GoRoute(
         path: '/admin/logs',
         builder: (_, _) => const HomeBackStack(child: AdminLogsScreen()),
       ),
@@ -279,6 +298,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/appearance',
         builder: (_, __) => HomeBackStack(child: const ThemeLanguageScreen()),
+      ),
+      GoRoute(
+        path: '/settings/feedback',
+        builder: (_, __) => const HomeBackStack(child: FeedbackScreen()),
       ),
       GoRoute(
         path: '/settings/categories',

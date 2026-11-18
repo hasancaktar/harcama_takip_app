@@ -47,6 +47,17 @@ test("tüm kullanıcılara: dil tercihine göre gönderir, bildirimi kapatanı a
   assert.ok(c.finishedAt instanceof Date);
 });
 
+test("pasife alınan kullanıcıya bildirim gönderilmez", async () => {
+  const store = new MemoryStore({
+    users: [user("a", ["ta"]), user("b", ["tb"], { disabled: true })],
+    campaigns: { c1: manual() },
+  });
+  const { send, sent } = fakeSender();
+  await processCampaign({ store, send, campaign: await store.getCampaign("c1"), now });
+  assert.deepEqual(sent.map((m) => m.token), ["ta"]);
+  assert.equal(store.campaign("c1").recipientCount, 1);
+});
+
 test("seçili kullanıcılar: yalnızca seçilenlere gider", async () => {
   const store = new MemoryStore({
     users: [user("a", ["ta"]), user("b", ["tb"])],

@@ -66,3 +66,21 @@ final adminLogsProvider = StreamProvider.autoDispose<List<AdminLogEntry>>(
 final adminUsersProvider = FutureProvider.autoDispose<List<AdminUserSummary>>(
   (ref) => ref.watch(adminRepositoryProvider).fetchUsers(),
 );
+
+final adminFeedbackProvider = StreamProvider.autoDispose<List<FeedbackEntry>>(
+  (ref) => ref.watch(adminRepositoryProvider).watchFeedback(),
+);
+
+final adminReleaseNotesProvider =
+    StreamProvider.autoDispose<List<ReleaseNotes>>(
+      (ref) => ref.watch(adminRepositoryProvider).watchAllReleaseNotes(),
+    );
+
+/// Uygulamanın bu sürümünün "Yenilikler" notları (yoksa `null`).
+final currentReleaseNotesProvider = StreamProvider<ReleaseNotes?>((ref) {
+  final uid = ref.watch(currentUserIdProvider);
+  if (uid == null) return Stream.value(null);
+  return ref
+      .watch(appContentRepositoryProvider)
+      .watchReleaseNotes(AppConstants.appVersion);
+});

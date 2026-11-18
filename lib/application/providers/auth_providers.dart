@@ -28,3 +28,7 @@ final userProfileProvider = StreamProvider<UserProfile?>((ref) {
   if (uid == null) return Stream.value(null);
   return ref.watch(userRepositoryProvider).watchProfile(uid);
 });
+
+/// Hesap yönetici tarafından pasife alındığı için oturum kapatıldıysa `true`;
+/// giriş ekranı bunu açıklayan bir mesaj gösterir.
+final accountDisabledNoticeProvider = StateProvider<bool>((ref) => false);

@@ -45,4 +45,32 @@ abstract class IAdminRepository {
   // Kullanıcılar ve kayıtlar
   Future<List<AdminUserSummary>> fetchUsers({int limit = 500});
   Stream<List<AdminLogEntry>> watchLogs({int limit = 100});
+
+  /// Kullanıcıyı pasife alır veya yeniden aktif eder.
+  Future<void> setUserDisabled(
+    AppUser admin,
+    AdminUserSummary user, {
+    required bool disabled,
+  });
+
+  // Öneriler
+  Stream<List<FeedbackEntry>> watchFeedback({int limit = 200});
+  Future<void> markFeedbackRead(AppUser admin, FeedbackEntry entry);
+
+  // Sürüm notları ("Yenilikler")
+  Stream<List<ReleaseNotes>> watchAllReleaseNotes();
+  Future<void> saveReleaseNotes(AppUser admin, ReleaseNotes notes);
+}
+
+/// Tüm kullanıcıların kullandığı, yönetimle ilgili içerik: öneri gönderme ve
+/// sürüm notlarını okuma.
+abstract class IAppContentRepository {
+  Future<void> sendFeedback({
+    required AppUser user,
+    required String message,
+    required String appVersion,
+    required String platform,
+  });
+
+  Stream<ReleaseNotes?> watchReleaseNotes(String version);
 }

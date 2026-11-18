@@ -23,8 +23,19 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
+    function userPath(userId) {
+      return /databases/$(database)/documents/users/$(userId);
+    }
+
+    // Yönetici tarafından pasife alınan hesap hiçbir veriye erişemez
+    // (kendi profilini okuyabilir; uygulama bununla uyarı gösterip çıkış yapar).
+    function isDisabled() {
+      return exists(userPath(request.auth.uid))
+        && get(userPath(request.auth.uid)).data.get('disabled', false) == true;
+    }
+
     function verified() {
-      return signedIn() && request.auth.token.email_verified == true;
+      return signedIn() && request.auth.token.email_verified == true && !isDisabled();
     }
 
     // Yönetim paneli yetkisi: yalnızca bu e-posta adresi (doğrulanmış olmalı).
@@ -96,8 +107,14 @@ service cloud.firestore {
       allow read: if (signedIn() && uid() == userId) || isAdmin();
       allow create: if signedIn() && uid() == userId
         && incoming().uid == userId
-        && incoming().displayName is string && incoming().displayName.size() <= 60;
+        && incoming().displayName is string && incoming().displayName.size() <= 60
+        && !incoming().keys().hasAny(['disabled', 'disabledAt', 'disabledBy']);
+      // Yönetici yalnızca pasif/aktif durumunu değiştirir; kendi hesabını pasife alamaz.
+      allow update: if isAdmin() && uid() != userId
+        && changedKeys().hasOnly(['disabled', 'disabledAt', 'disabledBy'])
+        && incoming().disabled is bool;
       allow update: if signedIn() && uid() == userId
+        && !changedKeys().hasAny(['disabled', 'disabledAt', 'disabledBy'])
         && incoming().get('uid', userId) == userId
         && (!('displayName' in incoming()) || (incoming().displayName is string && incoming().displayName.size() <= 60))
         && (!('fcmTokens' in incoming()) || (incoming().fcmTokens is list && incoming().fcmTokens.size() <= 20))
@@ -176,6 +193,48 @@ service cloud.firestore {
         && incoming().summary is string && incoming().summary.size() <= 1000
         && incoming().createdAt == request.time;
       allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------- Öneriler
+
+    // Kullanıcı yalnızca kendi adına öneri ekler; yalnızca yönetici okur ve
+    // "okundu" olarak işaretler.
+    match /feedback/{feedbackId} {
+      allow create: if verified()
+        && incoming().keys().hasOnly(['id', 'uid', 'email', 'displayName', 'message',
+                                      'appVersion', 'platform', 'status', 'createdAt'])
+        && incoming().id == feedbackId
+        && incoming().uid == uid()
+        && incoming().message is string && incoming().message.size() > 0 && incoming().message.size() <= 2000
+        && incoming().email is string && incoming().email.size() <= 200
+        && incoming().displayName is string && incoming().displayName.size() <= 60
+        && incoming().appVersion is string && incoming().appVersion.size() <= 20
+        && incoming().platform is string && incoming().platform.size() <= 20
+        && incoming().status == 'new'
+        && incoming().createdAt == request.time;
+      // Kullanıcı kendi önerilerini okuyup silebilir (hesap silmede temizlenir).
+      allow read, delete: if isAdmin() || (verified() && existing().uid == uid());
+      allow update: if isAdmin()
+        && changedKeys().hasOnly(['status'])
+        && incoming().status in ['new', 'read'];
+    }
+
+    // ---------------------------------------------------------------- Sürüm notları
+
+    function validNoteList(l) {
+      return l is list && l.size() <= 20;
+    }
+
+    match /releaseNotes/{version} {
+      allow read: if verified();
+      allow create, update: if isAdmin()
+        && version.matches('^[0-9]+[.][0-9]+[.][0-9]+$')
+        && incoming().version == version
+        && validNoteList(incoming().addedTr) && validNoteList(incoming().addedEn)
+        && validNoteList(incoming().removedTr) && validNoteList(incoming().removedEn)
+        && validNoteList(incoming().fixedTr) && validNoteList(incoming().fixedEn)
+        && incoming().published is bool;
+      allow delete: if isAdmin();
     }
 
     // ---------------------------------------------------------------- Takımlar

@@ -255,6 +255,12 @@ class SettingsScreen extends ConsumerWidget {
                     _copyUrl(context, AppConstants.privacyPolicyUrl),
               ),
               _SettingsTile(
+                icon: Icons.lightbulb_outline_rounded,
+                title: 'Öneri gönder'.tr,
+                subtitle: 'Hata bildirin veya yeni özellik önerin'.tr,
+                onTap: () => context.push('/settings/feedback'),
+              ),
+              _SettingsTile(
                 icon: Icons.mail_outline_rounded,
                 title: 'İletişim'.tr,
                 subtitle: AppConstants.contactEmail,

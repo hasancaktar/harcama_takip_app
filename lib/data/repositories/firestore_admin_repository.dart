@@ -249,4 +249,128 @@ class FirestoreAdminRepository implements IAdminRepository {
           }).toList(),
         );
   }
+
+  @override
+  Future<void> setUserDisabled(
+    AppUser admin,
+    AdminUserSummary user, {
+    required bool disabled,
+  }) async {
+    final batch = _firestore.batch();
+    batch.update(_firestore.collection('users').doc(user.uid), {
+      'disabled': disabled,
+      'disabledAt': disabled ? FieldValue.serverTimestamp() : null,
+      'disabledBy': disabled ? admin.uid : null,
+    });
+    _log(
+      batch,
+      admin,
+      disabled ? 'user.disable' : 'user.enable',
+      '${user.label} <${user.email}>',
+    );
+    await batch.commit();
+  }
+
+  CollectionReference<Map<String, dynamic>> get _feedback =>
+      _firestore.collection('feedback');
+
+  @override
+  Stream<List<FeedbackEntry>> watchFeedback({int limit = 200}) {
+    return _feedback
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (s) => s.docs.map((d) {
+            final data = d.data();
+            data['id'] = d.id;
+            return FeedbackEntry.fromMap(data);
+          }).toList(),
+        );
+  }
+
+  @override
+  Future<void> markFeedbackRead(AppUser admin, FeedbackEntry entry) =>
+      _feedback.doc(entry.id).update({'status': 'read'});
+
+  CollectionReference<Map<String, dynamic>> get _releaseNotes =>
+      _firestore.collection('releaseNotes');
+
+  @override
+  Stream<List<ReleaseNotes>> watchAllReleaseNotes() {
+    return _releaseNotes.snapshots().map(
+      (s) =>
+          s.docs.map((d) {
+            final data = d.data();
+            data['version'] = d.id;
+            return ReleaseNotes.fromMap(data);
+          }).toList()..sort(
+            (a, b) => ReleaseNotes.compareVersions(b.version, a.version),
+          ),
+    );
+  }
+
+  @override
+  Future<void> saveReleaseNotes(AppUser admin, ReleaseNotes notes) async {
+    final ref = _releaseNotes.doc(notes.version);
+    final existing = await ref.get();
+    final wasPublished =
+        existing.exists && (existing.data()?['published'] == true);
+    final batch = _firestore.batch();
+    batch.set(ref, {
+      ...notes.toMap(),
+      // İlk yayınlandığı an korunur; "kimlere gösterilecek" buna göre belirlenir.
+      if (notes.published && !wasPublished)
+        'publishedAt': FieldValue.serverTimestamp(),
+      if (!notes.published) 'publishedAt': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    _log(
+      batch,
+      admin,
+      'release_notes.save',
+      '${notes.version} · ${notes.published ? 'yayında' : 'taslak'}',
+    );
+    await batch.commit();
+  }
+}
+
+class FirestoreAppContentRepository implements IAppContentRepository {
+  final FirebaseFirestore _firestore;
+
+  FirestoreAppContentRepository({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  @override
+  Future<void> sendFeedback({
+    required AppUser user,
+    required String message,
+    required String appVersion,
+    required String platform,
+  }) async {
+    final ref = _firestore.collection('feedback').doc();
+    await ref.set({
+      'id': ref.id,
+      'uid': user.uid,
+      'email': user.email,
+      'displayName': user.displayName,
+      'message': message,
+      'appVersion': appVersion,
+      'platform': platform,
+      'status': 'new',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Stream<ReleaseNotes?> watchReleaseNotes(String version) {
+    return _firestore.collection('releaseNotes').doc(version).snapshots().map((
+      d,
+    ) {
+      if (!d.exists) return null;
+      final data = d.data() ?? <String, dynamic>{};
+      data['version'] = d.id;
+      return ReleaseNotes.fromMap(data);
+    });
+  }
 }

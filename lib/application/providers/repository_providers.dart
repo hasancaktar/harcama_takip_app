@@ -84,6 +84,10 @@ final categoryRepositoryProvider = Provider<ICategoryRepository>(
 final adminRepositoryProvider = Provider<IAdminRepository>(
   (ref) => FirestoreAdminRepository(),
 );
+
+final appContentRepositoryProvider = Provider<IAppContentRepository>(
+  (ref) => FirestoreAppContentRepository(),
+);
 final notificationServerProvider = Provider<INotificationServer>(
   (ref) => HttpNotificationServer(baseUrl: AppConstants.notificationServerUrl),
 );

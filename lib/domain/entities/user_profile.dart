@@ -18,6 +18,9 @@ class UserProfile {
   /// Sunucudan gelen duyuru/hatırlatma bildirimlerini almak istiyor mu?
   final bool pushEnabled;
   final String language; // 'tr' | 'en'
+
+  /// Yönetici tarafından pasife alınmış hesap (giriş yapamaz, verilere erişemez).
+  final bool disabled;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -34,6 +37,7 @@ class UserProfile {
     this.activeTeamId,
     this.pushEnabled = true,
     this.language = 'tr',
+    this.disabled = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -48,6 +52,7 @@ class UserProfile {
     bool clearActiveTeam = false,
     bool? pushEnabled,
     String? language,
+    bool? disabled,
     DateTime? updatedAt,
   }) {
     return UserProfile(
@@ -65,6 +70,7 @@ class UserProfile {
           : (activeTeamId ?? this.activeTeamId),
       pushEnabled: pushEnabled ?? this.pushEnabled,
       language: language ?? this.language,
+      disabled: disabled ?? this.disabled,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -121,6 +127,7 @@ class UserProfile {
       activeTeamId: JsonParsers.stringOrNull(map['activeTeamId']),
       pushEnabled: JsonParsers.boolValue(map['pushEnabled'], fallback: true),
       language: JsonParsers.string(map['language'], fallback: 'tr'),
+      disabled: JsonParsers.boolValue(map['disabled']),
       createdAt: createdAt,
       updatedAt: JsonParsers.date(map['updatedAt'], fallback: createdAt),
     );

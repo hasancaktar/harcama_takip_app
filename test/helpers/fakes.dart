@@ -192,6 +192,9 @@ class FakeUserRepository implements IUserRepository {
     );
   }
 
+  /// Testte profili doğrudan yerleştirir (ör. eski bir hesap, pasif hesap).
+  void seedProfile(UserProfile profile) => _of(profile.uid).value = profile;
+
   /// Gerçek Firestore gibi her yazımda profil akışı yeni değerle tetiklenir.
   int writes = 0;
 
@@ -758,11 +761,109 @@ class FakeAdminRepository implements IAdminRepository {
   @override
   Future<List<AdminUserSummary>> fetchUsers({int limit = 500}) async => users;
 
+  final disabledChanges = <(String, bool)>[];
+
+  @override
+  Future<void> setUserDisabled(
+    AppUser admin,
+    AdminUserSummary user, {
+    required bool disabled,
+  }) async {
+    disabledChanges.add((user.uid, disabled));
+    users = [
+      for (final u in users)
+        u.uid == user.uid ? u.copyWith(disabled: disabled) : u,
+    ];
+  }
+
+  final feedback = ValueStream<List<FeedbackEntry>>(const []);
+
+  @override
+  Stream<List<FeedbackEntry>> watchFeedback({int limit = 200}) =>
+      feedback.stream;
+
+  @override
+  Future<void> markFeedbackRead(AppUser admin, FeedbackEntry entry) async =>
+      feedback.value = [
+        for (final f in feedback.value)
+          f.id == entry.id ? f.copyWith(status: 'read') : f,
+      ];
+
+  final releaseNotes = ValueStream<List<ReleaseNotes>>(const []);
+
+  @override
+  Stream<List<ReleaseNotes>> watchAllReleaseNotes() => releaseNotes.stream;
+
+  @override
+  Future<void> saveReleaseNotes(AppUser admin, ReleaseNotes notes) async {
+    ReleaseNotes? old;
+    for (final n in releaseNotes.value) {
+      if (n.version == notes.version) old = n;
+    }
+    final saved = ReleaseNotes(
+      version: notes.version,
+      addedTr: notes.addedTr,
+      addedEn: notes.addedEn,
+      removedTr: notes.removedTr,
+      removedEn: notes.removedEn,
+      fixedTr: notes.fixedTr,
+      fixedEn: notes.fixedEn,
+      published: notes.published,
+      publishedAt: notes.published
+          ? (old?.publishedAt ?? DateTime.now())
+          : null,
+      updatedAt: DateTime.now(),
+    );
+    releaseNotes.value = [
+      ...releaseNotes.value.where((n) => n.version != notes.version),
+      saved,
+    ];
+  }
+
   @override
   Stream<List<AdminLogEntry>> watchLogs({int limit = 100}) => logs.stream;
 }
 
 /// Bildirim sunucusuna yapılan "hemen gönder" isteklerini kaydeder.
+class FakeAppContentRepository implements IAppContentRepository {
+  final FakeAdminRepository admin;
+  FakeAppContentRepository(this.admin);
+
+  final sent = <String>[];
+
+  @override
+  Future<void> sendFeedback({
+    required AppUser user,
+    required String message,
+    required String appVersion,
+    required String platform,
+  }) async {
+    sent.add(message);
+    admin.feedback.value = [
+      FeedbackEntry(
+        id: 'f${sent.length}',
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        message: message,
+        appVersion: appVersion,
+        platform: platform,
+        createdAt: DateTime.now(),
+      ),
+      ...admin.feedback.value,
+    ];
+  }
+
+  @override
+  Stream<ReleaseNotes?> watchReleaseNotes(String version) =>
+      admin.releaseNotes.stream.map((l) {
+        for (final n in l) {
+          if (n.version == version) return n;
+        }
+        return null;
+      });
+}
+
 class FakeNotificationServer implements INotificationServer {
   final List<String> triggered = [];
 
@@ -788,6 +889,7 @@ class TestBackend {
   final teams = FakeTeamRepository();
   final categories = FakeCategoryRepository();
   late final admin = FakeAdminRepository(categories);
+  late final appContent = FakeAppContentRepository(admin);
   final notificationServer = FakeNotificationServer();
 
   List<Override> get overrides => [
@@ -801,6 +903,7 @@ class TestBackend {
     teamRepositoryProvider.overrideWithValue(teams),
     categoryRepositoryProvider.overrideWithValue(categories),
     adminRepositoryProvider.overrideWithValue(admin),
+    appContentRepositoryProvider.overrideWithValue(appContent),
     notificationServerProvider.overrideWithValue(notificationServer),
     notificationServiceProvider.overrideWithValue(FakeNotificationService()),
     pushTokenServiceProvider.overrideWithValue(FakePushTokenService(users)),

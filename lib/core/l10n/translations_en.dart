@@ -114,8 +114,6 @@ const Map<String, String> translationsEn = {
   'Bu harcama düzenlenemez': 'This expense cannot be edited',
   'Bu harcama {0} dönemine yazılacak.': 'This expense will be posted to {0}.',
   'Bu harcamayı yalnızca siz görebilirsiniz.': 'Only you can see this expense.',
-  'Bu hesap devre dışı bırakılmış. Destek ile iletişime geçin.':
-      'This account has been disabled. Please contact support.',
   'Bu işlem için yetkiniz yok. E-posta adresinizin doğrulandığından emin olun.': 'You are not authorized for this action. Make sure your email address is verified.',
   'Bu karta ve döneme ait kayıt bulunmuyor.':
       'There are no records for this card and period.',
@@ -363,8 +361,6 @@ const Map<String, String> translationsEn = {
   'Kayıt bulunamadı veya silinmiş.': 'Record not found or deleted.',
   'Kayıtlı e-posta adresinizi girin; size bir sıfırlama bağlantısı gönderelim.':
       "Enter your registered email address and we'll send you a reset link.",
-  'Kayıtlı hesaplar ve bildirim durumu':
-      'Registered accounts and notification status',
   'Kayıtlı kredi kartınız yok. Kart ekleyerek ekstre dönemlerini otomatik hesaplatın.': 'You have no saved credit cards. Add a card to have statement periods calculated automatically.',
   'Kayıttan sonra e-posta adresinize bir doğrulama bağlantısı göndereceğiz.':
       "After signing up, we'll send a verification link to your email address.",
@@ -731,6 +727,64 @@ const Map<String, String> translationsEn = {
   'İletişim': 'Contact',
   'E-posta gönder': 'Send email',
   'İletişim: {0}': 'Contact: {0}',
+  'Hesabınız devre dışı bırakıldı. Bilgi için: {0}':
+      'Your account has been disabled. For information: {0}',
+  'Yeni': 'New',
+  'Sürüm notları': 'Release notes',
+  '{0} notlarını yaz': 'Write {0} notes',
+  'Yayınlanan notlar, uygulamanın o sürümüne güncelleyen kullanıcılara ilk açılışta bir kez gösterilir. Yeni kayıt olanlara gösterilmez.': 'Published notes are shown once, on first launch, to users who update to that version. New sign-ups do not see them.',
+  'Henüz sürüm notu yok': 'No release notes yet',
+  'Bu sürüm için notları yazıp yayınlayın.':
+      'Write and publish the notes for this version.',
+  '{0} yeni · {1} düzeltme · {2} kaldırılan':
+      '{0} new · {1} fixes · {2} removed',
+  'Taslak': 'Draft',
+  'Yayında': 'Published',
+  'Sürüm notları · {0}': 'Release notes · {0}',
+  'En fazla {0} madde yazılabilir.': 'You can write at most {0} items.',
+  'Öneriler': 'Suggestions',
+  'Bir madde en fazla {0} karakter olabilir.':
+      'An item can be at most {0} characters.',
+  'Yayınlamak için en az bir Türkçe madde yazın.':
+      'Write at least one Turkish item to publish.',
+  'Sürüm notları yayınlandı.': 'Release notes published.',
+  'Sürüm notları taslak olarak kaydedildi.': 'Release notes saved as a draft.',
+  'Her satıra bir madde': 'One item per line',
+  'Düzeltilenler': 'Fixed',
+  'Kaldırılanlar': 'Removed',
+  'Yayınla': 'Publish',
+  'Açıkken bu sürüme güncelleyen kullanıcılar notları bir kez görür.':
+      'When on, users who update to this version see the notes once.',
+  'Henüz öneri yok': 'No suggestions yet',
+  'Önizle': 'Preview',
+  'Kullanıcılar Ayarlar > Öneri gönder bölümünden yazdığında burada görünür.': 'Suggestions appear here when users write them in Settings > Send a suggestion.',
+  '{0} pasife alınsın mı?': 'Disable {0}?',
+  '{0} aktife alınsın mı?': 'Enable {0}?',
+  'Kullanıcı giriş yapamaz, verilerine erişemez ve bildirim almaz. Verileri silinmez; istediğiniz zaman aktife alabilirsiniz.': 'The user cannot sign in, cannot access their data and gets no notifications. Their data is not deleted; you can enable them at any time.',
+  'Kullanıcı yeniden giriş yapıp verilerine erişebilir.':
+      'The user can sign in again and access their data.',
+  'Aktife al': 'Enable',
+  'Pasife al': 'Disable',
+  'Kullanıcı pasife alındı.': 'User disabled.',
+  'Kullanıcı aktife alındı.': 'User enabled.',
+  'Kullanıcı işlemleri': 'User actions',
+  '{0} öneri · {1} okunmamış': '{0} suggestions · {1} unread',
+  'Güncellemeden sonra gösterilen "Yenilikler"':
+      '"What\'s new" shown after an update',
+  'Kayıtlı hesaplar, bildirim durumu, pasife alma':
+      'Registered accounts, notification status, disabling',
+  '{0} okunmamış öneri': '{0} unread suggestions',
+  'Kullanıcıların gönderdiği öneriler': 'Suggestions sent by users',
+  'Öneriniz gönderildi. Teşekkür ederiz!':
+      'Your suggestion was sent. Thank you!',
+  'Öneri gönder': 'Send a suggestion',
+  'Hata, eksik veya yeni özellik önerilerinizi yazın. Mesajınız uygulama sürümüyle birlikte geliştiriciye iletilir.': 'Write about bugs, missing things or new feature ideas. Your message is sent to the developer together with the app version.',
+  'Lütfen önerinizi yazın.': 'Please write your suggestion.',
+  'Öneriniz': 'Your suggestion',
+  'Örn. Raporlarda yıllık görünüm olsun': 'E.g. Add a yearly view to reports',
+  'Hata bildirin veya yeni özellik önerin': 'Report a bug or suggest a feature',
+  'Yenilikler · {0}': 'What\'s new · {0}',
+  'Harika': 'Great',
   'Otomatik ödeme ekle': 'Add automatic payment',
   'Kartlar ve ödemeler': 'Cards and payments',
   'Otomatik ödemeler': 'Automatic payments',

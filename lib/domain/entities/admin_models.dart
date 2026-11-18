@@ -176,6 +176,9 @@ class AdminUserSummary {
   final bool pushEnabled;
   final String language;
 
+  /// Yönetici tarafından pasife alınmış mı?
+  final bool disabled;
+
   const AdminUserSummary({
     required this.uid,
     required this.email,
@@ -183,12 +186,13 @@ class AdminUserSummary {
     required this.hasPushToken,
     required this.pushEnabled,
     required this.language,
+    this.disabled = false,
   });
 
   String get label => displayName.isNotEmpty ? displayName : email;
 
   /// Sunucunun bu kullanıcıya bildirim gönderip gönderemeyeceği.
-  bool get reachable => hasPushToken && pushEnabled;
+  bool get reachable => hasPushToken && pushEnabled && !disabled;
 
   factory AdminUserSummary.fromMap(Map<String, dynamic> map) {
     final tokens = map['fcmTokens'];
@@ -199,6 +203,170 @@ class AdminUserSummary {
       hasPushToken: tokens is List && tokens.isNotEmpty,
       pushEnabled: JsonParsers.boolValue(map['pushEnabled'], fallback: true),
       language: JsonParsers.string(map['language'], fallback: 'tr'),
+      disabled: JsonParsers.boolValue(map['disabled']),
     );
+  }
+
+  AdminUserSummary copyWith({bool? disabled}) => AdminUserSummary(
+    uid: uid,
+    email: email,
+    displayName: displayName,
+    hasPushToken: hasPushToken,
+    pushEnabled: pushEnabled,
+    language: language,
+    disabled: disabled ?? this.disabled,
+  );
+}
+
+/// Kullanıcının uygulama içinden gönderdiği öneri / geri bildirim.
+@immutable
+class FeedbackEntry {
+  static const int maxLength = 2000;
+
+  final String id;
+  final String uid;
+  final String email;
+  final String displayName;
+  final String message;
+  final String appVersion;
+  final String platform;
+  final String status; // 'new' | 'read'
+  final DateTime createdAt;
+
+  const FeedbackEntry({
+    required this.id,
+    required this.uid,
+    required this.email,
+    required this.displayName,
+    required this.message,
+    required this.appVersion,
+    required this.platform,
+    this.status = 'new',
+    required this.createdAt,
+  });
+
+  bool get isNew => status == 'new';
+  String get senderLabel => displayName.isNotEmpty ? displayName : email;
+
+  FeedbackEntry copyWith({String? status}) => FeedbackEntry(
+    id: id,
+    uid: uid,
+    email: email,
+    displayName: displayName,
+    message: message,
+    appVersion: appVersion,
+    platform: platform,
+    status: status ?? this.status,
+    createdAt: createdAt,
+  );
+
+  factory FeedbackEntry.fromMap(Map<String, dynamic> map) => FeedbackEntry(
+    id: JsonParsers.string(map['id']),
+    uid: JsonParsers.string(map['uid']),
+    email: JsonParsers.string(map['email']),
+    displayName: JsonParsers.string(map['displayName']),
+    message: JsonParsers.string(map['message']),
+    appVersion: JsonParsers.string(map['appVersion']),
+    platform: JsonParsers.string(map['platform']),
+    status: JsonParsers.string(map['status'], fallback: 'new'),
+    createdAt: JsonParsers.date(map['createdAt'], fallback: DateTime.now()),
+  );
+}
+
+/// Bir sürümün "Yenilikler" notları (yönetici yazar, kullanıcı güncellemeden
+/// sonra bir kez görür). Her liste öğesi bir madde işaretidir.
+@immutable
+class ReleaseNotes {
+  static final RegExp versionPattern = RegExp(r'^[0-9]+\.[0-9]+\.[0-9]+$');
+  static const int maxItems = 20;
+  static const int maxItemLength = 200;
+
+  final String version;
+  final List<String> addedTr;
+  final List<String> addedEn;
+  final List<String> removedTr;
+  final List<String> removedEn;
+  final List<String> fixedTr;
+  final List<String> fixedEn;
+  final bool published;
+  final DateTime? publishedAt;
+  final DateTime? updatedAt;
+
+  const ReleaseNotes({
+    required this.version,
+    this.addedTr = const [],
+    this.addedEn = const [],
+    this.removedTr = const [],
+    this.removedEn = const [],
+    this.fixedTr = const [],
+    this.fixedEn = const [],
+    this.published = false,
+    this.publishedAt,
+    this.updatedAt,
+  });
+
+  /// [languageCode] diline göre maddeler; İngilizcesi boşsa Türkçesi kullanılır.
+  List<String> added(String languageCode) =>
+      _pick(languageCode, addedTr, addedEn);
+  List<String> removed(String languageCode) =>
+      _pick(languageCode, removedTr, removedEn);
+  List<String> fixed(String languageCode) =>
+      _pick(languageCode, fixedTr, fixedEn);
+
+  static List<String> _pick(String code, List<String> tr, List<String> en) =>
+      code == 'en' && en.isNotEmpty ? en : tr;
+
+  bool get isEmpty => addedTr.isEmpty && removedTr.isEmpty && fixedTr.isEmpty;
+
+  /// Bu notlar bu kullanıcıya gösterilmeli mi? Yayınlanmış olmalı ve hesap
+  /// notlar yayınlanmadan önce açılmış olmalı (yeni kayıt olan güncellemeyi
+  /// yaşamadığı için görmez).
+  bool shouldShowTo({required DateTime accountCreatedAt}) =>
+      published &&
+      !isEmpty &&
+      publishedAt != null &&
+      accountCreatedAt.isBefore(publishedAt!);
+
+  /// Çok satırlı metni maddelere ayırır (boş satırlar ve baştaki "-", "•" atılır).
+  static List<String> linesOf(String text) => [
+    for (final line in text.split('\n'))
+      if (line.trim().replaceFirst(RegExp(r'^[-•*]\s*'), '').isNotEmpty)
+        line.trim().replaceFirst(RegExp(r'^[-•*]\s*'), ''),
+  ];
+
+  Map<String, dynamic> toMap() => {
+    'version': version,
+    'addedTr': addedTr,
+    'addedEn': addedEn,
+    'removedTr': removedTr,
+    'removedEn': removedEn,
+    'fixedTr': fixedTr,
+    'fixedEn': fixedEn,
+    'published': published,
+  };
+
+  factory ReleaseNotes.fromMap(Map<String, dynamic> map) => ReleaseNotes(
+    version: JsonParsers.string(map['version']),
+    addedTr: JsonParsers.stringList(map['addedTr']),
+    addedEn: JsonParsers.stringList(map['addedEn']),
+    removedTr: JsonParsers.stringList(map['removedTr']),
+    removedEn: JsonParsers.stringList(map['removedEn']),
+    fixedTr: JsonParsers.stringList(map['fixedTr']),
+    fixedEn: JsonParsers.stringList(map['fixedEn']),
+    published: JsonParsers.boolValue(map['published']),
+    publishedAt: JsonParsers.dateOrNull(map['publishedAt']),
+    updatedAt: JsonParsers.dateOrNull(map['updatedAt']),
+  );
+
+  /// Sürümleri yeniden eskiye sıralar (1.10.0 > 1.9.0).
+  static int compareVersions(String a, String b) {
+    final pa = a.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final pb = b.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    for (var i = 0; i < 3; i++) {
+      final x = i < pa.length ? pa[i] : 0;
+      final y = i < pb.length ? pb[i] : 0;
+      if (x != y) return x.compareTo(y);
+    }
+    return 0;
   }
 }

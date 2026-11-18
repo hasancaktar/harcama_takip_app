@@ -149,7 +149,7 @@ export class FirestoreStore {
   // ---- Kullanıcılar
 
   async listUsers() {
-    const mask = ["fcmTokens", "pushEnabled", "language"]
+    const mask = ["fcmTokens", "pushEnabled", "language", "disabled"]
       .map((f) => `mask.fieldPaths=${f}`).join("&");
     const users = [];
     let pageToken = "";

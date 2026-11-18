@@ -532,6 +532,76 @@ describe('Otomatik ödemeler', () => {
   });
 });
 
+describe('Pasif kullanıcılar, öneriler, sürüm notları', () => {
+  const ADMIN = { uid: 'admin', email: 'hasancaktar@gmail.com' };
+  const profile = (uid, o = {}) => ({ uid, email: `${uid}@example.com`, displayName: uid, ...o });
+  const feedback = (id, uid, o = {}) => ({
+    id, uid, email: `${uid}@example.com`, displayName: uid, message: 'Karanlık tema harika olur',
+    appVersion: '1.2.0', platform: 'android', status: 'new', createdAt: serverTimestamp(), ...o,
+  });
+  const notes = (version, o = {}) => ({
+    version, addedTr: ['Otomatik ödemeler'], addedEn: [], removedTr: [], removedEn: [],
+    fixedTr: [], fixedEn: [], published: true, ...o,
+  });
+
+  test('yönetici kullanıcıyı pasife alır; kullanıcı bunu kendisi değiştiremez', async () => {
+    await seed((fs) => setDoc(doc(fs, 'users/alice'), profile('alice')));
+    const alice = db(USERS.alice);
+    await assertFails(updateDoc(doc(alice, 'users/alice'), { disabled: true }));
+    await assertFails(setDoc(doc(db(USERS.bob), 'users/bob'), profile('bob', { disabled: false })));
+    await assertFails(updateDoc(doc(db(USERS.bob), 'users/alice'), { disabled: true }));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'users/alice'), {
+      disabled: true, disabledAt: serverTimestamp(), disabledBy: 'admin',
+    }));
+    // Yönetici diğer alanlara dokunamaz ve kendini pasife alamaz.
+    await assertFails(updateDoc(doc(db(ADMIN), 'users/alice'), { displayName: 'x' }));
+    await seed((fs) => setDoc(doc(fs, 'users/admin'), profile('admin', { email: ADMIN.email })));
+    await assertFails(updateDoc(doc(db(ADMIN), 'users/admin'), { disabled: true }));
+    // Pasif kullanıcı kendi aktiflik durumunu geri açamaz.
+    await assertFails(updateDoc(doc(alice, 'users/alice'), { disabled: false }));
+  });
+
+  test('pasif kullanıcı verilere erişemez, kendi profilini okuyabilir; aktife alınınca erişir', async () => {
+    await seed(async (fs) => {
+      await setDoc(doc(fs, 'users/alice'), profile('alice', { disabled: true }));
+      await setDoc(doc(fs, 'expenses/e1'), expense('e1', 'alice'));
+    });
+    const alice = db(USERS.alice);
+    await assertFails(getDoc(doc(alice, 'expenses/e1')));
+    await assertFails(setDoc(doc(alice, 'expenses/e2'), expense('e2', 'alice')));
+    await assertFails(getDocs(query(collection(alice, 'expenses'), where('ownerUid', '==', 'alice'))));
+    await assertSucceeds(getDoc(doc(alice, 'users/alice')));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'users/alice'), { disabled: false, disabledAt: null, disabledBy: null }));
+    await assertSucceeds(getDoc(doc(alice, 'expenses/e1')));
+  });
+
+  test('öneriyi kullanıcı kendi adına ekler; yalnızca yönetici okur ve okundu yapar', async () => {
+    const alice = db(USERS.alice);
+    await assertSucceeds(setDoc(doc(alice, 'feedback/f1'), feedback('f1', 'alice')));
+    await assertFails(setDoc(doc(alice, 'feedback/f2'), feedback('f2', 'bob')));
+    await assertFails(setDoc(doc(alice, 'feedback/f3'), feedback('f3', 'alice', { status: 'read' })));
+    await assertFails(setDoc(doc(alice, 'feedback/f4'), feedback('f4', 'alice', { message: 'x'.repeat(2001) })));
+    await assertFails(setDoc(doc(alice, 'feedback/f5'), feedback('f5', 'alice', { extra: true })));
+    await assertFails(getDoc(doc(db(USERS.bob), 'feedback/f1')));
+    await assertSucceeds(getDoc(doc(db(ADMIN), 'feedback/f1')));
+    await assertFails(updateDoc(doc(db(ADMIN), 'feedback/f1'), { message: 'değişti' }));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'feedback/f1'), { status: 'read' }));
+    // Hesap silmede kullanıcı kendi önerilerini bulup siler.
+    await assertSucceeds(getDocs(query(collection(alice, 'feedback'), where('uid', '==', 'alice'))));
+    await assertFails(getDocs(query(collection(db(USERS.bob), 'feedback'), where('uid', '==', 'alice'))));
+    await assertFails(deleteDoc(doc(db(USERS.bob), 'feedback/f1')));
+    await assertSucceeds(deleteDoc(doc(alice, 'feedback/f1')));
+  });
+
+  test('sürüm notlarını herkes okur, yalnızca yönetici yazar', async () => {
+    await assertSucceeds(setDoc(doc(db(ADMIN), 'releaseNotes/1.2.0'), notes('1.2.0')));
+    await assertFails(setDoc(doc(db(ADMIN), 'releaseNotes/1.2'), notes('1.2')));
+    await assertFails(setDoc(doc(db(ADMIN), 'releaseNotes/1.3.0'), notes('1.3.0', { addedTr: Array(21).fill('x') })));
+    await assertFails(setDoc(doc(db(USERS.alice), 'releaseNotes/1.2.0'), notes('1.2.0')));
+    await assertSucceeds(getDoc(doc(db(USERS.alice), 'releaseNotes/1.2.0')));
+  });
+});
+
 describe('Yönetim paneli yetkisi', () => {
   const ADMIN = { uid: 'admin', email: 'hasancaktar@gmail.com' };
   const category = (id, o = {}) => ({

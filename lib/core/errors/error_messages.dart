@@ -1,3 +1,5 @@
+import '../constants/app_constants.dart';
+
 import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -27,12 +29,18 @@ abstract class ErrorMessages {
     return generic;
   }
 
+  /// Yönetici tarafından pasife alınan hesap için gösterilen mesaj.
+  static String get accountDisabled =>
+      'Hesabınız devre dışı bırakıldı. Bilgi için: {0}'.trArgs([
+        AppConstants.contactEmail,
+      ]);
+
   static String auth(String code) {
     switch (code) {
       case 'invalid-email':
         return 'E-posta adresi geçersiz.'.tr;
       case 'user-disabled':
-        return 'Bu hesap devre dışı bırakılmış. Destek ile iletişime geçin.'.tr;
+        return accountDisabled;
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':

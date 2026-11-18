@@ -12,6 +12,7 @@ import '../../../domain/entities/admin_models.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/common.dart';
 import '../../widgets/state_views.dart';
+import 'admin_content_screens.dart';
 
 /// Yönetim ekranlarının ortak iskeleti. Yönetici olmayan biri bu sayfaya bir
 /// şekilde ulaşsa bile içerik gösterilmez (veriyi zaten Firestore kuralları vermez).
@@ -55,6 +56,9 @@ class AdminHomeScreen extends ConsumerWidget {
     final campaigns = ref.watch(campaignsProvider).valueOrNull ?? const [];
     final users = usersAsync.valueOrNull ?? const <AdminUserSummary>[];
     final reachable = users.where((u) => u.reachable).length;
+    final unreadFeedback = (ref.watch(adminFeedbackProvider).valueOrNull ?? [])
+        .where((f) => f.isNew)
+        .length;
 
     final sections = [
       _Section(
@@ -84,8 +88,22 @@ class AdminHomeScreen extends ConsumerWidget {
       _Section(
         Icons.people_outline_rounded,
         'Kullanıcılar'.tr,
-        'Kayıtlı hesaplar ve bildirim durumu'.tr,
+        'Kayıtlı hesaplar, bildirim durumu, pasife alma'.tr,
         '/admin/users',
+      ),
+      _Section(
+        Icons.lightbulb_outline_rounded,
+        'Öneriler'.tr,
+        unreadFeedback > 0
+            ? '{0} okunmamış öneri'.trArgs([unreadFeedback])
+            : 'Kullanıcıların gönderdiği öneriler'.tr,
+        '/admin/feedback',
+      ),
+      _Section(
+        Icons.auto_awesome_outlined,
+        'Sürüm notları'.tr,
+        'Güncellemeden sonra gösterilen "Yenilikler"'.tr,
+        '/admin/release-notes',
       ),
       _Section(
         Icons.fact_check_outlined,
@@ -313,7 +331,19 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          trailing: UserPushStatus(user: u),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (u.disabled)
+                                Pill(
+                                  label: 'Pasif'.tr,
+                                  color: context.colors.error,
+                                )
+                              else
+                                UserPushStatus(user: u),
+                              UserActiveToggle(user: u),
+                            ],
+                          ),
                         ),
                     ],
                   ),
