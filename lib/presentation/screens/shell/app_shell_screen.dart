@@ -61,7 +61,10 @@ NavigationBarThemeData fitNavigationLabels(
 }) {
   final theme = NavigationBarTheme.of(context);
   final base = theme.labelTextStyle;
-  final selected = DefaultTextStyle.of(context).style
+  // Etiketler alt çubuğun Material yüzeyinde (bodyMedium) çizilir; ölçüm de
+  // aynı temel stille yapılır (buradaki DefaultTextStyle uygulamanın 48
+  // puntoluk hata stilidir).
+  final selected = (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
       .merge(base?.resolve({WidgetState.selected}));
   final padding = (theme.labelPadding ?? const EdgeInsets.all(4))
       .resolve(Directionality.of(context))

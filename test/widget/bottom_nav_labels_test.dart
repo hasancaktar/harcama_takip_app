@@ -55,7 +55,26 @@ double _labelHeight(WidgetTester tester, String label) => tester
     )
     .height;
 
-Future<void> _expectSingleLineLabels(WidgetTester tester) async {
+double _labelFontSize(WidgetTester tester, String label) => tester
+    .widget<Text>(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text(label),
+      ),
+    )
+    .style!
+    .fontSize!;
+
+Future<void> _expectSingleLineLabels(
+  WidgetTester tester, {
+  required double minFontSize,
+  double maxFontSize = 12,
+}) async {
+  expect(
+    _labelFontSize(tester, 'Özet'),
+    inInclusiveRange(minFontSize, maxFontSize),
+    reason: 'etiketler gereksiz küçültülmemeli',
+  );
   final oneLine = _labelHeight(tester, 'Özet');
   for (final label in ['Harcamalar', 'Kartlar', 'Raporlar', 'Ayarlar']) {
     expect(
@@ -80,19 +99,27 @@ void main() {
     await loadRealFonts();
   });
 
-  for (final width in [320.0, 360.0, 412.0]) {
-    testWidgets('alt menü etiketleri $width dp genişlikte tek satırda kalır', (
-      tester,
-    ) async {
-      await _pump(tester, width: width);
-      await _expectSingleLineLabels(tester);
-    });
+  testWidgets('geniş ekranda etiketler tasarlanan boyutta (12) kalır', (
+    tester,
+  ) async {
+    await _pump(tester, width: 412);
+    await _expectSingleLineLabels(tester, minFontSize: 12);
+  });
+
+  for (final width in [320.0, 360.0]) {
+    testWidgets(
+      'alt menü etiketleri $width dp genişlikte tek satırda ve okunur kalır',
+      (tester) async {
+        await _pump(tester, width: width);
+        await _expectSingleLineLabels(tester, minFontSize: 9.5);
+      },
+    );
   }
 
   testWidgets('büyük yazı boyutunda da etiketler tek satırda kalır', (
     tester,
   ) async {
     await _pump(tester, width: 360, textScale: 1.5);
-    await _expectSingleLineLabels(tester);
+    await _expectSingleLineLabels(tester, minFontSize: 7);
   });
 }

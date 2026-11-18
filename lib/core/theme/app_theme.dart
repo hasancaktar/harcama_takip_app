@@ -355,15 +355,20 @@ abstract class AppTheme {
                 : scheme.onSurfaceVariant,
           ),
         ),
+        // `base.textTheme` henüz yazı boyutlarını içermez (Flutter boyutları
+        // Theme.of sırasında ekler); boyut ve aralık bu yüzden tipografiden
+        // alınır. Aksi hâlde etiketler 12 yerine 14 punto çiziliyordu.
         labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => text.labelMedium?.copyWith(
-            fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w700
-                : FontWeight.w500,
-            color: states.contains(WidgetState.selected)
-                ? scheme.onSurface
-                : scheme.onSurfaceVariant,
-          ),
+          (states) => base.typography.englishLike.labelMedium!
+              .merge(text.labelMedium)
+              .copyWith(
+                fontWeight: states.contains(WidgetState.selected)
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                color: states.contains(WidgetState.selected)
+                    ? scheme.onSurface
+                    : scheme.onSurfaceVariant,
+              ),
         ),
       ),
       navigationRailTheme: NavigationRailThemeData(
