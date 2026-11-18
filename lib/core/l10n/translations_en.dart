@@ -730,4 +730,8 @@ const Map<String, String> translationsEn = {
   'Şifreyi tekrar girin': 'Re-enter the password',
   '•••• {0} (kaldırılmış kart)': '•••• {0} (removed card)',
   '•••• {0} · {1} taksit': '•••• {0} · {1} installments',
+  'E-posta adresi kopyalandı.': 'Email address copied.',
+  'İletişim': 'Contact',
+  'E-posta gönder': 'Send email',
+  'İletişim: {0}': 'Contact: {0}',
 };

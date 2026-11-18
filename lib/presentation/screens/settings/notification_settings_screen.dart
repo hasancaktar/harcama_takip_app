@@ -24,7 +24,10 @@ class NotificationSettingsScreen extends ConsumerWidget {
         value: profileAsync,
         onRetry: () => ref.invalidate(userProfileProvider),
         data: (profile) =>
-            _ReminderForm(key: ValueKey(profile?.updatedAt), profile: profile),
+            // Form yalnızca ilk yüklemede profilden doldurulur. Önceki sürüm her
+            // profil değişiminde formu yeniden kuruyordu; kayıt sırasındaki ilk
+            // yazım formu kapatıp hatırlatıcı ayarının yazılmasını engelliyordu.
+            _ReminderForm(key: ValueKey(profile?.uid), profile: profile),
       ),
     );
   }
@@ -72,7 +75,9 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
   Future<void> _save() async {
     final uid = ref.read(currentUserIdProvider);
     if (uid == null) return;
+    // Bekleme sırasında widget kapanırsa ref kullanılamaz; bağımlılıklar önceden alınır.
     final service = ref.read(notificationServiceProvider);
+    final users = ref.read(userRepositoryProvider);
     setState(() => _saving = true);
     try {
       if ((_enabled || _push) && service.isSupported) {
@@ -84,18 +89,16 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
           );
         }
       }
-      await ref.read(userRepositoryProvider).setPushEnabled(uid, _push);
       final days = _days.toList()..sort();
       // Profil güncellenince AppShell hatırlatıcıları otomatik olarak yeniden planlar.
-      await ref
-          .read(userRepositoryProvider)
-          .updateReminderSettings(
-            uid: uid,
-            enabled: _enabled,
-            hour: _time.hour,
-            minute: _time.minute,
-            days: days,
-          );
+      await users.updateReminderSettings(
+        uid: uid,
+        pushEnabled: _push,
+        enabled: _enabled,
+        hour: _time.hour,
+        minute: _time.minute,
+        days: days,
+      );
       if (mounted) context.showSuccess('Bildirim tercihleri kaydedildi.'.tr);
     } catch (e) {
       if (mounted) context.showError(e);

@@ -80,7 +80,7 @@ class _AppLicensePageState extends State<AppLicensePage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '1.1.1+3',
+                        AppConstants.appVersionLabel,
                         style: context.textStyles.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),

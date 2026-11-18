@@ -502,12 +502,18 @@ void main() {
     );
   });
 
-  test('Bağış kategorisi tanımlı ve "Diğer"den önce listelenir', () {
-    final donation = AppConstants.getCategoryById('donation');
-    expect(donation.name, 'Bağış');
-    final ids = AppConstants.defaultCategories.map((c) => c.id).toList();
-    expect(ids.indexOf('donation'), ids.indexOf('other') - 1);
-  });
+  test(
+    'Bağış ve Evcil Hayvan kategorileri tanımlı ve "Diğer"den önce listelenir',
+    () {
+      expect(AppConstants.getCategoryById('donation').name, 'Bağış');
+      final pets = AppConstants.getCategoryById('pets');
+      expect(pets.name, 'Evcil Hayvan');
+      expect(pets.iconKey, 'pets');
+      final ids = AppConstants.defaultCategories.map((c) => c.id).toList();
+      expect(ids.indexOf('donation'), ids.indexOf('other') - 2);
+      expect(ids.indexOf('pets'), ids.indexOf('other') - 1);
+    },
+  );
 
   test('AppUser baş harfleri', () {
     expect(AppUser.initialsOf('Ayşe Yılmaz'), 'AY');

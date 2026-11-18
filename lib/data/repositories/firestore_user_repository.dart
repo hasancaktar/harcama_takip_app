@@ -72,12 +72,14 @@ class FirestoreUserRepository implements IUserRepository {
   @override
   Future<void> updateReminderSettings({
     required String uid,
+    required bool pushEnabled,
     required bool enabled,
     required int hour,
     required int minute,
     required List<int> days,
   }) {
     return _col.doc(uid).set({
+      'pushEnabled': pushEnabled,
       'dailyReminderEnabled': enabled,
       'dailyReminderHour': hour,
       'dailyReminderMinute': minute,

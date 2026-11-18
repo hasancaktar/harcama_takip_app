@@ -75,6 +75,15 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _copyEmail(BuildContext context) async {
+    await Clipboard.setData(
+      const ClipboardData(text: AppConstants.contactEmail),
+    );
+    if (context.mounted) {
+      context.showSuccess('E-posta adresi kopyalandı.'.tr);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
@@ -246,6 +255,20 @@ class SettingsScreen extends ConsumerWidget {
                     _copyUrl(context, AppConstants.privacyPolicyUrl),
               ),
               _SettingsTile(
+                icon: Icons.mail_outline_rounded,
+                title: 'İletişim'.tr,
+                subtitle: AppConstants.contactEmail,
+                trailing: IconButton(
+                  tooltip: 'E-posta gönder'.tr,
+                  icon: const Icon(Icons.send_rounded, size: 20),
+                  onPressed: () => _openUrl(
+                    context,
+                    'mailto:${AppConstants.contactEmail}?subject=Harcama%20Takip',
+                  ),
+                ),
+                onTap: () => _copyEmail(context),
+              ),
+              _SettingsTile(
                 icon: Icons.info_outline_rounded,
                 title: 'Uygulama hakkında'.tr,
                 onTap: () => showDialog<void>(
@@ -265,7 +288,7 @@ class SettingsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '1.1.1+3',
+                            AppConstants.appVersionLabel,
                             style: ctx.textStyles.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,
                             ),
@@ -281,6 +304,15 @@ class SettingsScreen extends ConsumerWidget {
                             child: SelectableText(
                               'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}'
                                   .trArgs([AppConstants.webAppUrl]),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          InkWell(
+                            onTap: () => _copyEmail(context),
+                            child: Text(
+                              'İletişim: {0}'.trArgs([
+                                AppConstants.contactEmail,
+                              ]),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.md),

@@ -190,49 +190,54 @@ class FakeUserRepository implements IUserRepository {
     );
   }
 
-  UserProfile _copy(
-    UserProfile p, {
-    String? displayName,
-    String? activeTeamId,
-    bool clearTeam = false,
-  }) {
-    return UserProfile(
-      uid: p.uid,
-      email: p.email,
-      displayName: displayName ?? p.displayName,
-      dailyReminderEnabled: p.dailyReminderEnabled,
-      dailyReminderHour: p.dailyReminderHour,
-      dailyReminderMinute: p.dailyReminderMinute,
-      dailyReminderDays: p.dailyReminderDays,
-      activeTeamId: clearTeam ? null : (activeTeamId ?? p.activeTeamId),
-      createdAt: p.createdAt,
-      updatedAt: DateTime.now(),
-    );
+  /// Gerçek Firestore gibi her yazımda profil akışı yeni değerle tetiklenir.
+  int writes = 0;
+
+  /// Sunucu onayı gecikmesi: Firestore değişikliği yerelde hemen yayınlar ama
+  /// `await` sunucu onayını bekler. Arada ekranlar yeniden çizilebilir.
+  Duration writeLatency = Duration.zero;
+
+  Future<void> _write(
+    String uid,
+    UserProfile Function(UserProfile p) change,
+  ) async {
+    writes++;
+    _of(uid).value = change(_require(uid)).copyWith(updatedAt: DateTime.now());
+    if (writeLatency > Duration.zero) await Future<void>.delayed(writeLatency);
   }
 
   @override
   Future<void> updateDisplayName(String uid, String displayName) async =>
-      _of(uid).value = _copy(_require(uid), displayName: displayName);
+      _write(uid, (p) => p.copyWith(displayName: displayName));
 
   @override
   Future<void> updateReminderSettings({
     required String uid,
+    required bool pushEnabled,
     required bool enabled,
     required int hour,
     required int minute,
     required List<int> days,
-  }) async {}
+  }) async => _write(
+    uid,
+    (p) => p.copyWith(
+      pushEnabled: pushEnabled,
+      dailyReminderEnabled: enabled,
+      dailyReminderHour: hour,
+      dailyReminderMinute: minute,
+      dailyReminderDays: days,
+    ),
+  );
 
   @override
-  Future<void> setActiveTeam(String uid, String? teamId) async =>
-      _of(uid).value = _copy(
-        _require(uid),
-        activeTeamId: teamId,
-        clearTeam: teamId == null,
-      );
+  Future<void> setActiveTeam(String uid, String? teamId) async => _write(
+    uid,
+    (p) => p.copyWith(activeTeamId: teamId, clearActiveTeam: teamId == null),
+  );
 
   @override
-  Future<void> setPushEnabled(String uid, bool enabled) async {}
+  Future<void> setPushEnabled(String uid, bool enabled) async =>
+      _write(uid, (p) => p.copyWith(pushEnabled: enabled));
 
   @override
   Future<void> setLanguage(String uid, String languageCode) async {}

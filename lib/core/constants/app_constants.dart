@@ -181,6 +181,16 @@ class PaymentMethodItem {
 
 abstract class AppConstants {
   static const String appName = 'Harcama Takip';
+
+  /// Uygulama sürümü. pubspec.yaml'daki `version` ile aynı olmalıdır
+  /// (test/unit/app_version_test.dart denetler). "Yenilikler" penceresi bu
+  /// sürüme göre gösterilir.
+  static const String appVersion = '1.2.0';
+  static const int appBuildNumber = 5;
+  static String get appVersionLabel => '$appVersion ($appBuildNumber)';
+
+  /// Kullanıcıların ulaşabileceği iletişim adresi (mağaza girişiyle aynı).
+  static const String contactEmail = 'faydalab3@gmail.com';
   static const String defaultCurrency = 'TRY';
   static const String currencySymbol = '₺';
   static const String defaultTimezone = 'Europe/Istanbul';
@@ -332,6 +342,14 @@ abstract class AppConstants {
       iconKey: 'volunteer',
       colorHex: '#E11D48',
       order: 13,
+    ),
+    CategoryItem(
+      id: 'pets',
+      nameTr: 'Evcil Hayvan',
+      nameEn: 'Pets',
+      iconKey: 'pets',
+      colorHex: '#B45309',
+      order: 14,
     ),
     otherCategory,
   ];

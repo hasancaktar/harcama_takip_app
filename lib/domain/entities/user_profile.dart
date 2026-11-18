@@ -38,6 +38,38 @@ class UserProfile {
     required this.updatedAt,
   });
 
+  UserProfile copyWith({
+    String? displayName,
+    bool? dailyReminderEnabled,
+    int? dailyReminderHour,
+    int? dailyReminderMinute,
+    List<int>? dailyReminderDays,
+    String? activeTeamId,
+    bool clearActiveTeam = false,
+    bool? pushEnabled,
+    String? language,
+    DateTime? updatedAt,
+  }) {
+    return UserProfile(
+      uid: uid,
+      email: email,
+      displayName: displayName ?? this.displayName,
+      defaultCurrency: defaultCurrency,
+      defaultTimezone: defaultTimezone,
+      dailyReminderEnabled: dailyReminderEnabled ?? this.dailyReminderEnabled,
+      dailyReminderHour: dailyReminderHour ?? this.dailyReminderHour,
+      dailyReminderMinute: dailyReminderMinute ?? this.dailyReminderMinute,
+      dailyReminderDays: dailyReminderDays ?? this.dailyReminderDays,
+      activeTeamId: clearActiveTeam
+          ? null
+          : (activeTeamId ?? this.activeTeamId),
+      pushEnabled: pushEnabled ?? this.pushEnabled,
+      language: language ?? this.language,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,

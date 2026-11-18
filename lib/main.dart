@@ -14,6 +14,7 @@ import 'core/firebase/firebase_initialization.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/navigation/app_router.dart';
 import 'presentation/screens/splash/startup_error_screen.dart';
+import 'presentation/widgets/keyboard_lifecycle_guard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,6 +87,8 @@ class ExpenseTrackerApp extends ConsumerWidget {
       localizationsDelegates: _localizationsDelegates,
       supportedLocales: _supportedLocales,
       locale: locale,
+      builder: (context, child) =>
+          KeyboardLifecycleGuard(child: child ?? const SizedBox.shrink()),
     );
   }
 }

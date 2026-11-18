@@ -11,8 +11,12 @@ abstract class IUserRepository {
     required String displayName,
   });
   Future<void> updateDisplayName(String uid, String displayName);
+
+  /// Bildirim tercihlerini (sunucu bildirimleri + kişisel hatırlatıcı) tek
+  /// yazımda kaydeder.
   Future<void> updateReminderSettings({
     required String uid,
+    required bool pushEnabled,
     required bool enabled,
     required int hour,
     required int minute,
