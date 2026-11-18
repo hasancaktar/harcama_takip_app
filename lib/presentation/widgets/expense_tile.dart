@@ -116,6 +116,15 @@ class ExpenseTile extends StatelessWidget {
                           color: scheme.primary,
                         ),
                       )
+                    else if (expense.isRecurring)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Pill(
+                          icon: Icons.autorenew_rounded,
+                          label: 'Otomatik'.tr,
+                          color: scheme.tertiary,
+                        ),
+                      )
                     else if (periodDiffers)
                       Padding(
                         padding: const EdgeInsets.only(top: 3),

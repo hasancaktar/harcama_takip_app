@@ -18,6 +18,7 @@ import '../screens/cards_installments/add_installment_plan_screen.dart';
 import '../screens/cards_installments/card_statement_detail_screen.dart';
 import '../screens/cards_installments/cards_installments_screen.dart';
 import '../screens/cards_installments/installment_plan_detail_screen.dart';
+import '../screens/cards_installments/recurring_payment_detail_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/expenses/add_edit_expense_screen.dart';
 import '../screens/expenses/expense_detail_screen.dart';
@@ -105,9 +106,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/cards',
                 builder: (_, state) {
-                  final tab = state.uri.queryParameters['tab'] == 'installments'
-                      ? 1
-                      : 0;
+                  final tab = switch (state.uri.queryParameters['tab']) {
+                    'installments' => 1,
+                    'recurring' => 2,
+                    _ => 0,
+                  };
                   return CardsInstallmentsScreen(initialTab: tab);
                 },
               ),
@@ -143,7 +146,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
         path: '/expenses/new',
-        builder: (_, __) => HomeBackStack(child: const AddEditExpenseScreen()),
+        builder: (_, state) => HomeBackStack(
+          child: AddEditExpenseScreen(
+            initialPaymentMethod: state.uri.queryParameters['method'],
+          ),
+        ),
       ),
       GoRoute(
         path: '/expenses/:id',
@@ -189,6 +196,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => HomeBackStack(
           child: InstallmentPlanDetailScreen(
             planId: state.pathParameters['id']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/recurring/:id',
+        builder: (_, state) => HomeBackStack(
+          child: RecurringPaymentDetailScreen(
+            paymentId: state.pathParameters['id']!,
           ),
         ),
       ),

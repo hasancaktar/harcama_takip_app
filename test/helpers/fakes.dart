@@ -14,6 +14,7 @@ import 'package:harcama_takip/domain/entities/budget.dart';
 import 'package:harcama_takip/domain/entities/credit_card.dart';
 import 'package:harcama_takip/domain/entities/expense.dart';
 import 'package:harcama_takip/domain/entities/installment_plan.dart';
+import 'package:harcama_takip/domain/entities/recurring_payment.dart';
 import 'package:harcama_takip/domain/entities/team.dart';
 import 'package:harcama_takip/domain/entities/team_invite.dart';
 import 'package:harcama_takip/domain/entities/team_member.dart';
@@ -25,6 +26,7 @@ import 'package:harcama_takip/domain/repositories/i_budget_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_card_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_expense_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_installment_repository.dart';
+import 'package:harcama_takip/domain/repositories/i_recurring_payment_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_team_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_user_repository.dart';
 
@@ -352,6 +354,56 @@ class FakeCardRepository implements ICardRepository {
   @override
   Future<void> deactivateCard(String cardId) async =>
       _cards.value = _cards.value.where((c) => c.id != cardId).toList();
+}
+
+class FakeRecurringPaymentRepository implements IRecurringPaymentRepository {
+  final FakeExpenseRepository expenses;
+  FakeRecurringPaymentRepository(this.expenses);
+
+  final ValueStream<List<RecurringPayment>> payments = ValueStream(const []);
+  int saves = 0;
+
+  @override
+  Stream<List<RecurringPayment>> watchOwn(String uid) =>
+      payments.stream.map((l) => l.where((p) => p.ownerUid == uid).toList());
+
+  @override
+  Stream<List<RecurringPayment>> watchTeam(String teamId) =>
+      payments.stream.map((l) => l.where((p) => p.teamId == teamId).toList());
+
+  @override
+  Stream<RecurringPayment?> watch(String id) => payments.stream.map((l) {
+    for (final p in l) {
+      if (p.id == id) return p;
+    }
+    return null;
+  });
+
+  @override
+  Future<List<RecurringPayment>> getActiveOwn(String uid) async =>
+      payments.value.where((p) => p.ownerUid == uid && p.isActive).toList();
+
+  @override
+  Future<void> save(
+    RecurringPayment payment, {
+    List<Expense> postings = const [],
+    List<String> deleteExpenseIds = const [],
+    required String actorUid,
+  }) async {
+    saves++;
+    payments.value = [
+      ...payments.value.where((p) => p.id != payment.id),
+      payment,
+    ];
+    final ids = {for (final e in postings) e.id};
+    expenses.seed([
+      ...expenses.all.where((e) => !ids.contains(e.id)),
+      ...postings,
+    ]);
+    for (final id in deleteExpenseIds) {
+      await expenses.softDeleteExpense(id, actorUid);
+    }
+  }
 }
 
 class FakeInstallmentRepository implements IInstallmentRepository {
@@ -731,6 +783,7 @@ class TestBackend {
   final expenses = FakeExpenseRepository();
   final cards = FakeCardRepository();
   final installments = FakeInstallmentRepository();
+  late final recurring = FakeRecurringPaymentRepository(expenses);
   final budgets = FakeBudgetRepository();
   final teams = FakeTeamRepository();
   final categories = FakeCategoryRepository();
@@ -743,6 +796,7 @@ class TestBackend {
     expenseRepositoryProvider.overrideWithValue(expenses),
     cardRepositoryProvider.overrideWithValue(cards),
     installmentRepositoryProvider.overrideWithValue(installments),
+    recurringPaymentRepositoryProvider.overrideWithValue(recurring),
     budgetRepositoryProvider.overrideWithValue(budgets),
     teamRepositoryProvider.overrideWithValue(teams),
     categoryRepositoryProvider.overrideWithValue(categories),

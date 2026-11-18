@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../application/providers/admin_providers.dart';
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/installment_providers.dart';
+import '../../../application/providers/recurring_payment_providers.dart';
 import '../../../application/providers/repository_providers.dart';
 import '../../../application/providers/settings_providers.dart';
 import '../../../core/constants/app_constants.dart';
@@ -128,8 +129,10 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
       debugPrint('[Bootstrap] Profil kontrolü başarısız: $e');
     }
 
-    // 2) Vadesi gelen taksitleri işle (oturum başına bir kez).
+    // 2) Vadesi gelen taksitleri ve otomatik ödemelerin bu ayki kayıtlarını
+    //    işle (oturum başına bir kez).
     ref.read(installmentSyncProvider);
+    ref.read(recurringPaymentSyncProvider);
 
     // 3) Takım bildirimleri için cihaz anahtarını kaydet.
     unawaited(ref.read(pushTokenServiceProvider).register(user.uid));

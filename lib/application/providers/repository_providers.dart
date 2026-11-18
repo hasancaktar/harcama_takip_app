@@ -11,6 +11,7 @@ import '../../data/repositories/firestore_budget_repository.dart';
 import '../../data/repositories/firestore_card_repository.dart';
 import '../../data/repositories/firestore_expense_repository.dart';
 import '../../data/repositories/firestore_installment_repository.dart';
+import '../../data/repositories/firestore_recurring_payment_repository.dart';
 import '../../data/repositories/firestore_team_repository.dart';
 import '../../data/repositories/firestore_user_repository.dart';
 import '../../domain/repositories/i_auth_repository.dart';
@@ -18,9 +19,11 @@ import '../../domain/repositories/i_budget_repository.dart';
 import '../../domain/repositories/i_card_repository.dart';
 import '../../domain/repositories/i_expense_repository.dart';
 import '../../domain/repositories/i_installment_repository.dart';
+import '../../domain/repositories/i_recurring_payment_repository.dart';
 import '../../domain/repositories/i_team_repository.dart';
 import '../../domain/repositories/i_user_repository.dart';
 import '../services/installment_posting_service.dart';
+import '../services/recurring_payment_service.dart';
 import '../services/notification_service.dart';
 import '../services/push_token_service.dart';
 
@@ -54,6 +57,16 @@ final accountDataRepositoryProvider = Provider<FirestoreAccountDataRepository>(
 
 final installmentPostingServiceProvider = Provider<InstallmentPostingService>(
   (ref) => InstallmentPostingService(ref.watch(installmentRepositoryProvider)),
+);
+
+final recurringPaymentRepositoryProvider =
+    Provider<IRecurringPaymentRepository>(
+      (ref) => FirestoreRecurringPaymentRepository(),
+    );
+
+final recurringPaymentServiceProvider = Provider<RecurringPaymentService>(
+  (ref) =>
+      RecurringPaymentService(ref.watch(recurringPaymentRepositoryProvider)),
 );
 final notificationServiceProvider = Provider<NotificationService>(
   (ref) => NotificationService.instance,

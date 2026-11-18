@@ -20,6 +20,7 @@ import '../../../core/utils/validators.dart';
 import '../../../domain/entities/credit_card.dart';
 import '../../../domain/entities/expense.dart';
 import '../../../domain/entities/installment_plan.dart';
+import '../../../domain/entities/recurring_payment.dart';
 import '../../widgets/amount_field.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
@@ -29,11 +30,23 @@ import '../../widgets/state_views.dart';
 class AddEditExpenseScreen extends ConsumerWidget {
   final String? expenseId;
 
-  const AddEditExpenseScreen({super.key, this.expenseId});
+  /// Yeni harcamada önceden seçili ödeme yöntemi (ör. `auto_payment`).
+  final String? initialPaymentMethod;
+
+  const AddEditExpenseScreen({
+    super.key,
+    this.expenseId,
+    this.initialPaymentMethod,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (expenseId == null) return const _ExpenseForm(existing: null);
+    if (expenseId == null) {
+      return _ExpenseForm(
+        existing: null,
+        initialPaymentMethod: initialPaymentMethod,
+      );
+    }
 
     final expenseAsync = ref.watch(expenseByIdProvider(expenseId!));
     final uid = ref.watch(currentUserIdProvider);
@@ -78,7 +91,8 @@ class AddEditExpenseScreen extends ConsumerWidget {
 
 class _ExpenseForm extends ConsumerStatefulWidget {
   final Expense? existing;
-  const _ExpenseForm({required this.existing});
+  final String? initialPaymentMethod;
+  const _ExpenseForm({required this.existing, this.initialPaymentMethod});
 
   @override
   ConsumerState<_ExpenseForm> createState() => _ExpenseFormState();
@@ -95,11 +109,18 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   late String _paymentMethod;
   String? _cardId;
   int _installments = 1;
+
+  /// Otomatik ödemenin kaynağı: kart kimliği ya da [_noCard] (banka hesabı).
+  String? _autoSource;
+  static const _noCard = '__none__';
   late String _visibility;
   late DateTime _date;
   bool _saving = false;
 
   bool get _isEdit => widget.existing != null;
+
+  /// Yeni bir otomatik ödeme mi oluşturuluyor (her ay tekrarlanır)?
+  bool get _isNewRecurring => !_isEdit && _paymentMethod == 'auto_payment';
 
   @override
   void initState() {
@@ -116,7 +137,12 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
       _date = e.date;
     } else {
       _category = 'market';
-      _paymentMethod = 'credit_card';
+      final initial = widget.initialPaymentMethod;
+      _paymentMethod =
+          initial != null &&
+              AppConstants.paymentMethodItems.any((m) => m.id == initial)
+          ? initial
+          : 'credit_card';
       _visibility = ref.read(activeTeamProvider) != null ? 'team' : 'personal';
       _date = DateTime.now();
     }
@@ -135,9 +161,12 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
       ? (widget.existing?.teamId ?? ref.read(activeTeamProvider)?.id)
       : null;
 
-  CreditCard? _selectedCard(List<CreditCard> cards) {
+  CreditCard? _selectedCard(List<CreditCard> cards) =>
+      _cardId == null ? null : _selectedCardById(cards, _cardId!);
+
+  static CreditCard? _selectedCardById(List<CreditCard> cards, String id) {
     for (final c in cards) {
-      if (c.id == _cardId) return c;
+      if (c.id == id) return c;
     }
     return null;
   }
@@ -230,6 +259,49 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     final totalAmount = MoneyFormatter.parseToCents(_amountController.text);
 
     try {
+      if (_isNewRecurring) {
+        final autoCard = _autoSource == null || _autoSource == _noCard
+            ? null
+            : _selectedCardById(cards, _autoSource!);
+        final notes = _notesController.text.trim();
+        final payment = RecurringPayment(
+          id: const Uuid().v4(),
+          ownerUid: uid,
+          teamId: _teamIdForSave,
+          visibility: _visibility,
+          title: title,
+          amountInCents: totalAmount,
+          currency: AppConstants.defaultCurrency,
+          category: _category,
+          cardId: autoCard?.id,
+          cardLast4: autoCard?.last4Digits,
+          cardCutoffDay: autoCard?.cutoffDay,
+          dayOfMonth: _date.day,
+          startDate: _date,
+          notes: notes.isEmpty ? null : notes,
+          createdAt: now,
+          updatedAt: now,
+        );
+        await ref
+            .read(recurringPaymentServiceProvider)
+            .create(payment, actorUid: uid, now: now);
+        if (!mounted) return;
+        context.showSuccess(
+          'Otomatik ödeme oluşturuldu. Her ayın {0}. günü otomatik eklenecek.'
+              .trArgs([_date.day]),
+        );
+        if (addAnother) {
+          _amountController.clear();
+          _titleController.clear();
+          _notesController.clear();
+          _formKey.currentState!.reset();
+          setState(() => _saving = false);
+        } else {
+          context.pop();
+        }
+        return;
+      }
+
       if (!_isEdit && isCredit && _installments > 1 && card != null) {
         final planId = const Uuid().v4();
         final schedule = StatementCalculator.generateSchedule(
@@ -389,6 +461,11 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         cards.isNotEmpty) {
       _cardId = cards.first.id;
     }
+    if (_autoSource == null ||
+        (_autoSource != _noCard &&
+            _selectedCardById(cards, _autoSource!) == null)) {
+      _autoSource = cards.isNotEmpty ? cards.first.id : _noCard;
+    }
     final period = _resolvePeriod(cards);
     final teamAvailable = (widget.existing?.teamId ?? activeTeam?.id) != null;
     final teamName = activeTeam?.name ?? 'Takım'.tr;
@@ -466,6 +543,53 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                   ),
               ],
             ),
+            if (_isNewRecurring) ...[
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<String>(
+                key: ValueKey('auto-source-${cards.length}-$_autoSource'),
+                initialValue: _autoSource,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'Hangi karttan ödeniyor?'.tr,
+                  prefixIcon: const Icon(Icons.autorenew_rounded),
+                ),
+                items: [
+                  for (final c in cards)
+                    DropdownMenuItem(
+                      value: c.id,
+                      child: Text(
+                        '${c.name} •••• ${c.last4Digits}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  DropdownMenuItem(
+                    value: _noCard,
+                    child: Text('Kartsız (banka hesabından)'.tr),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _autoSource = v),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              InlineMessage(
+                tone: MessageTone.info,
+                message: 'Bu ödeme her ayın {0}. günü otomatik olarak eklenir. Kartlar > Otomatik ödemeler bölümünden düzenleyebilir veya sonlandırabilirsiniz.'
+                    .trArgs([_date.day]),
+              ),
+            ],
+            if (_isEdit && widget.existing!.isRecurring) ...[
+              const SizedBox(height: AppSpacing.md),
+              InlineMessage(
+                tone: MessageTone.info,
+                message: 'Bu kayıt bir otomatik ödemeden geldi. Burada yaptığınız değişiklik yalnızca bu ayı etkiler.'
+                    .tr,
+                action: TextButton(
+                  onPressed: () => context.push(
+                    '/recurring/${widget.existing!.recurringPaymentId}',
+                  ),
+                  child: Text('Otomatik ödemeyi aç'.tr),
+                ),
+              ),
+            ],
             if (_paymentMethod == 'credit_card') ...[
               const SizedBox(height: AppSpacing.md),
               if (cards.isEmpty && _cardId == null)
@@ -647,6 +771,8 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
             AppButton(
               label: _isEdit
                   ? 'Değişiklikleri kaydet'.tr
+                  : _isNewRecurring
+                  ? 'Otomatik ödemeyi kaydet'.tr
                   : 'Harcamayı kaydet'.tr,
               icon: Icons.check_rounded,
               onPressed: () => _save(),

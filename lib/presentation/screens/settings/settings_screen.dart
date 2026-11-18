@@ -204,7 +204,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               _SettingsTile(
                 icon: Icons.credit_card_outlined,
-                title: 'Kartlar ve taksitler'.tr,
+                title: 'Kartlar ve ödemeler'.tr,
                 onTap: () => context.go('/cards'),
               ),
               _SettingsTile(

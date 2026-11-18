@@ -486,6 +486,52 @@ describe('Bütçeler', () => {
   });
 });
 
+describe('Otomatik ödemeler', () => {
+  const payment = (id, owner, o = {}) => ({
+    id, ownerUid: owner, teamId: null, visibility: 'personal', title: 'Elektrik',
+    amountInCents: 85000, currency: 'TRY', category: 'bills', cardId: null, cardLast4: null,
+    cardCutoffDay: null, dayOfMonth: 15, startDate: now(), endDate: null,
+    lastPostedMonth: '2026-11', status: 'active', notes: null,
+    createdAt: now(), updatedAt: now(), ...o,
+  });
+
+  test('ödeme ve aylık kaydı aynı yığında yazılır; başkası okuyamaz', async () => {
+    const fs = db(USERS.alice);
+    const batch = writeBatch(fs);
+    batch.set(doc(fs, 'recurringPayments/r1'), payment('r1', 'alice'));
+    batch.set(doc(fs, 'expenses/r1_2026-11'), expense('r1_2026-11', 'alice', {
+      paymentMethod: 'auto_payment', recurringPaymentId: 'r1',
+    }));
+    await assertSucceeds(batch.commit());
+    await assertSucceeds(getDocs(query(collection(fs, 'recurringPayments'), where('ownerUid', '==', 'alice'))));
+    await assertFails(getDoc(doc(db(USERS.eve), 'recurringPayments/r1')));
+    await assertFails(setDoc(doc(db(USERS.eve), 'recurringPayments/r2'), payment('r2', 'alice')));
+  });
+
+  test('geçersiz gün, tutar veya ay reddedilir; sahiplik devredilemez', async () => {
+    const fs = db(USERS.alice);
+    await assertFails(setDoc(doc(fs, 'recurringPayments/r1'), payment('r1', 'alice', { dayOfMonth: 32 })));
+    await assertFails(setDoc(doc(fs, 'recurringPayments/r1'), payment('r1', 'alice', { amountInCents: 0 })));
+    await assertFails(setDoc(doc(fs, 'recurringPayments/r1'), payment('r1', 'alice', { lastPostedMonth: '2026-13' })));
+    await assertSucceeds(setDoc(doc(fs, 'recurringPayments/r1'), payment('r1', 'alice')));
+    await assertFails(setDoc(doc(fs, 'recurringPayments/r1'), payment('r1', 'bob')));
+    await assertFails(updateDoc(doc(db(USERS.bob), 'recurringPayments/r1'), { status: 'cancelled' }));
+    await assertSucceeds(updateDoc(doc(fs, 'recurringPayments/r1'), { status: 'cancelled', endDate: now() }));
+  });
+
+  test('takım ödemesini üyeler görür, yalnızca ekleyen değiştirir', async () => {
+    await seedTeam();
+    const p = payment('r3', 'bob', { visibility: 'team', teamId: 't1' });
+    await assertSucceeds(setDoc(doc(db(USERS.bob), 'recurringPayments/r3'), p));
+    await assertSucceeds(getDocs(query(
+      collection(db(USERS.alice), 'recurringPayments'),
+      where('teamId', '==', 't1'), where('visibility', '==', 'team'),
+    )));
+    await assertFails(updateDoc(doc(db(USERS.alice), 'recurringPayments/r3'), { status: 'cancelled' }));
+    await assertFails(setDoc(doc(db(USERS.eve), 'recurringPayments/r4'), payment('r4', 'eve', { visibility: 'team', teamId: 't1' })));
+  });
+});
+
 describe('Yönetim paneli yetkisi', () => {
   const ADMIN = { uid: 'admin', email: 'hasancaktar@gmail.com' };
   const category = (id, o = {}) => ({

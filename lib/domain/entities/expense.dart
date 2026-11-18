@@ -20,6 +20,9 @@ class Expense {
   final String? installmentPlanId;
   final int installmentNumber;
   final int totalInstallments;
+
+  /// Otomatik (her ay tekrarlanan) ödemeden oluşturulduysa ödemenin kimliği.
+  final String? recurringPaymentId;
   final String statementPeriod; // 'YYYY-MM'
   final String? notes;
   final List<String> tags;
@@ -47,6 +50,7 @@ class Expense {
     this.installmentPlanId,
     this.installmentNumber = 1,
     this.totalInstallments = 1,
+    this.recurringPaymentId,
     required this.statementPeriod,
     this.notes,
     this.tags = const [],
@@ -60,6 +64,7 @@ class Expense {
 
   bool get isTeam => visibility == 'team';
   bool get isCreditCard => paymentMethod == 'credit_card';
+  bool get isRecurring => recurringPaymentId != null;
 
   Expense copyWith({
     String? title,
@@ -89,6 +94,7 @@ class Expense {
       installmentPlanId: installmentPlanId,
       installmentNumber: installmentNumber,
       totalInstallments: totalInstallments,
+      recurringPaymentId: recurringPaymentId,
       statementPeriod: statementPeriod ?? this.statementPeriod,
       notes: notes,
       tags: tags,
@@ -119,6 +125,7 @@ class Expense {
       'installmentPlanId': installmentPlanId,
       'installmentNumber': installmentNumber,
       'totalInstallments': totalInstallments,
+      'recurringPaymentId': recurringPaymentId,
       'statementPeriod': statementPeriod,
       'notes': notes,
       'tags': tags,
@@ -159,6 +166,7 @@ class Expense {
         map['totalInstallments'],
         fallback: 1,
       ),
+      recurringPaymentId: JsonParsers.stringOrNull(map['recurringPaymentId']),
       statementPeriod: JsonParsers.string(map['statementPeriod']),
       notes: JsonParsers.stringOrNull(map['notes']),
       tags: JsonParsers.stringList(map['tags']),

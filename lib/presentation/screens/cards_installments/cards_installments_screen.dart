@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/card_providers.dart';
 import '../../../application/providers/installment_providers.dart';
+import '../../../application/providers/recurring_payment_providers.dart';
 import '../../../application/providers/team_providers.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
@@ -14,6 +15,8 @@ import '../../../core/utils/money_formatter.dart';
 import '../../../core/utils/statement_calculator.dart';
 import '../../../domain/entities/credit_card.dart';
 import '../../../domain/entities/installment_plan.dart';
+import '../../../domain/entities/recurring_payment.dart';
+import 'recurring_payment_detail_screen.dart' show recurringScheduleLabel;
 import '../../widgets/app_card.dart';
 import '../../widgets/common.dart';
 import '../../widgets/credit_card_visual.dart';
@@ -33,7 +36,7 @@ class _CardsInstallmentsScreenState
     extends ConsumerState<CardsInstallmentsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController = TabController(
-    length: 2,
+    length: 3,
     vsync: this,
     initialIndex: widget.initialTab,
   )..addListener(_onTab);
@@ -50,30 +53,43 @@ class _CardsInstallmentsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final onCards = _tabController.index == 0;
+    final (
+      String route,
+      IconData icon,
+      String label,
+    ) = switch (_tabController.index) {
+      0 => ('/cards/new', Icons.add_card_rounded, 'Kart ekle'.tr),
+      1 => ('/installments/new', Icons.playlist_add_rounded, 'Taksit ekle'.tr),
+      _ => (
+        '/expenses/new?method=auto_payment',
+        Icons.autorenew_rounded,
+        'Otomatik ödeme ekle'.tr,
+      ),
+    };
     return Scaffold(
       appBar: AppBar(
-        title: Text('Kartlar ve taksitler'.tr),
+        title: Text('Kartlar ve ödemeler'.tr),
         bottom: TabBar(
           controller: _tabController,
+          // Üç sekme dar ekranlarda sığmayabilir; kaydırılabilir.
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: [
             Tab(text: 'Kredi kartları'.tr),
             Tab(text: 'Taksit planları'.tr),
+            Tab(text: 'Otomatik ödemeler'.tr),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'fab-cards',
-        onPressed: () =>
-            context.push(onCards ? '/cards/new' : '/installments/new'),
-        icon: Icon(
-          onCards ? Icons.add_card_rounded : Icons.playlist_add_rounded,
-        ),
-        label: Text(onCards ? 'Kart ekle'.tr : 'Taksit ekle'.tr),
+        onPressed: () => context.push(route),
+        icon: Icon(icon),
+        label: Text(label),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [_CardsTab(), _InstallmentsTab()],
+        children: const [_CardsTab(), _InstallmentsTab(), _RecurringTab()],
       ),
     );
   }
@@ -242,6 +258,126 @@ class _InstallmentsTab extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _RecurringTab extends ConsumerWidget {
+  const _RecurringTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paymentsAsync = ref.watch(recurringPaymentsProvider);
+
+    return AsyncValueView<List<RecurringPayment>>(
+      value: paymentsAsync,
+      loading: const SkeletonList(itemCount: 4, itemHeight: 88),
+      onRetry: () => ref.invalidate(recurringPaymentsProvider),
+      data: (payments) {
+        if (payments.isEmpty) {
+          return EmptyStateView(
+            icon: Icons.autorenew_rounded,
+            title: 'Otomatik ödeme yok'.tr,
+            message: 'Kira, fatura, abonelik gibi her ay tekrarlanan ödemelerinizi ekleyin; her ay aynı gün harcamalarınıza otomatik eklensin.'
+                .tr,
+            actionLabel: 'Otomatik ödeme ekle'.tr,
+            actionIcon: Icons.autorenew_rounded,
+            onAction: () => context.push('/expenses/new?method=auto_payment'),
+          );
+        }
+        final active = payments.where((p) => p.isActive).toList()
+          ..sort((a, b) => a.dayOfMonth.compareTo(b.dayOfMonth));
+        final ended = payments.where((p) => !p.isActive).toList();
+        final monthly = active.fold<int>(0, (s, p) => s + p.amountInCents);
+
+        return PageListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            96,
+          ),
+          children: [
+            if (active.isNotEmpty)
+              _MiniStat(
+                label: 'Aylık otomatik ödeme toplamı'.tr,
+                value: MoneyFormatter.formatCents(monthly),
+              ),
+            if (active.isNotEmpty) SectionHeader(title: 'Aktif'.tr),
+            for (final p in active) ...[
+              _RecurringCard(payment: p),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (ended.isNotEmpty) SectionHeader(title: 'Sonlandırılan'.tr),
+            for (final p in ended) ...[
+              _RecurringCard(payment: p),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _RecurringCard extends StatelessWidget {
+  final RecurringPayment payment;
+  const _RecurringCard({required this.payment});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    final next = payment.nextOccurrenceAfter(DateTime.now());
+    return AppCard(
+      onTap: () => context.push('/recurring/${payment.id}'),
+      child: Row(
+        children: [
+          CategoryIcon(categoryId: payment.category, size: 36),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  payment.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.titleSmall,
+                ),
+                Text(
+                  recurringScheduleLabel(payment),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                if (next != null)
+                  Text(
+                    'Sıradaki: {0}'.trArgs([DateFormats.day(next)]),
+                    style: context.textStyles.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                MoneyFormatter.formatCents(payment.amountInCents),
+                style: context.textStyles.titleSmall,
+              ),
+              if (!payment.isActive) ...[
+                const SizedBox(height: 3),
+                Pill(label: 'Sonlandırıldı'.tr, color: scheme.onSurfaceVariant),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
