@@ -32,6 +32,8 @@ class ReportsScreen extends ConsumerWidget {
         children: [
           const ContextBar(),
           const SizedBox(height: AppSpacing.md),
+          const _FuelEntryCard(),
+          const SizedBox(height: AppSpacing.md),
           expensesAsync.when(
             skipLoadingOnReload: false,
             skipLoadingOnRefresh: false,
@@ -61,6 +63,44 @@ class ReportsScreen extends ConsumerWidget {
                   )
                 : const _ReportContent(),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Yakıt takibi sayfasına giriş.
+class _FuelEntryCard extends StatelessWidget {
+  const _FuelEntryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    final fuel = AppConstants.getCategoryById(AppConstants.fuelCategoryId);
+    return AppCard(
+      onTap: () => context.push('/fuel'),
+      padding: const EdgeInsets.all(AppSpacing.sm + 2),
+      child: Row(
+        children: [
+          CategoryIcon(categoryId: fuel.id, size: 44),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Yakıt takibi'.tr, style: context.textStyles.titleSmall),
+                const SizedBox(height: 2),
+                Text(
+                  'Yakıt harcaması, ortalama litre fiyatı ve 100 km tüketimi'
+                      .tr,
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
         ],
       ),
     );

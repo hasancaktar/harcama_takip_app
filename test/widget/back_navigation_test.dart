@@ -107,10 +107,15 @@ void main() {
     await settle(tester);
 
     await tester.enterText(find.byType(TextFormField).first, '125');
+    // Odaktaki alan imleci görünür tutmak için sayfayı geri kaydırmasın.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
     await tester.ensureVisible(find.text('Nakit'));
+    await tester.pump();
     await tester.tap(find.text('Nakit'));
     await tester.pump();
     await tester.ensureVisible(find.text('Harcamayı kaydet'));
+    await tester.pump();
     await tester.tap(find.text('Harcamayı kaydet'));
     await settle(tester);
 

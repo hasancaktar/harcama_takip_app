@@ -148,9 +148,20 @@ abstract class CategoryRegistry {
       _all.where((c) => c.isSelectable).toList();
 
   static void update(List<CategoryItem> remote) {
-    _all = remote.isEmpty
-        ? AppConstants.defaultCategories
-        : ([...remote]..sort((a, b) => a.order.compareTo(b.order)));
+    if (remote.isEmpty) {
+      _all = AppConstants.defaultCategories;
+      return;
+    }
+    // Yöneticinin listesinde olmayan sistem kategorileri eklenir; yönetici bunları
+    // kendi listesinde pasif yaparak gizleyebilir.
+    final ids = {for (final c in remote) c.id};
+    _all = [
+      ...remote,
+      for (final c in AppConstants.defaultCategories)
+        if (AppConstants.systemCategoryIds.contains(c.id) &&
+            !ids.contains(c.id))
+          c,
+    ]..sort((a, b) => a.order.compareTo(b.order));
   }
 
   static CategoryItem byId(String id) {
@@ -220,6 +231,14 @@ abstract class AppConstants {
   static const int minInstallments = 2;
   static const int maxInstallments = 36;
 
+  /// Yakıt takibinin bağlı olduğu kategori. Bu kategorideki harcamalarda litre,
+  /// litre fiyatı, araç ve kilometre bilgisi tutulur.
+  static const String fuelCategoryId = 'fuel';
+
+  /// Yönetici kendi kategori listesini tanımlamış olsa da her zaman bulunan
+  /// kategoriler (uygulama özellikleri bunlara bağlıdır).
+  static const Set<String> systemCategoryIds = {fuelCategoryId};
+
   static const CategoryItem otherCategory = CategoryItem(
     id: 'other',
     nameTr: 'Diğer',
@@ -256,12 +275,20 @@ abstract class AppConstants {
       order: 2,
     ),
     CategoryItem(
+      id: fuelCategoryId,
+      nameTr: 'Akaryakıt',
+      nameEn: 'Fuel',
+      iconKey: 'fuel',
+      colorHex: '#C2410C',
+      order: 3,
+    ),
+    CategoryItem(
       id: 'bills',
       nameTr: 'Fatura',
       nameEn: 'Bills',
       iconKey: 'receipt',
       colorHex: '#EF4444',
-      order: 3,
+      order: 4,
     ),
     CategoryItem(
       id: 'rent',
@@ -269,7 +296,7 @@ abstract class AppConstants {
       nameEn: 'Rent',
       iconKey: 'home_work',
       colorHex: '#8B5CF6',
-      order: 4,
+      order: 5,
     ),
     CategoryItem(
       id: 'health',
@@ -277,7 +304,7 @@ abstract class AppConstants {
       nameEn: 'Health',
       iconKey: 'medical',
       colorHex: '#06B6D4',
-      order: 5,
+      order: 6,
     ),
     CategoryItem(
       id: 'education',
@@ -285,7 +312,7 @@ abstract class AppConstants {
       nameEn: 'Education',
       iconKey: 'school',
       colorHex: '#6366F1',
-      order: 6,
+      order: 7,
     ),
     CategoryItem(
       id: 'shopping',
@@ -293,7 +320,7 @@ abstract class AppConstants {
       nameEn: 'Shopping',
       iconKey: 'shopping_bag',
       colorHex: '#F59E0B',
-      order: 7,
+      order: 8,
     ),
     CategoryItem(
       id: 'entertainment',
@@ -301,7 +328,7 @@ abstract class AppConstants {
       nameEn: 'Entertainment',
       iconKey: 'movie',
       colorHex: '#EC4899',
-      order: 8,
+      order: 9,
     ),
     CategoryItem(
       id: 'travel',
@@ -309,7 +336,7 @@ abstract class AppConstants {
       nameEn: 'Travel',
       iconKey: 'flight',
       colorHex: '#14B8A6',
-      order: 9,
+      order: 10,
     ),
     CategoryItem(
       id: 'subscription',
@@ -317,7 +344,7 @@ abstract class AppConstants {
       nameEn: 'Subscriptions',
       iconKey: 'subscriptions',
       colorHex: '#84CC16',
-      order: 10,
+      order: 11,
     ),
     CategoryItem(
       id: 'home',
@@ -325,7 +352,7 @@ abstract class AppConstants {
       nameEn: 'Home',
       iconKey: 'chair',
       colorHex: '#EAB308',
-      order: 11,
+      order: 12,
     ),
     CategoryItem(
       id: 'personal_care',
@@ -333,7 +360,7 @@ abstract class AppConstants {
       nameEn: 'Personal care',
       iconKey: 'spa',
       colorHex: '#A855F7',
-      order: 12,
+      order: 13,
     ),
     CategoryItem(
       id: 'donation',
@@ -341,7 +368,7 @@ abstract class AppConstants {
       nameEn: 'Donation',
       iconKey: 'volunteer',
       colorHex: '#E11D48',
-      order: 13,
+      order: 14,
     ),
     CategoryItem(
       id: 'pets',
@@ -349,7 +376,7 @@ abstract class AppConstants {
       nameEn: 'Pets',
       iconKey: 'pets',
       colorHex: '#B45309',
-      order: 14,
+      order: 15,
     ),
     otherCategory,
   ];

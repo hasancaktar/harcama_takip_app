@@ -8,6 +8,7 @@ import '../../core/utils/date_formats.dart';
 import '../../core/utils/money_formatter.dart';
 import '../../core/utils/statement_calculator.dart';
 import '../../domain/entities/expense.dart';
+import '../../domain/entities/fuel.dart';
 import 'common.dart';
 
 /// Tüm listelerde kullanılan tutarlı harcama satırı.
@@ -36,8 +37,11 @@ class ExpenseTile extends StatelessWidget {
         expense.statementPeriod.isNotEmpty &&
         expense.statementPeriod != StatementCalculator.periodOf(expense.date);
 
+    final fuel = expense.fuel;
     final meta = <String>[
       dateLabel,
+      if (fuel != null && fuel.hasVolume)
+        FuelMath.formatLiters(fuel.litersX100),
       if (expense.cardLast4 != null && expense.isCreditCard)
         '•••• ${expense.cardLast4}'
       else

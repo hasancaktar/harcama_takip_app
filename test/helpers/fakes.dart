@@ -19,6 +19,7 @@ import 'package:harcama_takip/domain/entities/team.dart';
 import 'package:harcama_takip/domain/entities/team_invite.dart';
 import 'package:harcama_takip/domain/entities/team_member.dart';
 import 'package:harcama_takip/domain/entities/user_profile.dart';
+import 'package:harcama_takip/domain/entities/vehicle.dart';
 import 'package:harcama_takip/domain/repositories/i_admin_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_notification_server.dart';
 import 'package:harcama_takip/domain/repositories/i_auth_repository.dart';
@@ -29,6 +30,7 @@ import 'package:harcama_takip/domain/repositories/i_installment_repository.dart'
 import 'package:harcama_takip/domain/repositories/i_recurring_payment_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_team_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_user_repository.dart';
+import 'package:harcama_takip/domain/repositories/i_vehicle_repository.dart';
 
 /// Son değeri hatırlayan basit akış (BehaviorSubject benzeri).
 class ValueStream<T> {
@@ -301,6 +303,11 @@ class FakeExpenseRepository implements IExpenseRepository {
   );
 
   @override
+  Stream<List<Expense>> watchOwnFuelExpenses(String uid) => _where(
+    (e) => e.ownerUid == uid && e.category == AppConstants.fuelCategoryId,
+  );
+
+  @override
   Stream<Expense?> watchExpense(String expenseId) => _all.stream.map((list) {
     for (final e in list) {
       if (e.id == expenseId && e.status == 'active') return e;
@@ -323,6 +330,34 @@ class FakeExpenseRepository implements IExpenseRepository {
         for (final e in _all.value)
           e.id == expenseId ? e.copyWith(status: 'deleted') : e,
       ];
+}
+
+class FakeVehicleRepository implements IVehicleRepository {
+  final ValueStream<List<Vehicle>> _vehicles = ValueStream(const []);
+
+  List<Vehicle> get all => _vehicles.value;
+
+  void seed(List<Vehicle> vehicles) => _vehicles.value = [...vehicles];
+
+  @override
+  Stream<List<Vehicle>> watchVehicles(String uid) => _vehicles.stream.map(
+    (l) =>
+        l.where((v) => v.ownerUid == uid).toList()
+          ..sort((a, b) => a.name.compareTo(b.name)),
+  );
+
+  @override
+  Future<void> saveVehicle(Vehicle vehicle) async => _vehicles.value = [
+    for (final v in _vehicles.value)
+      if (v.id != vehicle.id) v,
+    vehicle,
+  ];
+
+  @override
+  Future<void> deleteVehicle(String vehicleId) async => _vehicles.value = [
+    for (final v in _vehicles.value)
+      if (v.id != vehicleId) v,
+  ];
 }
 
 class FakeCardRepository implements ICardRepository {
@@ -883,6 +918,7 @@ class TestBackend {
   final users = FakeUserRepository();
   final expenses = FakeExpenseRepository();
   final cards = FakeCardRepository();
+  final vehicles = FakeVehicleRepository();
   final installments = FakeInstallmentRepository();
   late final recurring = FakeRecurringPaymentRepository(expenses);
   final budgets = FakeBudgetRepository();
@@ -897,6 +933,7 @@ class TestBackend {
     userRepositoryProvider.overrideWithValue(users),
     expenseRepositoryProvider.overrideWithValue(expenses),
     cardRepositoryProvider.overrideWithValue(cards),
+    vehicleRepositoryProvider.overrideWithValue(vehicles),
     installmentRepositoryProvider.overrideWithValue(installments),
     recurringPaymentRepositoryProvider.overrideWithValue(recurring),
     budgetRepositoryProvider.overrideWithValue(budgets),

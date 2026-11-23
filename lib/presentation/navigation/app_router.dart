@@ -24,6 +24,8 @@ import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/expenses/add_edit_expense_screen.dart';
 import '../screens/expenses/expense_detail_screen.dart';
 import '../screens/expenses/expense_list_screen.dart';
+import '../screens/fuel/fuel_screen.dart';
+import '../screens/fuel/vehicles_screen.dart';
 import '../screens/reports/reports_screen.dart';
 import '../screens/settings/categories_screen.dart';
 import '../screens/settings/feedback_screen.dart';
@@ -151,6 +153,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => HomeBackStack(
           child: AddEditExpenseScreen(
             initialPaymentMethod: state.uri.queryParameters['method'],
+            initialCategory: state.uri.queryParameters['category'],
           ),
         ),
       ),
@@ -208,6 +211,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             paymentId: state.pathParameters['id']!,
           ),
         ),
+      ),
+      GoRoute(
+        path: '/fuel',
+        builder: (_, __) => const HomeBackStack(child: FuelScreen()),
+        routes: [
+          GoRoute(
+            path: 'vehicles',
+            builder: (_, __) => const HomeBackStack(child: VehiclesScreen()),
+          ),
+        ],
       ),
       GoRoute(
         path: '/budgets',

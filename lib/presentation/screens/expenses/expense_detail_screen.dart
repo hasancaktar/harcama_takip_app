@@ -13,6 +13,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_formats.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../domain/entities/expense.dart';
+import '../../../domain/entities/fuel.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/category_badge.dart';
 import '../../widgets/common.dart';
@@ -178,6 +179,43 @@ class ExpenseDetailScreen extends ConsumerWidget {
                         value:
                             '${expense.installmentNumber} / ${expense.totalInstallments}',
                       ),
+                    if (expense.fuel case final fuel?) ...[
+                      if (fuel.vehicleName != null)
+                        _DetailRow(
+                          icon: Icons.directions_car_rounded,
+                          label: 'Araç'.tr,
+                          value: fuel.vehicleName!,
+                        ),
+                      _DetailRow(
+                        icon: Icons.local_gas_station_rounded,
+                        label: 'Yakıt'.tr,
+                        value: fuel.hasVolume
+                            ? '${FuelTypes.label(fuel.fuelType)} · '
+                                  '${FuelMath.formatLiters(fuel.litersX100)}'
+                            : FuelTypes.label(fuel.fuelType),
+                      ),
+                      if (fuel.pricePerLiterCents > 0)
+                        _DetailRow(
+                          icon: Icons.sell_rounded,
+                          label: 'Litre fiyatı'.tr,
+                          value: MoneyFormatter.formatCents(
+                            fuel.pricePerLiterCents,
+                          ),
+                        ),
+                      if (fuel.odometerKm != null)
+                        _DetailRow(
+                          icon: Icons.speed_rounded,
+                          label: 'Kilometre'.tr,
+                          value: FuelMath.formatKm(fuel.odometerKm!),
+                        ),
+                      _DetailRow(
+                        icon: Icons.water_drop_rounded,
+                        label: 'Dolum'.tr,
+                        value: fuel.fullTank
+                            ? 'Depo full'.tr
+                            : 'Kısmi dolum'.tr,
+                      ),
+                    ],
                     if (expense.notes != null)
                       _DetailRow(
                         icon: Icons.notes_rounded,
@@ -188,6 +226,15 @@ class ExpenseDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              if (expense.fuel != null && expense.ownerUid == uid) ...[
+                const SizedBox(height: AppSpacing.md),
+                AppButton(
+                  label: 'Yakıt özetini aç'.tr,
+                  outlined: true,
+                  icon: Icons.local_gas_station_rounded,
+                  onPressed: () => context.push('/fuel'),
+                ),
+              ],
               if (expense.isInstallment &&
                   expense.installmentPlanId != null) ...[
                 const SizedBox(height: AppSpacing.md),

@@ -14,6 +14,7 @@ import '../../data/repositories/firestore_installment_repository.dart';
 import '../../data/repositories/firestore_recurring_payment_repository.dart';
 import '../../data/repositories/firestore_team_repository.dart';
 import '../../data/repositories/firestore_user_repository.dart';
+import '../../data/repositories/firestore_vehicle_repository.dart';
 import '../../domain/repositories/i_auth_repository.dart';
 import '../../domain/repositories/i_budget_repository.dart';
 import '../../domain/repositories/i_card_repository.dart';
@@ -22,6 +23,7 @@ import '../../domain/repositories/i_installment_repository.dart';
 import '../../domain/repositories/i_recurring_payment_repository.dart';
 import '../../domain/repositories/i_team_repository.dart';
 import '../../domain/repositories/i_user_repository.dart';
+import '../../domain/repositories/i_vehicle_repository.dart';
 import '../services/installment_posting_service.dart';
 import '../services/recurring_payment_service.dart';
 import '../services/notification_service.dart';
@@ -50,6 +52,9 @@ final budgetRepositoryProvider = Provider<IBudgetRepository>(
 );
 final userRepositoryProvider = Provider<IUserRepository>(
   (ref) => FirestoreUserRepository(),
+);
+final vehicleRepositoryProvider = Provider<IVehicleRepository>(
+  (ref) => FirestoreVehicleRepository(),
 );
 final accountDataRepositoryProvider = Provider<FirestoreAccountDataRepository>(
   (ref) => FirestoreAccountDataRepository(),

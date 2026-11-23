@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/card_providers.dart';
 import '../../../application/providers/expense_providers.dart';
+import '../../../application/providers/fuel_providers.dart';
 import '../../../application/providers/repository_providers.dart';
 import '../../../application/providers/team_providers.dart';
 import '../../../core/constants/app_constants.dart';
@@ -16,15 +17,19 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_formats.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../core/utils/statement_calculator.dart';
+import '../../../core/utils/thousands_separator_input_formatter.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/credit_card.dart';
 import '../../../domain/entities/expense.dart';
+import '../../../domain/entities/fuel.dart';
 import '../../../domain/entities/installment_plan.dart';
 import '../../../domain/entities/recurring_payment.dart';
+import '../../../domain/entities/vehicle.dart';
 import '../../widgets/amount_field.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
 import '../../widgets/state_views.dart';
+import '../fuel/vehicle_editor.dart';
 
 /// Harcama ekleme ve düzenleme ekranı.
 class AddEditExpenseScreen extends ConsumerWidget {
@@ -33,10 +38,14 @@ class AddEditExpenseScreen extends ConsumerWidget {
   /// Yeni harcamada önceden seçili ödeme yöntemi (ör. `auto_payment`).
   final String? initialPaymentMethod;
 
+  /// Yeni harcamada önceden seçili kategori (ör. `fuel`).
+  final String? initialCategory;
+
   const AddEditExpenseScreen({
     super.key,
     this.expenseId,
     this.initialPaymentMethod,
+    this.initialCategory,
   });
 
   @override
@@ -45,6 +54,7 @@ class AddEditExpenseScreen extends ConsumerWidget {
       return _ExpenseForm(
         existing: null,
         initialPaymentMethod: initialPaymentMethod,
+        initialCategory: initialCategory,
       );
     }
 
@@ -92,7 +102,12 @@ class AddEditExpenseScreen extends ConsumerWidget {
 class _ExpenseForm extends ConsumerStatefulWidget {
   final Expense? existing;
   final String? initialPaymentMethod;
-  const _ExpenseForm({required this.existing, this.initialPaymentMethod});
+  final String? initialCategory;
+  const _ExpenseForm({
+    required this.existing,
+    this.initialPaymentMethod,
+    this.initialCategory,
+  });
 
   @override
   ConsumerState<_ExpenseForm> createState() => _ExpenseFormState();
@@ -117,7 +132,35 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   late DateTime _date;
   bool _saving = false;
 
+  // Akaryakıt bilgileri
+  final _litersController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _odometerController = TextEditingController();
+  static const _noVehicle = '__none__';
+  String _vehicleId = _noVehicle;
+  String _fuelType = FuelTypes.gasoline;
+  bool _fullTank = true;
+  bool _vehicleTouched = false;
+  bool _fuelTypeTouched = false;
+  bool _priceTouched = false;
+  bool _resettingForm = false;
+
+  /// Bu formda eklenen ve araç listesine henüz yansımamış araç.
+  Vehicle? _addedVehicle;
+
+  /// Tutar, litre ve litre fiyatının düzenlenme sırası (en eski başta). En eski
+  /// alan diğer ikisinden hesaplanır: tutar + fiyat → litre, litre + fiyat →
+  /// tutar, tutar + litre → fiyat.
+  List<_FuelField> _fuelOrder = _defaultFuelOrder;
+  static const _defaultFuelOrder = [
+    _FuelField.amount,
+    _FuelField.liters,
+    _FuelField.price,
+  ];
+
   bool get _isEdit => widget.existing != null;
+
+  bool get _isFuel => _category == AppConstants.fuelCategoryId;
 
   /// Yeni bir otomatik ödeme mi oluşturuluyor (her ay tekrarlanır)?
   bool get _isNewRecurring => !_isEdit && _paymentMethod == 'auto_payment';
@@ -135,8 +178,25 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
       _cardId = e.cardId;
       _visibility = e.visibility;
       _date = e.date;
+      final fuel = e.fuel;
+      if (fuel != null) {
+        _fuelType = fuel.fuelType;
+        _vehicleId = fuel.vehicleId ?? _noVehicle;
+        _fullTank = fuel.fullTank;
+        _litersController.text = MoneyFormatter.formatForInput(fuel.litersX100);
+        _priceController.text = MoneyFormatter.formatForInput(
+          fuel.pricePerLiterCents,
+        );
+        _odometerController.text = fuel.odometerKm?.toString() ?? '';
+        _vehicleTouched = _fuelTypeTouched = _priceTouched = true;
+      }
     } else {
-      _category = 'market';
+      final initialCategory = widget.initialCategory;
+      _category =
+          initialCategory != null &&
+              AppConstants.categories.any((c) => c.id == initialCategory)
+          ? initialCategory
+          : 'market';
       final initial = widget.initialPaymentMethod;
       _paymentMethod =
           initial != null &&
@@ -145,11 +205,167 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
           : 'credit_card';
       _visibility = ref.read(activeTeamProvider) != null ? 'team' : 'personal';
       _date = DateTime.now();
+      if (_isFuel && _paymentMethod == 'auto_payment') {
+        _paymentMethod = 'credit_card';
+      }
     }
+    // Araçlar ve geçmiş yakıt kayıtları geldikçe varsayılanlar doldurulur.
+    ref.listenManual(vehiclesProvider, (_, __) => _onFuelDataChanged());
+    ref.listenManual(fuelExpensesProvider, (_, __) => _onFuelDataChanged());
+    _applyFuelDefaults();
+  }
+
+  void _onFuelDataChanged() {
+    if (mounted) setState(_applyFuelDefaults);
+  }
+
+  /// Yeni akaryakıt kaydında son kullanılan aracı, yakıt türünü ve o türün son
+  /// litre fiyatını önerir. Kullanıcının değiştirdiği alanlara dokunmaz.
+  void _applyFuelDefaults() {
+    if (_isEdit || !_isFuel) return;
+    final vehicles = ref.read(vehiclesProvider).valueOrNull;
+    final entries = ref.read(fuelExpensesProvider).valueOrNull;
+    final last = entries == null ? null : FuelHistory.last(entries);
+    if (!_vehicleTouched &&
+        _vehicleId == _noVehicle &&
+        vehicles != null &&
+        vehicles.isNotEmpty) {
+      final vehicle = vehicles.firstWhere(
+        (v) => v.id == last?.vehicleId,
+        orElse: () => vehicles.first,
+      );
+      _vehicleId = vehicle.id;
+      if (!_fuelTypeTouched) _fuelType = vehicle.fuelType;
+    }
+    if (!_fuelTypeTouched && _vehicleId == _noVehicle && last != null) {
+      _fuelType = last.fuelType;
+    }
+    _prefillPrice();
+  }
+
+  void _prefillPrice() {
+    if (_priceTouched || _fuelOrder.first == _FuelField.price) return;
+    final entries = ref.read(fuelExpensesProvider).valueOrNull;
+    if (entries == null) return;
+    final price = FuelHistory.lastPrice(entries, _fuelType);
+    _priceController.text = price == null
+        ? ''
+        : MoneyFormatter.formatForInput(price);
+    _recomputeFuel();
+  }
+
+  void _onFuelEdited(_FuelField field) {
+    if (!_isFuel || _resettingForm) return;
+    _fuelOrder = [..._fuelOrder.where((f) => f != field), field];
+    if (field == _FuelField.price) _priceTouched = true;
+    setState(_recomputeFuel);
+  }
+
+  /// En eski düzenlenen alanı diğer ikisinden hesaplar.
+  void _recomputeFuel() {
+    if (!_isFuel) return;
+    final amount = MoneyFormatter.parseToCents(_amountController.text);
+    final liters = MoneyFormatter.parseToCents(_litersController.text);
+    final price = MoneyFormatter.parseToCents(_priceController.text);
+    switch (_fuelOrder.first) {
+      case _FuelField.liters:
+        if (amount > 0 && price > 0) {
+          _litersController.text = MoneyFormatter.formatForInput(
+            FuelMath.litersX100(amount, price),
+          );
+        }
+      case _FuelField.amount:
+        if (liters > 0 && price > 0) {
+          _amountController.text = MoneyFormatter.formatForInput(
+            FuelMath.amountCents(liters, price),
+          );
+        }
+      case _FuelField.price:
+        if (amount > 0 && liters > 0) {
+          _priceController.text = MoneyFormatter.formatForInput(
+            FuelMath.pricePerLiterCents(amount, liters),
+          );
+        }
+    }
+  }
+
+  /// Hesaplanan alanın altında gösterilen not.
+  String? _computedHint(_FuelField field, TextEditingController controller) =>
+      _fuelOrder.first == field && controller.text.isNotEmpty
+      ? 'Otomatik hesaplandı'.tr
+      : null;
+
+  Vehicle? _vehicleById(List<Vehicle> vehicles, String id) {
+    for (final v in vehicles) {
+      if (v.id == id) return v;
+    }
+    return _addedVehicle?.id == id ? _addedVehicle : null;
+  }
+
+  void _selectVehicle(Vehicle? vehicle) {
+    _vehicleTouched = true;
+    _vehicleId = vehicle?.id ?? _noVehicle;
+    if (vehicle != null && !_fuelTypeTouched) {
+      _fuelType = vehicle.fuelType;
+      _prefillPrice();
+    }
+  }
+
+  Future<void> _addVehicle() async {
+    final vehicle = await showVehicleEditor(context, ref);
+    if (vehicle == null || !mounted) return;
+    setState(() {
+      _addedVehicle = vehicle;
+      _selectVehicle(vehicle);
+    });
+  }
+
+  FuelDetails? _buildFuelDetails() {
+    if (!_isFuel) return null;
+    final vehicles = ref.read(vehiclesProvider).valueOrNull ?? const [];
+    final vehicleId = _vehicleId == _noVehicle ? null : _vehicleId;
+    final previous = widget.existing?.fuel;
+    final vehicleName = vehicleId == null
+        ? null
+        : (_vehicleById(vehicles, vehicleId)?.name ??
+              (previous?.vehicleId == vehicleId
+                  ? previous?.vehicleName
+                  : null));
+    return FuelDetails(
+      fuelType: _fuelType,
+      litersX100: MoneyFormatter.parseToCents(_litersController.text),
+      pricePerLiterCents: MoneyFormatter.parseToCents(_priceController.text),
+      vehicleId: vehicleId,
+      vehicleName: vehicleName,
+      odometerKm: int.tryParse(_odometerController.text.trim()),
+      fullTank: _fullTank,
+    );
+  }
+
+  /// "Kaydet ve yenisini ekle" sonrası formu temizler; yakıtta araç, tür ve
+  /// litre fiyatı korunur.
+  void _resetForNext() {
+    final keepPrice = _priceController.text;
+    _resettingForm = true;
+    _installments = 1;
+    // reset() alanları ilk oluşturuldukları değere döndürür; ardından temizlenir.
+    _formKey.currentState!.reset();
+    _amountController.clear();
+    _titleController.clear();
+    _notesController.clear();
+    _litersController.clear();
+    _odometerController.clear();
+    _priceController.text = keepPrice;
+    _fuelOrder = _defaultFuelOrder;
+    _fullTank = true;
+    _resettingForm = false;
   }
 
   @override
   void dispose() {
+    _litersController.dispose();
+    _priceController.dispose();
+    _odometerController.dispose();
     _amountController.dispose();
     _titleController.dispose();
     _notesController.dispose();
@@ -291,10 +507,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               .trArgs([_date.day]),
         );
         if (addAnother) {
-          _amountController.clear();
-          _titleController.clear();
-          _notesController.clear();
-          _formKey.currentState!.reset();
+          _resetForNext();
           setState(() => _saving = false);
         } else {
           context.pop();
@@ -302,7 +515,11 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         return;
       }
 
-      if (!_isEdit && isCredit && _installments > 1 && card != null) {
+      if (!_isEdit &&
+          !_isFuel &&
+          isCredit &&
+          _installments > 1 &&
+          card != null) {
         final planId = const Uuid().v4();
         final schedule = StatementCalculator.generateSchedule(
           startDate: _date,
@@ -379,11 +596,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               .trArgs([_installments]),
         );
         if (addAnother) {
-          _amountController.clear();
-          _titleController.clear();
-          _notesController.clear();
-          _installments = 1;
-          _formKey.currentState!.reset();
+          _resetForNext();
           setState(() => _saving = false);
         } else {
           context.pop();
@@ -405,6 +618,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         cardId: isCredit ? _cardId : null,
         cardLast4: isCredit ? (card?.last4Digits ?? existing?.cardLast4) : null,
         statementPeriod: _resolvePeriod(cards),
+        fuel: _buildFuelDetails(),
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
@@ -433,11 +647,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
             : 'Harcama kaydedildi.{0}'.trArgs([note]),
       );
       if (addAnother) {
-        _amountController.clear();
-        _titleController.clear();
-        _notesController.clear();
-        _installments = 1;
-        _formKey.currentState!.reset();
+        _resetForNext();
         setState(() => _saving = false);
       } else {
         context.pop();
@@ -448,6 +658,217 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         setState(() => _saving = false);
       }
     }
+  }
+
+  Widget _buildFuelSection(BuildContext context) {
+    final vehicles = ref.watch(vehiclesProvider).valueOrNull ?? const [];
+    final entries = ref.watch(fuelExpensesProvider).valueOrNull ?? const [];
+    final scheme = context.colors;
+    final selected = _vehicleId == _noVehicle
+        ? null
+        : _vehicleById(vehicles, _vehicleId);
+    final previous = widget.existing?.fuel;
+    int? lastKm;
+    if (!_isEdit) {
+      for (final km in [
+        FuelHistory.lastOdometer(entries, selected?.id),
+        selected?.odometerKm,
+      ]) {
+        if (km != null && (lastKm == null || km > lastKm)) lastKm = km;
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _FieldLabel('Yakıt bilgileri'.tr),
+        if (vehicles.isEmpty && selected == null && _vehicleId == _noVehicle)
+          InlineMessage(
+            tone: MessageTone.info,
+            message: 'Araç eklerseniz 100 km tüketiminiz ve km başına maliyetiniz hesaplanır.'
+                .tr,
+            action: TextButton.icon(
+              onPressed: _addVehicle,
+              icon: const Icon(Icons.directions_car_rounded),
+              label: Text('Araç ekle'.tr),
+            ),
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey(
+                    'vehicle-${vehicles.length}-$_vehicleId-${_addedVehicle?.id}',
+                  ),
+                  initialValue: _vehicleId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Araç'.tr,
+                    prefixIcon: const Icon(Icons.directions_car_rounded),
+                  ),
+                  items: [
+                    for (final v in vehicles)
+                      DropdownMenuItem(
+                        value: v.id,
+                        child: Text(v.name, overflow: TextOverflow.ellipsis),
+                      ),
+                    if (_addedVehicle != null &&
+                        !vehicles.any((v) => v.id == _addedVehicle!.id))
+                      DropdownMenuItem(
+                        value: _addedVehicle!.id,
+                        child: Text(
+                          _addedVehicle!.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    if (_vehicleId != _noVehicle && selected == null)
+                      DropdownMenuItem(
+                        value: _vehicleId,
+                        child: Text(
+                          '{0} (silinmiş araç)'.trArgs([
+                            previous?.vehicleName ?? '',
+                          ]),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    DropdownMenuItem(
+                      value: _noVehicle,
+                      child: Text('Araç seçilmedi'.tr),
+                    ),
+                  ],
+                  onChanged: (v) => setState(
+                    () => _selectVehicle(
+                      v == null || v == _noVehicle
+                          ? null
+                          : _vehicleById(vehicles, v),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              IconButton.filledTonal(
+                tooltip: 'Araç ekle'.tr,
+                onPressed: _addVehicle,
+                icon: const Icon(Icons.add_rounded),
+              ),
+            ],
+          ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            for (final t in FuelTypes.all)
+              ChoiceChip(
+                label: Text(FuelTypes.label(t)),
+                selected: _fuelType == t,
+                showCheckmark: false,
+                onSelected: (_) => setState(() {
+                  _fuelType = t;
+                  _fuelTypeTouched = true;
+                  _prefillPrice();
+                }),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                key: const ValueKey('fuel-price'),
+                controller: _priceController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: const [
+                  ThousandsSeparatorInputFormatter(maxIntegerDigits: 4),
+                ],
+                onChanged: (_) => _onFuelEdited(_FuelField.price),
+                validator: (v) {
+                  final cents = MoneyFormatter.parseToCents(v ?? '');
+                  if (cents <= 0) return 'Litre fiyatını girin.'.tr;
+                  if (cents > FuelDetails.maxPricePerLiterCents) {
+                    return 'Litre fiyatı çok yüksek.'.tr;
+                  }
+                  return null;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Litre fiyatı'.tr,
+                  suffixText: '₺/L',
+                  helperText: _computedHint(_FuelField.price, _priceController),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextFormField(
+                key: const ValueKey('fuel-liters'),
+                controller: _litersController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: const [
+                  ThousandsSeparatorInputFormatter(maxIntegerDigits: 4),
+                ],
+                onChanged: (_) => _onFuelEdited(_FuelField.liters),
+                validator: (v) {
+                  final x100 = MoneyFormatter.parseToCents(v ?? '');
+                  if (x100 <= 0) return 'Litreyi girin.'.tr;
+                  if (x100 > FuelDetails.maxLitersX100) {
+                    return 'Litre çok yüksek.'.tr;
+                  }
+                  return null;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Litre'.tr,
+                  suffixText: 'L',
+                  helperText: _computedHint(
+                    _FuelField.liters,
+                    _litersController,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Tutarı veya litreyi girmeniz yeterli; diğeri litre fiyatıyla hesaplanır.'
+              .tr,
+          style: context.textStyles.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextFormField(
+          key: const ValueKey('fuel-odometer'),
+          controller: _odometerController,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(7),
+          ],
+          decoration: InputDecoration(
+            labelText: 'Kilometre (isteğe bağlı)'.tr,
+            prefixIcon: const Icon(Icons.speed_rounded),
+            suffixText: 'km',
+            helperText: lastKm != null
+                ? 'Son kayıt: {0}'.trArgs([FuelMath.formatKm(lastKm)])
+                : 'Tüketim hesabı için gösterge kilometresini girin.'.tr,
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _fullTank,
+          onChanged: (v) => setState(() => _fullTank = v),
+          title: Text('Depoyu fulledim'.tr),
+          subtitle: Text('Tüketim iki full dolum arasında hesaplanır.'.tr),
+        ),
+      ],
+    );
   }
 
   @override
@@ -481,8 +902,8 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
           children: [
             AmountField(
               controller: _amountController,
-              autofocus: !_isEdit,
-              onChanged: (_) {},
+              autofocus: !_isEdit && !_isFuel,
+              onChanged: (_) => _onFuelEdited(_FuelField.amount),
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
@@ -523,10 +944,22 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                     label: Text(c.name),
                     selected: _category == c.id,
                     showCheckmark: false,
-                    onSelected: (_) => setState(() => _category = c.id),
+                    onSelected: (_) => setState(() {
+                      _category = c.id;
+                      if (!_isFuel) return;
+                      if (_paymentMethod == 'auto_payment') {
+                        _paymentMethod = 'credit_card';
+                      }
+                      _installments = 1;
+                      _applyFuelDefaults();
+                    }),
                   ),
               ],
             ),
+            if (_isFuel) ...[
+              const SizedBox(height: AppSpacing.md),
+              _buildFuelSection(context),
+            ],
             const SizedBox(height: AppSpacing.md),
             _FieldLabel('Ödeme yöntemi'.tr),
             Wrap(
@@ -534,13 +967,15 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               runSpacing: AppSpacing.xs,
               children: [
                 for (final m in AppConstants.paymentMethodItems)
-                  ChoiceChip(
-                    avatar: Icon(m.icon, size: 18),
-                    label: Text(m.name),
-                    selected: _paymentMethod == m.id,
-                    showCheckmark: false,
-                    onSelected: (_) => setState(() => _paymentMethod = m.id),
-                  ),
+                  // Akaryakıt tek seferlik alımdır; otomatik ödeme olarak girilmez.
+                  if (!_isFuel || m.id != 'auto_payment')
+                    ChoiceChip(
+                      avatar: Icon(m.icon, size: 18),
+                      label: Text(m.name),
+                      selected: _paymentMethod == m.id,
+                      showCheckmark: false,
+                      onSelected: (_) => setState(() => _paymentMethod = m.id),
+                    ),
               ],
             ),
             if (_isNewRecurring) ...[
@@ -646,7 +1081,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                           DateFormats.period(period),
                         ]),
                 ),
-                if (!_isEdit) ...[
+                if (!_isEdit && !_isFuel) ...[
                   const SizedBox(height: AppSpacing.md),
                   _FieldLabel('Taksit sayısı'.tr),
                   DropdownButtonFormField<int>(
@@ -792,6 +1227,8 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     );
   }
 }
+
+enum _FuelField { amount, liters, price }
 
 class _FieldLabel extends StatelessWidget {
   final String text;

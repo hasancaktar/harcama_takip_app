@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/utils/stream_utils.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/repositories/i_expense_repository.dart';
@@ -96,6 +97,14 @@ class FirestoreExpenseRepository implements IExpenseRepository {
       idOf: (e) => e.id,
     ).map((list) => list..sort((a, b) => b.date.compareTo(a.date)));
   }
+
+  @override
+  Stream<List<Expense>> watchOwnFuelExpenses(String uid) => _col
+      .where('ownerUid', isEqualTo: uid)
+      .where('category', isEqualTo: AppConstants.fuelCategoryId)
+      .where('status', isEqualTo: 'active')
+      .snapshots()
+      .map(_sorted);
 
   @override
   Stream<Expense?> watchExpense(String expenseId) {

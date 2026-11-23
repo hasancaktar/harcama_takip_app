@@ -757,3 +757,103 @@ describe('Takım üyesi görünen adı', () => {
     await assertFails(updateDoc(doc(db(USERS.bob, { verified: false }), 'teams/t1/members/bob'), { displayName: 'Bob' }));
   });
 });
+
+describe('Yakıt takibi', () => {
+  const fuel = (overrides = {}) => ({
+    type: 'gasoline',
+    liters: 36.58,
+    pricePerLiterCents: 6669,
+    vehicleId: 'v1',
+    vehicleName: 'Egea Cross',
+    odometerKm: 85150,
+    fullTank: true,
+    ...overrides,
+  });
+  const fuelExpense = (id, owner, fuelOverrides = {}, overrides = {}) =>
+    expense(id, owner, { category: 'fuel', amountInCents: 243952, fuel: fuel(fuelOverrides), ...overrides });
+
+  function vehicle(id, owner, overrides = {}) {
+    return {
+      id,
+      ownerUid: owner,
+      name: 'Egea Cross',
+      brand: 'Fiat',
+      fuelType: 'gasoline',
+      odometerKm: 85000,
+      createdAt: now(),
+      updatedAt: now(),
+      ...overrides,
+    };
+  }
+
+  test('akaryakıt harcaması yakıt bilgileriyle kaydedilir; tam sayı litre de kabul edilir', async () => {
+    const fs = db(USERS.alice);
+    await assertSucceeds(setDoc(doc(fs, 'expenses/f1'), fuelExpense('f1', 'alice')));
+    await assertSucceeds(setDoc(doc(fs, 'expenses/f2'), fuelExpense('f2', 'alice', { liters: 40, odometerKm: null, vehicleId: null, vehicleName: null })));
+    await assertSucceeds(updateDoc(doc(fs, 'expenses/f1'), { 'fuel.fullTank': false, updatedAt: now() }));
+    // Yakıt bilgisi olmayan eski kayıtlar da geçerlidir.
+    await assertSucceeds(setDoc(doc(fs, 'expenses/f3'), expense('f3', 'alice', { category: 'fuel', fuel: null })));
+  });
+
+  test('geçersiz yakıt bilgileri reddedilir', async () => {
+    const fs = db(USERS.alice);
+    await assertFails(setDoc(doc(fs, 'expenses/a'), fuelExpense('a', 'alice', { type: 'kerosene' })));
+    await assertFails(setDoc(doc(fs, 'expenses/b'), fuelExpense('b', 'alice', { liters: 0 })));
+    await assertFails(setDoc(doc(fs, 'expenses/c'), fuelExpense('c', 'alice', { liters: 5001 })));
+    await assertFails(setDoc(doc(fs, 'expenses/d'), fuelExpense('d', 'alice', { pricePerLiterCents: 66.69 })));
+    await assertFails(setDoc(doc(fs, 'expenses/e'), fuelExpense('e', 'alice', { pricePerLiterCents: 100001 })));
+    await assertFails(setDoc(doc(fs, 'expenses/f'), fuelExpense('f', 'alice', { odometerKm: -1 })));
+    await assertFails(setDoc(doc(fs, 'expenses/g'), fuelExpense('g', 'alice', { vehicleName: 'x'.repeat(41) })));
+    await assertFails(setDoc(doc(fs, 'expenses/h'), fuelExpense('h', 'alice', { fullTank: 'evet' })));
+    await assertFails(setDoc(doc(fs, 'expenses/i'), fuelExpense('i', 'alice', { plate: '34 ABC 123' })));
+    await assertFails(setDoc(doc(fs, 'expenses/j'), expense('j', 'alice', { category: 'fuel', fuel: 'benzin' })));
+  });
+
+  test('yakıt özeti sorgusu yalnızca kendi kayıtları için izinlidir', async () => {
+    const alice = db(USERS.alice);
+    await assertSucceeds(getDocs(query(
+      collection(alice, 'expenses'),
+      where('ownerUid', '==', 'alice'),
+      where('category', '==', 'fuel'),
+      where('status', '==', 'active'),
+    )));
+    await assertFails(getDocs(query(
+      collection(alice, 'expenses'),
+      where('ownerUid', '==', 'bob'),
+      where('category', '==', 'fuel'),
+      where('status', '==', 'active'),
+    )));
+  });
+
+  test('araçlar yalnızca sahibine açıktır', async () => {
+    const alice = db(USERS.alice);
+    await assertSucceeds(setDoc(doc(alice, 'vehicles/v1'), vehicle('v1', 'alice')));
+    await assertSucceeds(setDoc(doc(alice, 'vehicles/v2'), vehicle('v2', 'alice', { brand: null, odometerKm: null, fuelType: 'lpg' })));
+    await assertSucceeds(updateDoc(doc(alice, 'vehicles/v1'), { name: 'Egea', updatedAt: now() }));
+    await assertSucceeds(getDocs(query(collection(alice, 'vehicles'), where('ownerUid', '==', 'alice'))));
+    await assertFails(getDocs(collection(alice, 'vehicles')));
+
+    const eve = db(USERS.eve);
+    await assertFails(getDoc(doc(eve, 'vehicles/v1')));
+    await assertFails(updateDoc(doc(eve, 'vehicles/v1'), { name: 'Benim' }));
+    await assertFails(deleteDoc(doc(eve, 'vehicles/v1')));
+    await assertFails(setDoc(doc(eve, 'vehicles/v9'), vehicle('v9', 'alice')));
+    await assertFails(getDocs(query(collection(eve, 'vehicles'), where('ownerUid', '==', 'alice'))));
+    // Sahiplik devredilemez.
+    await assertFails(updateDoc(doc(alice, 'vehicles/v1'), { ownerUid: 'eve' }));
+
+    await assertSucceeds(deleteDoc(doc(alice, 'vehicles/v2')));
+    // E-postası doğrulanmamış hesap araç ekleyemez.
+    await assertFails(setDoc(doc(db(USERS.alice, { verified: false }), 'vehicles/v3'), vehicle('v3', 'alice')));
+  });
+
+  test('geçersiz araç kayıtları reddedilir', async () => {
+    const alice = db(USERS.alice);
+    await assertFails(setDoc(doc(alice, 'vehicles/a'), vehicle('a', 'alice', { name: '' })));
+    await assertFails(setDoc(doc(alice, 'vehicles/b'), vehicle('b', 'alice', { name: 'x'.repeat(41) })));
+    await assertFails(setDoc(doc(alice, 'vehicles/c'), vehicle('c', 'alice', { fuelType: 'electric' })));
+    await assertFails(setDoc(doc(alice, 'vehicles/d'), vehicle('d', 'alice', { odometerKm: 10000000 })));
+    await assertFails(setDoc(doc(alice, 'vehicles/e'), vehicle('e', 'alice', { plate: '34 ABC 123' })));
+    await assertFails(setDoc(doc(alice, 'vehicles/f'), vehicle('wrong-id', 'alice')));
+  });
+});

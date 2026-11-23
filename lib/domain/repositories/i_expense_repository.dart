@@ -22,6 +22,9 @@ abstract class IExpenseRepository {
     required String period,
   });
 
+  /// Kullanıcının kendi eklediği tüm akaryakıt harcamaları (kişisel + takım).
+  Stream<List<Expense>> watchOwnFuelExpenses(String uid);
+
   Stream<Expense?> watchExpense(String expenseId);
   Future<void> createExpense(Expense expense);
   Future<void> updateExpense(Expense expense);

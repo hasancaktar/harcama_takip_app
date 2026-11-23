@@ -359,6 +359,21 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------- Harcamalar
 
+    // Akaryakıt harcamasının yakıt bilgileri (istemcideki FuelDetails sınırlarıyla aynı).
+    function validFuel(f) {
+      return f is map
+        && f.keys().hasOnly(['type', 'liters', 'pricePerLiterCents', 'vehicleId', 'vehicleName',
+                             'odometerKm', 'fullTank'])
+        && f.type in ['gasoline', 'diesel', 'lpg']
+        && f.liters is number && f.liters > 0 && f.liters <= 5000
+        && f.pricePerLiterCents is int && f.pricePerLiterCents > 0 && f.pricePerLiterCents <= 100000
+        && (f.get('vehicleId', null) == null || (f.vehicleId is string && f.vehicleId.size() <= 64))
+        && optionalString(f, 'vehicleName', 40)
+        && (f.get('odometerKm', null) == null
+              || (f.odometerKm is int && f.odometerKm >= 0 && f.odometerKm <= 9999999))
+        && f.fullTank is bool;
+    }
+
     function validExpense(d, expenseId) {
       return d.keys().hasAll(['id', 'ownerUid', 'visibility', 'title', 'amountInCents', 'category',
                               'date', 'paymentMethod', 'statementPeriod', 'status', 'createdAt'])
@@ -371,6 +386,7 @@ service cloud.firestore {
         && validPeriod(d.statementPeriod)
         && optionalString(d, 'notes', 500)
         && optionalString(d, 'cardLast4', 4)
+        && (d.get('fuel', null) == null || validFuel(d.fuel))
         && validScope(d);
     }
 
@@ -387,6 +403,30 @@ service cloud.firestore {
         && incoming().ownerUid == existing().ownerUid
         && validExpense(incoming(), expenseId);
 
+      allow delete: if verified() && existing().ownerUid == uid();
+    }
+
+    // ---------------------------------------------------------------- Araçlar
+
+    // Yakıt takibi için araçlar: yalnızca sahibine açıktır.
+    function validVehicle(d, vehicleId) {
+      return d.keys().hasOnly(['id', 'ownerUid', 'name', 'brand', 'fuelType', 'odometerKm',
+                               'createdAt', 'updatedAt'])
+        && d.id == vehicleId
+        && d.ownerUid == uid()
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 40
+        && optionalString(d, 'brand', 40)
+        && d.fuelType in ['gasoline', 'diesel', 'lpg']
+        && (d.get('odometerKm', null) == null
+              || (d.odometerKm is int && d.odometerKm >= 0 && d.odometerKm <= 9999999));
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if verified() && existing().ownerUid == uid();
+      allow create: if verified() && validVehicle(incoming(), vehicleId);
+      allow update: if verified()
+        && existing().ownerUid == uid()
+        && validVehicle(incoming(), vehicleId);
       allow delete: if verified() && existing().ownerUid == uid();
     }
 

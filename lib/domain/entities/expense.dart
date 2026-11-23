@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/utils/json_parsers.dart';
+import 'fuel.dart';
 
 @immutable
 class Expense {
@@ -23,6 +24,9 @@ class Expense {
 
   /// Otomatik (her ay tekrarlanan) ödemeden oluşturulduysa ödemenin kimliği.
   final String? recurringPaymentId;
+
+  /// Akaryakıt harcamasında litre, litre fiyatı, araç ve kilometre bilgisi.
+  final FuelDetails? fuel;
   final String statementPeriod; // 'YYYY-MM'
   final String? notes;
   final List<String> tags;
@@ -51,6 +55,7 @@ class Expense {
     this.installmentNumber = 1,
     this.totalInstallments = 1,
     this.recurringPaymentId,
+    this.fuel,
     required this.statementPeriod,
     this.notes,
     this.tags = const [],
@@ -95,6 +100,7 @@ class Expense {
       installmentNumber: installmentNumber,
       totalInstallments: totalInstallments,
       recurringPaymentId: recurringPaymentId,
+      fuel: fuel,
       statementPeriod: statementPeriod ?? this.statementPeriod,
       notes: notes,
       tags: tags,
@@ -126,6 +132,7 @@ class Expense {
       'installmentNumber': installmentNumber,
       'totalInstallments': totalInstallments,
       'recurringPaymentId': recurringPaymentId,
+      'fuel': fuel?.toMap(),
       'statementPeriod': statementPeriod,
       'notes': notes,
       'tags': tags,
@@ -167,6 +174,7 @@ class Expense {
         fallback: 1,
       ),
       recurringPaymentId: JsonParsers.stringOrNull(map['recurringPaymentId']),
+      fuel: FuelDetails.fromMap(map['fuel']),
       statementPeriod: JsonParsers.string(map['statementPeriod']),
       notes: JsonParsers.stringOrNull(map['notes']),
       tags: JsonParsers.stringList(map['tags']),
