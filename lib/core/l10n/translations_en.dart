@@ -568,8 +568,6 @@ const Map<String, String> translationsEn = {
       'App announcements and daily reminders',
   'Uygulama duyurularını ve otomatik günlük hatırlatmayı bu hesaba gönder. Kapatırsanız sunucudan bildirim almazsınız.': 'Send app announcements and the automatic daily reminder to this account. If you turn this off, you will not receive notifications from the server.',
   'Uygulama hakkında': 'About the app',
-  'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}':
-      'You can also use the app from your browser:\n{0}',
   'Varsayılan kategoriler içe aktarıldı': 'Default categories imported',
   'Varsayılanları içe aktar': 'Import defaults',
   'Vazgeç': 'Cancel',
@@ -942,4 +940,5 @@ const Map<String, String> translationsEn = {
   'Kredi kartında kesim gününü girin; harcamalar doğru ekstreye yazılsın, son ödeme tarihini kaçırmayın. Banka kartlarınızı ekleyip harcamaları kart kart ayırın. Kart numarası istenmez.': 'Enter the cut-off day of your credit card so spending goes to the right statement and you never miss a due date. Add your debit cards to see spending card by card. No card number is needed.',
   'Banka kartı ekle (isteğe bağlı)': 'Add a debit card (optional)',
   'Kart seçilmedi': 'No card selected',
+  'Harcamalarınızı, kredi ve banka kartlarınızı, taksitlerinizi ve otomatik ödemelerinizi tek yerde toplar. Aylık bütçe belirleyebilir, ortak harcamaları ailenizle veya ev arkadaşlarınızla takımda paylaşabilir, yakıt giderlerinizi ve aracınızın tüketimini izleyebilirsiniz. Kayıtlarınızı yalnızca siz ve takım üyeleriniz görür; kart numaranız hiçbir zaman istenmez.': 'Brings your expenses, credit and debit cards, instalments and automatic payments together in one place. You can set a monthly budget, share common expenses with family or flatmates in a team, and track your fuel costs and your vehicle\'s consumption. Only you and your team members see your records; your card number is never asked for.',
 };

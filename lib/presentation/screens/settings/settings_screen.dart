@@ -282,6 +282,7 @@ class SettingsScreen extends ConsumerWidget {
                   builder: (ctx) {
                     final scheme = ctx.colors;
                     return AlertDialog(
+                      scrollable: true,
                       title: Row(
                         children: [
                           const AppLogo(size: 32),
@@ -300,19 +301,19 @@ class SettingsScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(AppConstants.appTagline),
-                          const SizedBox(height: AppSpacing.md),
-                          InkWell(
-                            onTap: () =>
-                                _openUrl(context, AppConstants.webAppUrl),
-                            onLongPress: () =>
-                                _copyUrl(context, AppConstants.webAppUrl),
-                            child: SelectableText(
-                              'Uygulamayı tarayıcınızdan da kullanabilirsiniz:\n{0}'
-                                  .trArgs([AppConstants.webAppUrl]),
-                            ),
+                          Text(
+                            AppConstants.appTagline,
+                            style: ctx.textStyles.titleSmall,
                           ),
                           const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Harcamalarınızı, kredi ve banka kartlarınızı, taksitlerinizi ve otomatik ödemelerinizi tek yerde toplar. Aylık bütçe belirleyebilir, ortak harcamaları ailenizle veya ev arkadaşlarınızla takımda paylaşabilir, yakıt giderlerinizi ve aracınızın tüketimini izleyebilirsiniz. Kayıtlarınızı yalnızca siz ve takım üyeleriniz görür; kart numaranız hiçbir zaman istenmez.'
+                                .tr,
+                            style: ctx.textStyles.bodyMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
                           InkWell(
                             onTap: () => _copyEmail(context),
                             child: Text(
