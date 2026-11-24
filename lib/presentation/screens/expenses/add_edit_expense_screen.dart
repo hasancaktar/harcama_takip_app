@@ -151,15 +151,13 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   /// Bu formda eklenen ve araç listesine henüz yansımamış araç.
   Vehicle? _addedVehicle;
 
-  /// Tutar, litre ve litre fiyatının düzenlenme sırası (en eski başta). En eski
-  /// alan diğer ikisinden hesaplanır: tutar + fiyat → litre, litre + fiyat →
-  /// tutar, tutar + litre → fiyat.
-  List<_FuelField> _fuelOrder = _defaultFuelOrder;
-  static const _defaultFuelOrder = [
-    _FuelField.amount,
-    _FuelField.liters,
-    _FuelField.price,
-  ];
+  /// Tutar ve litreden en son hangisi girildi. Litre fiyatı sabit tutulur:
+  /// tutar girilince litre, litre girilince tutar hesaplanır. Fiyat
+  /// değişince en son girilen korunur, diğeri yeniden hesaplanır.
+  _FuelField _volumeSource = _FuelField.amount;
+
+  /// Son otomatik doldurulan alan (altında "Otomatik hesaplandı" yazar).
+  _FuelField? _computedField;
 
   bool get _isEdit => widget.existing != null;
 
@@ -253,7 +251,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   /// Litre fiyatını önerir: seçili ilin güncel pompa fiyatı, yoksa bu yakıt
   /// türünde son ödenen fiyat. Kullanıcının yazdığı fiyata dokunmaz.
   void _prefillPrice() {
-    if (_priceTouched || _fuelOrder.first == _FuelField.price) return;
+    if (_priceTouched || _computedField == _FuelField.price) return;
     final live = ref.read(selectedCityFuelPricesProvider);
     final livePrice = live?.priceOf(_fuelType);
     if (livePrice != null) {
@@ -274,42 +272,54 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
 
   void _onFuelEdited(_FuelField field) {
     if (!_isFuel || _resettingForm) return;
-    _fuelOrder = [..._fuelOrder.where((f) => f != field), field];
-    if (field == _FuelField.price) _priceTouched = true;
+    if (field == _FuelField.price) {
+      _priceTouched = true;
+      if (_computedField == _FuelField.price) _computedField = null;
+    } else {
+      _volumeSource = field;
+      if (_computedField == field) _computedField = null;
+    }
     setState(_recomputeFuel);
   }
 
-  /// En eski düzenlenen alanı diğer ikisinden hesaplar.
+  /// Litre fiyatı varsa: tutar girildiyse litreyi, litre girildiyse tutarı
+  /// hesaplar. Fiyat yoksa ve tutar ile litre girildiyse fiyatı hesaplar.
   void _recomputeFuel() {
     if (!_isFuel) return;
     final amount = MoneyFormatter.parseToCents(_amountController.text);
     final liters = MoneyFormatter.parseToCents(_litersController.text);
     final price = MoneyFormatter.parseToCents(_priceController.text);
-    switch (_fuelOrder.first) {
-      case _FuelField.liters:
-        if (amount > 0 && price > 0) {
+    if (price > 0) {
+      if (_volumeSource == _FuelField.amount) {
+        if (amount > 0) {
           _litersController.text = MoneyFormatter.formatForInput(
             FuelMath.litersX100(amount, price),
           );
+          _computedField = _FuelField.liters;
+        } else if (_computedField == _FuelField.liters) {
+          _litersController.clear();
         }
-      case _FuelField.amount:
-        if (liters > 0 && price > 0) {
+      } else {
+        if (liters > 0) {
           _amountController.text = MoneyFormatter.formatForInput(
             FuelMath.amountCents(liters, price),
           );
+          _computedField = _FuelField.amount;
+        } else if (_computedField == _FuelField.amount) {
+          _amountController.clear();
         }
-      case _FuelField.price:
-        if (amount > 0 && liters > 0) {
-          _priceController.text = MoneyFormatter.formatForInputFixed(
-            FuelMath.pricePerLiterCents(amount, liters),
-          );
-        }
+      }
+    } else if (amount > 0 && liters > 0) {
+      _priceController.text = MoneyFormatter.formatForInputFixed(
+        FuelMath.pricePerLiterCents(amount, liters),
+      );
+      _computedField = _FuelField.price;
     }
   }
 
   /// Hesaplanan alanın altında gösterilen not.
   String? _computedHint(_FuelField field, TextEditingController controller) =>
-      _fuelOrder.first == field && controller.text.isNotEmpty
+      _computedField == field && controller.text.isNotEmpty
       ? 'Otomatik hesaplandı'.tr
       : null;
 
@@ -374,7 +384,8 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     _litersController.clear();
     _odometerController.clear();
     _priceController.text = keepPrice;
-    _fuelOrder = _defaultFuelOrder;
+    _volumeSource = _FuelField.amount;
+    _computedField = null;
     _fullTank = true;
     _resettingForm = false;
   }

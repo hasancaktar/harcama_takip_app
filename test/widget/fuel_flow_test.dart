@@ -157,6 +157,20 @@ void main() {
       expect(_controller(tester, 'fuel-liters').text, '14,99');
       expect(find.text('Otomatik hesaplandı'), findsOneWidget);
 
+      // Litre değişince tutar yeniden hesaplanır; litre fiyatı aynı kalır.
+      await tester.enterText(find.byKey(const ValueKey('fuel-liters')), '20');
+      await _settle(tester, frames: 3);
+      expect(
+        tester.widget<TextFormField>(_amountField).controller!.text,
+        '1.333,80',
+      );
+      expect(_controller(tester, 'fuel-price').text, '66,69');
+      // Tutar silinip yeniden girilince litre yine tutardan hesaplanır.
+      await tester.enterText(_amountField, '1000');
+      await _settle(tester, frames: 3);
+      expect(_controller(tester, 'fuel-liters').text, '14,99');
+      expect(_controller(tester, 'fuel-price').text, '66,69');
+
       await tester.enterText(
         find.byKey(const ValueKey('fuel-odometer')),
         '85600',
