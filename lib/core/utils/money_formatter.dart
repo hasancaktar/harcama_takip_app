@@ -55,6 +55,12 @@ abstract class MoneyFormatter {
     return _plainFormatter.format(amountInCents / 100.0);
   }
 
+  /// Birim fiyatlar için her zaman iki ondalıklı gösterim ("89,00", "66,69").
+  static String formatForInputFixed(int amountInCents) {
+    if (amountInCents <= 0) return '';
+    return _plainFormatter.format(amountInCents / 100.0);
+  }
+
   /// Kullanıcının girdiği metni kuruş tamsayısına dönüştürür.
   ///
   /// Kabul edilen biçimler: "125", "125,5", "125,50", "125.50", "1.250", "1.250,50", "1 250,50".

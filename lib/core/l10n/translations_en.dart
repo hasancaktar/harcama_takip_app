@@ -906,4 +906,17 @@ const Map<String, String> translationsEn = {
   '{0} silinsin mi?': 'Delete {0}?',
   'Örn. Egea Cross': 'E.g. Egea Cross',
   'Örn. Fiat': 'E.g. Fiat',
+  'Güncel pompa fiyatları': 'Current pump prices',
+  'İl seçin': 'Choose province',
+  'İl ara': 'Search province',
+  'Güncel fiyat · {0}': 'Current price · {0}',
+  'Dolar': 'Dollar',
+  'Euro': 'Euro',
+  'Ons altın': 'Gold (oz)',
+  'Bitcoin': 'Bitcoin',
+  'Piyasalar': 'Markets',
+  'Özet ekranı': 'Summary screen',
+  'Piyasa verilerini göster': 'Show market data',
+  'Dolar, euro, ons altın ve bitcoin; 3 dakikada bir güncellenir.':
+      'Dollar, euro, gold (ounce) and bitcoin; updated every 3 minutes.',
 };

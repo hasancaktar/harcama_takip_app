@@ -65,3 +65,38 @@ Stream<List<T>> mergeListStreams<T>(
     return byId.values.toList();
   });
 }
+
+/// [fetch]'i hemen ve ardından her [interval]'da bir çağırır; son başarılı
+/// değeri yayınlar (henüz yoksa `null`). Hatalar bilerek yok sayılır — dış
+/// servislerden gelen bilgiler yalnızca yardımcıdır. Dönen [cancel] zamanlayıcıyı
+/// durdurup akışı kapatır.
+({Stream<T?> stream, void Function() cancel}) pollLatest<T>(
+  Future<T> Function() fetch,
+  Duration interval,
+) {
+  final controller = StreamController<T?>();
+  T? last;
+  var busy = false;
+  Future<void> refresh() async {
+    if (busy) return;
+    busy = true;
+    try {
+      last = await fetch();
+    } catch (_) {
+      // Yok sayılır; son başarılı değer korunur.
+    } finally {
+      busy = false;
+    }
+    if (!controller.isClosed) controller.add(last);
+  }
+
+  refresh();
+  final timer = Timer.periodic(interval, (_) => refresh());
+  return (
+    stream: controller.stream,
+    cancel: () {
+      timer.cancel();
+      controller.close();
+    },
+  );
+}

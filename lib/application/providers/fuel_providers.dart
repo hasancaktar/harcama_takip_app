@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/stream_utils.dart';
 import '../../domain/entities/expense.dart';
+import '../../domain/entities/fuel_prices.dart';
 import '../../domain/entities/vehicle.dart';
 import '../services/fuel_stats.dart';
 import 'auth_providers.dart';
 import 'repository_providers.dart';
+import 'settings_providers.dart';
 
 /// Kullanıcının araçları.
 final vehiclesProvider = StreamProvider<List<Vehicle>>((ref) {
@@ -55,4 +60,48 @@ final fuelVehicleOptionsProvider = Provider<Map<String, String?>>((ref) {
     );
   }
   return options;
+});
+
+/// Pompa fiyatlarının yenilenme aralığı.
+const fuelPriceRefreshInterval = Duration(minutes: 3);
+
+/// Güncel pompa fiyatları: ilk izlemede hemen, sonra 3 dakikada bir çekilir.
+/// Hatalar kullanıcıya gösterilmez; son başarılı tablo korunur (hiç yoksa `null`).
+final fuelPricesProvider = StreamProvider<FuelPriceTable?>((ref) {
+  final client = ref.watch(fuelPriceClientProvider);
+  final poll = pollLatest(client.fetch, fuelPriceRefreshInterval);
+  ref.onDispose(poll.cancel);
+  return poll.stream;
+});
+
+/// Fiyatları izlenen il (plaka kodu). Cihazda saklanır; varsayılan İstanbul.
+class FuelPriceCityController extends Notifier<String?> {
+  static const _key = 'fuel_price_city';
+
+  /// İstanbul
+  static const defaultCity = '34';
+
+  @override
+  String? build() {
+    final code = ref.watch(sharedPreferencesProvider)?.getString(_key);
+    return code != null && TurkishProvinces.nameOf(code) != null
+        ? code
+        : defaultCity;
+  }
+
+  Future<void> set(String code) async {
+    state = code;
+    await ref.read(sharedPreferencesProvider)?.setString(_key, code);
+  }
+}
+
+final fuelPriceCityProvider =
+    NotifierProvider<FuelPriceCityController, String?>(
+      FuelPriceCityController.new,
+    );
+
+/// Seçili ilin güncel fiyatları (yoksa `null`).
+final selectedCityFuelPricesProvider = Provider<CityFuelPrices?>((ref) {
+  final table = ref.watch(fuelPricesProvider).valueOrNull;
+  return table?.city(ref.watch(fuelPriceCityProvider));
 });

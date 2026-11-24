@@ -20,6 +20,7 @@ import '../../../domain/entities/credit_card.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/common.dart';
 import '../../widgets/expense_tile.dart';
+import '../../widgets/market_strip.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/workspace_selector.dart';
 
@@ -109,6 +110,8 @@ class DashboardScreen extends ConsumerWidget {
               data: (expenses) =>
                   _DashboardContent(hasExpenses: expenses.isNotEmpty),
             ),
+            // Piyasa verileri en altta: harcama özetinin önüne geçmez.
+            const MarketStrip(),
           ],
         ),
       ),

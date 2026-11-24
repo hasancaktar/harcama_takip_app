@@ -15,6 +15,7 @@ import '../../../domain/entities/fuel.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/common.dart';
 import '../../widgets/state_views.dart';
+import 'fuel_price_card.dart';
 
 const _newFuelRoute = '/expenses/new?category=${AppConstants.fuelCategoryId}';
 
@@ -51,14 +52,20 @@ class FuelScreen extends ConsumerWidget {
         value: expensesAsync,
         onRetry: () => ref.invalidate(fuelExpensesProvider),
         data: (expenses) => expenses.isEmpty
-            ? EmptyStateView(
-                icon: Icons.local_gas_station_rounded,
-                title: 'Henüz yakıt kaydı yok'.tr,
-                message: 'Yakıt aldığınızda tutarı veya litreyi girin. Ortalama litre fiyatınız, harcamanız ve aracınızın 100 km tüketimi burada hesaplanır.'
-                    .tr,
-                actionLabel: 'Yakıt ekle'.tr,
-                actionIcon: Icons.local_gas_station_rounded,
-                onAction: () => context.push(_newFuelRoute),
+            ? PageListView(
+                children: [
+                  const FuelPriceCard(),
+                  EmptyStateView(
+                    compact: true,
+                    icon: Icons.local_gas_station_rounded,
+                    title: 'Henüz yakıt kaydı yok'.tr,
+                    message: 'Yakıt aldığınızda tutarı veya litreyi girin. Ortalama litre fiyatınız, harcamanız ve aracınızın 100 km tüketimi burada hesaplanır.'
+                        .tr,
+                    actionLabel: 'Yakıt ekle'.tr,
+                    actionIcon: Icons.local_gas_station_rounded,
+                    onAction: () => context.push(_newFuelRoute),
+                  ),
+                ],
               )
             : const _FuelSummary(),
       ),
@@ -86,6 +93,8 @@ class _FuelSummary extends ConsumerWidget {
     return PageListView(
       padding: AppSpacing.screenPadding.copyWith(bottom: 96),
       children: [
+        const FuelPriceCard(),
+        const SizedBox(height: AppSpacing.sm),
         if (options.length > 1) ...[
           DropdownButtonFormField<String>(
             key: ValueKey('fuel-vehicle-$vehicleKey-${options.length}'),

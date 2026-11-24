@@ -20,6 +20,10 @@ import 'package:harcama_takip/domain/entities/team_invite.dart';
 import 'package:harcama_takip/domain/entities/team_member.dart';
 import 'package:harcama_takip/domain/entities/user_profile.dart';
 import 'package:harcama_takip/domain/entities/vehicle.dart';
+import 'package:harcama_takip/domain/entities/fuel_prices.dart';
+import 'package:harcama_takip/data/services/fuel_price_client.dart';
+import 'package:harcama_takip/data/services/market_rates_client.dart';
+import 'package:harcama_takip/domain/entities/market_rates.dart';
 import 'package:harcama_takip/domain/repositories/i_admin_repository.dart';
 import 'package:harcama_takip/domain/repositories/i_notification_server.dart';
 import 'package:harcama_takip/domain/repositories/i_auth_repository.dart';
@@ -330,6 +334,34 @@ class FakeExpenseRepository implements IExpenseRepository {
         for (final e in _all.value)
           e.id == expenseId ? e.copyWith(status: 'deleted') : e,
       ];
+}
+
+/// Ağa çıkmayan pompa fiyatı istemcisi. Varsayılan: hata (fiyat yok).
+class FakeFuelPriceClient implements IFuelPriceClient {
+  FuelPriceTable? table;
+  bool fail = false;
+  int calls = 0;
+
+  @override
+  Future<FuelPriceTable> fetch() async {
+    calls++;
+    if (fail || table == null) throw Exception('servis yanıt vermedi');
+    return table!;
+  }
+}
+
+/// Ağa çıkmayan piyasa verisi istemcisi. Varsayılan: hata (şerit görünmez).
+class FakeMarketRatesClient implements IMarketRatesClient {
+  MarketRates? rates;
+  bool fail = false;
+  int calls = 0;
+
+  @override
+  Future<MarketRates> fetch() async {
+    calls++;
+    if (fail || rates == null) throw Exception('servis yanıt vermedi');
+    return rates!;
+  }
 }
 
 class FakeVehicleRepository implements IVehicleRepository {
@@ -919,6 +951,8 @@ class TestBackend {
   final expenses = FakeExpenseRepository();
   final cards = FakeCardRepository();
   final vehicles = FakeVehicleRepository();
+  final fuelPrices = FakeFuelPriceClient();
+  final market = FakeMarketRatesClient();
   final installments = FakeInstallmentRepository();
   late final recurring = FakeRecurringPaymentRepository(expenses);
   final budgets = FakeBudgetRepository();
@@ -934,6 +968,8 @@ class TestBackend {
     expenseRepositoryProvider.overrideWithValue(expenses),
     cardRepositoryProvider.overrideWithValue(cards),
     vehicleRepositoryProvider.overrideWithValue(vehicles),
+    fuelPriceClientProvider.overrideWithValue(fuelPrices),
+    marketRatesClientProvider.overrideWithValue(market),
     installmentRepositoryProvider.overrideWithValue(installments),
     recurringPaymentRepositoryProvider.overrideWithValue(recurring),
     budgetRepositoryProvider.overrideWithValue(budgets),

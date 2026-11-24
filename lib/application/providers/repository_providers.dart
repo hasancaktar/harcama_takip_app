@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/repositories/firestore_admin_repository.dart';
+import '../../data/services/fuel_price_client.dart';
+import '../../data/services/market_rates_client.dart';
 import '../../data/services/notification_server_client.dart';
 import '../../domain/repositories/i_notification_server.dart';
 import '../../domain/repositories/i_admin_repository.dart';
@@ -55,6 +57,16 @@ final userRepositoryProvider = Provider<IUserRepository>(
 );
 final vehicleRepositoryProvider = Provider<IVehicleRepository>(
   (ref) => FirestoreVehicleRepository(),
+);
+
+/// Güncel pompa fiyatları servisi.
+final fuelPriceClientProvider = Provider<IFuelPriceClient>(
+  (ref) => ShellFuelPriceClient(),
+);
+
+/// Döviz, altın ve kripto verileri servisi.
+final marketRatesClientProvider = Provider<IMarketRatesClient>(
+  (ref) => GenelParaMarketRatesClient(),
 );
 final accountDataRepositoryProvider = Provider<FirestoreAccountDataRepository>(
   (ref) => FirestoreAccountDataRepository(),

@@ -3,15 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:harcama_takip/application/providers/fuel_providers.dart';
+import 'package:harcama_takip/application/providers/settings_providers.dart';
 import 'package:harcama_takip/core/constants/app_constants.dart';
 import 'package:harcama_takip/core/firebase/firebase_initialization.dart';
 import 'package:harcama_takip/domain/entities/app_user.dart';
 import 'package:harcama_takip/domain/entities/expense.dart';
 import 'package:harcama_takip/domain/entities/fuel.dart';
+import 'package:harcama_takip/domain/entities/fuel_prices.dart';
 import 'package:harcama_takip/domain/entities/vehicle.dart';
 import 'package:harcama_takip/main.dart';
 import 'package:harcama_takip/presentation/navigation/app_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/fakes.dart';
 
@@ -93,6 +96,7 @@ Future<GoRouter> _pump(
   WidgetTester tester,
   TestBackend backend, {
   DateTime? now,
+  SharedPreferences? prefs,
 }) async {
   tester.view.physicalSize = const Size(420, 1100);
   tester.view.devicePixelRatio = 1.0;
@@ -102,6 +106,7 @@ Future<GoRouter> _pump(
       overrides: [
         ...backend.overrides,
         if (now != null) fuelClockProvider.overrideWithValue(() => now),
+        if (prefs != null) sharedPreferencesProvider.overrideWithValue(prefs),
       ],
       child: const ExpenseTrackerApp(
         initResult: FirebaseInitResult(isSuccess: true),
@@ -327,5 +332,122 @@ void main() {
     await _tap(tester, find.widgetWithText(FilledButton, 'Sil'));
     expect(backend.vehicles.all, isEmpty);
     await _unmount(tester);
+  });
+
+  group('Güncel pompa fiyatları', () {
+    final table = FuelPriceTable(
+      cities: const {
+        '34': CityFuelPrices(
+          code: '34',
+          name: 'İstanbul',
+          pricesCents: {
+            FuelTypes.gasoline: 6850,
+            FuelTypes.diesel: 8900,
+            FuelTypes.lpg: 5156,
+          },
+        ),
+      },
+      fetchedAt: DateTime(2026, 11, 25, 9, 30),
+    );
+
+    testWidgets(
+      'il seçilince fiyatlar görünür, yakıt eklemede litre fiyatı dolar ve düzenlenebilir',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({'language': 'tr'});
+        final prefs = await SharedPreferences.getInstance();
+        final backend = _Backend();
+        backend.fuelPrices.table = table;
+        // Geçmişteki fiyat (66,69) yerine güncel fiyat önerilmeli.
+        backend.expenses.seed([
+          _fill(DateTime(2026, 11, 1), litersX100: 3000, price: 6669),
+        ]);
+        final router = await _pump(tester, backend, prefs: prefs);
+        router.go('/fuel');
+        await _settle(tester);
+
+        // İl seçilmemişken varsayılan İstanbul'dur.
+        expect(find.text('Güncel pompa fiyatları'), findsOneWidget);
+        expect(find.text('İstanbul'), findsOneWidget);
+        expect(find.text('₺68,50'), findsOneWidget);
+        expect(find.text('₺89,00'), findsOneWidget);
+        expect(find.text('₺51,56'), findsOneWidget);
+        expect(find.textContaining('Shell'), findsNothing);
+
+        // Başka il seçilir (fiyatı yoksa yalnızca il görünür), sonra geri dönülür.
+        await _tap(tester, find.byKey(const ValueKey('fuel-price-city')));
+        await tester.enterText(find.byType(TextField).last, 'izmir');
+        await _settle(tester, frames: 3);
+        expect(find.widgetWithText(ListTile, 'İzmir'), findsOneWidget);
+        expect(find.widgetWithText(ListTile, 'İstanbul'), findsNothing);
+        await _tap(tester, find.widgetWithText(ListTile, 'İzmir'));
+        expect(prefs.getString('fuel_price_city'), '35');
+        expect(find.text('İzmir'), findsOneWidget);
+        expect(find.text('₺68,50'), findsNothing);
+
+        await _tap(tester, find.byKey(const ValueKey('fuel-price-city')));
+        await tester.enterText(find.byType(TextField).last, 'istanbul');
+        await _settle(tester, frames: 3);
+        await _tap(tester, find.widgetWithText(ListTile, 'İstanbul'));
+        expect(prefs.getString('fuel_price_city'), '34');
+        expect(find.text('₺68,50'), findsOneWidget);
+
+        router.go('/expenses/new?category=fuel');
+        await _settle(tester);
+        expect(_controller(tester, 'fuel-price').text, '68,50');
+        expect(find.text('Güncel fiyat · İstanbul'), findsOneWidget);
+        await _tap(tester, find.widgetWithText(ChoiceChip, 'Motorin'));
+        expect(_controller(tester, 'fuel-price').text, '89,00');
+
+        // Kullanıcı fiyatı değiştirebilir; yenilenen fiyat bunu ezmez.
+        await tester.enterText(find.byKey(const ValueKey('fuel-price')), '91');
+        await _settle(tester, frames: 3);
+        final before = backend.fuelPrices.calls;
+        await tester.pump(fuelPriceRefreshInterval);
+        await _settle(tester, frames: 3);
+        expect(backend.fuelPrices.calls, greaterThan(before));
+        expect(_controller(tester, 'fuel-price').text, '91');
+        expect(find.text('Güncel fiyat · İstanbul'), findsNothing);
+        await _unmount(tester);
+      },
+    );
+
+    testWidgets(
+      'servis hata verirse hiçbir şey gösterilmez; sonraki yenilemede fiyat gelir',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({
+          'language': 'tr',
+          'fuel_price_city': '34',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final backend = _Backend();
+        backend.fuelPrices.fail = true;
+        backend.expenses.seed([
+          _fill(DateTime(2026, 11, 1), litersX100: 3000, price: 6669),
+        ]);
+        final router = await _pump(tester, backend, prefs: prefs);
+        router.go('/fuel');
+        await _settle(tester);
+
+        expect(find.text('İstanbul'), findsOneWidget);
+        expect(find.textContaining('Shell'), findsNothing);
+        expect(find.textContaining('hata'), findsNothing);
+        expect(find.textContaining('Hata'), findsNothing);
+
+        router.go('/expenses/new?category=fuel');
+        await _settle(tester);
+        // Güncel fiyat yokken son ödenen fiyat önerilir.
+        expect(_controller(tester, 'fuel-price').text, '66,69');
+        expect(find.textContaining('Güncel fiyat'), findsNothing);
+
+        backend.fuelPrices
+          ..fail = false
+          ..table = table;
+        await tester.pump(fuelPriceRefreshInterval);
+        await _settle(tester, frames: 3);
+        expect(_controller(tester, 'fuel-price').text, '68,50');
+        expect(find.text('Güncel fiyat · İstanbul'), findsOneWidget);
+        await _unmount(tester);
+      },
+    );
   });
 }

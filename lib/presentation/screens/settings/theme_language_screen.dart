@@ -2,6 +2,8 @@ import 'package:harcama_takip/core/l10n/app_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../application/providers/market_providers.dart';
+
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/repository_providers.dart';
 import '../../../application/providers/settings_providers.dart';
@@ -112,6 +114,21 @@ class ThemeLanguageScreen extends ConsumerWidget {
                   ),
                 ],
               ],
+            ),
+          ),
+          SectionHeader(title: 'Özet ekranı'.tr),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+            child: SwitchListTile(
+              secondary: const Icon(Icons.show_chart_rounded),
+              title: Text('Piyasa verilerini göster'.tr),
+              subtitle: Text(
+                'Dolar, euro, ons altın ve bitcoin; 3 dakikada bir güncellenir.'
+                    .tr,
+              ),
+              value: ref.watch(showMarketRatesProvider),
+              onChanged: (v) =>
+                  ref.read(showMarketRatesProvider.notifier).set(v),
             ),
           ),
           SectionHeader(title: 'Bölge'.tr),

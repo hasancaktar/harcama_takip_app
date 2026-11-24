@@ -145,6 +145,9 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   bool _priceTouched = false;
   bool _resettingForm = false;
 
+  /// Litre fiyatı güncel pompa fiyatından doldurulduysa ilin adı.
+  String? _livePriceCity;
+
   /// Bu formda eklenen ve araç listesine henüz yansımamış araç.
   Vehicle? _addedVehicle;
 
@@ -184,7 +187,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         _vehicleId = fuel.vehicleId ?? _noVehicle;
         _fullTank = fuel.fullTank;
         _litersController.text = MoneyFormatter.formatForInput(fuel.litersX100);
-        _priceController.text = MoneyFormatter.formatForInput(
+        _priceController.text = MoneyFormatter.formatForInputFixed(
           fuel.pricePerLiterCents,
         );
         _odometerController.text = fuel.odometerKm?.toString() ?? '';
@@ -212,6 +215,10 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     // Araçlar ve geçmiş yakıt kayıtları geldikçe varsayılanlar doldurulur.
     ref.listenManual(vehiclesProvider, (_, __) => _onFuelDataChanged());
     ref.listenManual(fuelExpensesProvider, (_, __) => _onFuelDataChanged());
+    ref.listenManual(
+      selectedCityFuelPricesProvider,
+      (_, __) => _onFuelDataChanged(),
+    );
     _applyFuelDefaults();
   }
 
@@ -243,14 +250,25 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     _prefillPrice();
   }
 
+  /// Litre fiyatını önerir: seçili ilin güncel pompa fiyatı, yoksa bu yakıt
+  /// türünde son ödenen fiyat. Kullanıcının yazdığı fiyata dokunmaz.
   void _prefillPrice() {
     if (_priceTouched || _fuelOrder.first == _FuelField.price) return;
+    final live = ref.read(selectedCityFuelPricesProvider);
+    final livePrice = live?.priceOf(_fuelType);
+    if (livePrice != null) {
+      _livePriceCity = live!.name;
+      _priceController.text = MoneyFormatter.formatForInputFixed(livePrice);
+      _recomputeFuel();
+      return;
+    }
+    _livePriceCity = null;
     final entries = ref.read(fuelExpensesProvider).valueOrNull;
     if (entries == null) return;
     final price = FuelHistory.lastPrice(entries, _fuelType);
     _priceController.text = price == null
         ? ''
-        : MoneyFormatter.formatForInput(price);
+        : MoneyFormatter.formatForInputFixed(price);
     _recomputeFuel();
   }
 
@@ -282,7 +300,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         }
       case _FuelField.price:
         if (amount > 0 && liters > 0) {
-          _priceController.text = MoneyFormatter.formatForInput(
+          _priceController.text = MoneyFormatter.formatForInputFixed(
             FuelMath.pricePerLiterCents(amount, liters),
           );
         }
@@ -798,7 +816,11 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                 decoration: InputDecoration(
                   labelText: 'Litre fiyatı'.tr,
                   suffixText: '₺/L',
-                  helperText: _computedHint(_FuelField.price, _priceController),
+                  helperText:
+                      _computedHint(_FuelField.price, _priceController) ??
+                      (_livePriceCity != null && !_priceTouched
+                          ? 'Güncel fiyat · {0}'.trArgs([_livePriceCity!])
+                          : null),
                 ),
               ),
             ),
