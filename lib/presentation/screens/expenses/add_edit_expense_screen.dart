@@ -125,6 +125,9 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   String? _cardId;
   int _installments = 1;
 
+  /// Banka kartıyla ödemede seçilen kart; [_noCard]: kart seçilmedi.
+  String _debitCardId = _noCard;
+
   /// Otomatik ödemenin kaynağı: kart kimliği ya da [_noCard] (banka hesabı).
   String? _autoSource;
   static const _noCard = '__none__';
@@ -177,6 +180,9 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
       _category = e.category;
       _paymentMethod = e.paymentMethod;
       _cardId = e.cardId;
+      if (e.paymentMethod == 'debit_card' && e.cardId != null) {
+        _debitCardId = e.cardId!;
+      }
       _visibility = e.visibility;
       _date = e.date;
       final fuel = e.fuel;
@@ -322,6 +328,21 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
       _computedField == field && controller.text.isNotEmpty
       ? 'Otomatik hesaplandı'.tr
       : null;
+
+  /// Banka kartıyla ödemede seçili kartın kimliği ve son 4 hanesi.
+  ({String id, String last4})? _resolveDebitCard() {
+    if (_paymentMethod != 'debit_card' || _debitCardId == _noCard) return null;
+    final cards = ref.read(debitCardsProvider).valueOrNull ?? const [];
+    for (final c in cards) {
+      if (c.id == _debitCardId) return (id: c.id, last4: c.last4Digits);
+    }
+    // Kaldırılmış kart: mevcut kayıttaki bilgi korunur.
+    final e = widget.existing;
+    if (e != null && e.cardId == _debitCardId && e.cardLast4 != null) {
+      return (id: _debitCardId, last4: e.cardLast4!);
+    }
+    return null;
+  }
 
   Vehicle? _vehicleById(List<Vehicle> vehicles, String id) {
     for (final v in vehicles) {
@@ -633,6 +654,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         return;
       }
 
+      final debit = _resolveDebitCard();
       final expense = Expense(
         id: existing?.id ?? const Uuid().v4(),
         teamId: _teamIdForSave,
@@ -644,8 +666,10 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         category: _category,
         date: _date,
         paymentMethod: _paymentMethod,
-        cardId: isCredit ? _cardId : null,
-        cardLast4: isCredit ? (card?.last4Digits ?? existing?.cardLast4) : null,
+        cardId: isCredit ? _cardId : debit?.id,
+        cardLast4: isCredit
+            ? (card?.last4Digits ?? existing?.cardLast4)
+            : debit?.last4,
         statementPeriod: _resolvePeriod(cards),
         fuel: _buildFuelDetails(),
         notes: _notesController.text.trim().isEmpty
@@ -904,6 +928,51 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     );
   }
 
+  Widget _buildDebitCardPicker(BuildContext context) {
+    final cards = ref.watch(debitCardsProvider).valueOrNull ?? const [];
+    final known = cards.any((c) => c.id == _debitCardId);
+    if (cards.isEmpty && _debitCardId == _noCard) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => context.push('/debit-cards/new'),
+          icon: const Icon(Icons.add_card_rounded),
+          label: Text('Banka kartı ekle (isteğe bağlı)'.tr),
+        ),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      key: ValueKey('debit-card-${cards.length}-$_debitCardId'),
+      initialValue: _debitCardId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Banka kartı'.tr,
+        prefixIcon: const Icon(Icons.account_balance_wallet_rounded),
+      ),
+      items: [
+        for (final c in cards)
+          DropdownMenuItem(
+            value: c.id,
+            child: Text(
+              '${c.name} •••• ${c.last4Digits}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        if (_debitCardId != _noCard && !known)
+          DropdownMenuItem(
+            value: _debitCardId,
+            child: Text(
+              '•••• {0} (kaldırılmış kart)'.trArgs([
+                widget.existing?.cardLast4 ?? '',
+              ]),
+            ),
+          ),
+        DropdownMenuItem(value: _noCard, child: Text('Kart seçilmedi'.tr)),
+      ],
+      onChanged: (v) => setState(() => _debitCardId = v ?? _noCard),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cards = ref.watch(availableCardsProvider).valueOrNull ?? const [];
@@ -1057,6 +1126,10 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                   child: Text('Otomatik ödemeyi aç'.tr),
                 ),
               ),
+            ],
+            if (_paymentMethod == 'debit_card') ...[
+              const SizedBox(height: AppSpacing.md),
+              _buildDebitCardPicker(context),
             ],
             if (_paymentMethod == 'credit_card') ...[
               const SizedBox(height: AppSpacing.md),

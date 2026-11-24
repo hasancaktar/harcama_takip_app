@@ -332,7 +332,6 @@ const Map<String, String> translationsEn = {
   'Kartı kaydet': 'Save card',
   'Kartım': 'My card',
   'Kartın son 4 hanesini girin': 'Enter the last 4 digits of the card',
-  'Kartınızın kesim gününü girin; harcamalar doğru ekstreye yazılsın, son ödeme tarihini kaçırmayın. Kart numarası istenmez.': "Enter your card's closing day so expenses are posted to the right statement and you never miss the due date. The card number is not requested.",
   'Kategori': 'Category',
   'Kategori aktifleştirildi.': 'Category activated.',
   'Kategori dağılımı': 'Category breakdown',
@@ -919,4 +918,28 @@ const Map<String, String> translationsEn = {
   'Piyasa verilerini göster': 'Show market data',
   'Dolar, euro, ons altın ve bitcoin; 3 dakikada bir güncellenir.':
       'Dollar, euro, gold (ounce) and bitcoin; updated every 3 minutes.',
+  'Banka kartı': 'Debit card',
+  'Banka kartları': 'Debit cards',
+  'Kesim gününe göre ekstre ve son ödeme takibi':
+      'Statements and due dates based on the cut-off day',
+  'Banka hesabınızdan ödenen harcamalar; aylık toplam':
+      'Spending paid from your bank account; monthly total',
+  'Yeni banka kartı': 'New debit card',
+  'Banka kartım': 'My debit card',
+  'Banka kartı eklendi.': 'Debit card added.',
+  '"{0}" listeden kaldırılacak. Bu kartla yapılan geçmiş harcamalar silinmez.': '"{0}" will be removed from the list. Past spending made with this card is not deleted.',
+  'Güvenliğiniz için yalnızca kart adı, banka ve son 4 hane saklanır. Kart numarası, son kullanma tarihi ve CVV asla istenmez.': 'For your security, only the card name, bank and last 4 digits are stored. The card number, expiry date and CVV are never asked for.',
+  'Örn. Bankkart': 'E.g. Bankkart',
+  'Örn. Ziraat Bankası': 'E.g. Ziraat Bankası',
+  'Bu kart kaldırılmış veya erişiminiz yok.':
+      'This card was removed or you do not have access.',
+  'Bu ayki harcama': 'Spending this month',
+  '{0} işlem': '{0} transactions',
+  'Bu ay bu kartla harcama yok': 'No spending with this card this month',
+  'Harcama eklerken ödeme yöntemi olarak "Banka Kartı"nı ve bu kartı seçin.': 'When adding an expense, choose "Debit Card" as the payment method and pick this card.',
+  '{0} {1}, banka kartı, son dört hane {2}':
+      '{0} {1}, debit card, last four digits {2}',
+  'Kredi kartında kesim gününü girin; harcamalar doğru ekstreye yazılsın, son ödeme tarihini kaçırmayın. Banka kartlarınızı ekleyip harcamaları kart kart ayırın. Kart numarası istenmez.': 'Enter the cut-off day of your credit card so spending goes to the right statement and you never miss a due date. Add your debit cards to see spending card by card. No card number is needed.',
+  'Banka kartı ekle (isteğe bağlı)': 'Add a debit card (optional)',
+  'Kart seçilmedi': 'No card selected',
 };

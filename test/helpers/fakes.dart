@@ -12,6 +12,8 @@ import 'package:harcama_takip/domain/entities/admin_models.dart';
 import 'package:harcama_takip/domain/entities/app_user.dart';
 import 'package:harcama_takip/domain/entities/budget.dart';
 import 'package:harcama_takip/domain/entities/credit_card.dart';
+import 'package:harcama_takip/domain/entities/debit_card.dart';
+import 'package:harcama_takip/domain/repositories/i_debit_card_repository.dart';
 import 'package:harcama_takip/domain/entities/expense.dart';
 import 'package:harcama_takip/domain/entities/installment_plan.dart';
 import 'package:harcama_takip/domain/entities/recurring_payment.dart';
@@ -389,6 +391,52 @@ class FakeVehicleRepository implements IVehicleRepository {
   Future<void> deleteVehicle(String vehicleId) async => _vehicles.value = [
     for (final v in _vehicles.value)
       if (v.id != vehicleId) v,
+  ];
+}
+
+class FakeDebitCardRepository implements IDebitCardRepository {
+  final ValueStream<List<DebitCard>> _cards = ValueStream(const []);
+
+  List<DebitCard> get all => _cards.value;
+
+  void seed(List<DebitCard> cards) => _cards.value = [...cards];
+
+  @override
+  Stream<List<DebitCard>> watchOwnCards(String uid) => _cards.stream.map(
+    (l) => l.where((c) => c.ownerUid == uid && c.isActive).toList(),
+  );
+
+  @override
+  Stream<DebitCard?> watchCard(String cardId) => _cards.stream.map((l) {
+    for (final c in l) {
+      if (c.id == cardId) return c;
+    }
+    return null;
+  });
+
+  @override
+  Future<void> saveCard(DebitCard card) async => _cards.value = [
+    for (final c in _cards.value)
+      if (c.id != card.id) c,
+    card,
+  ];
+
+  @override
+  Future<void> deactivateCard(String cardId) async => _cards.value = [
+    for (final c in _cards.value)
+      c.id == cardId
+          ? DebitCard(
+              id: c.id,
+              ownerUid: c.ownerUid,
+              name: c.name,
+              bankName: c.bankName,
+              last4Digits: c.last4Digits,
+              colorHex: c.colorHex,
+              isActive: false,
+              createdAt: c.createdAt,
+              updatedAt: DateTime.now(),
+            )
+          : c,
   ];
 }
 
@@ -950,6 +998,7 @@ class TestBackend {
   final users = FakeUserRepository();
   final expenses = FakeExpenseRepository();
   final cards = FakeCardRepository();
+  final debitCards = FakeDebitCardRepository();
   final vehicles = FakeVehicleRepository();
   final fuelPrices = FakeFuelPriceClient();
   final market = FakeMarketRatesClient();
@@ -967,6 +1016,7 @@ class TestBackend {
     userRepositoryProvider.overrideWithValue(users),
     expenseRepositoryProvider.overrideWithValue(expenses),
     cardRepositoryProvider.overrideWithValue(cards),
+    debitCardRepositoryProvider.overrideWithValue(debitCards),
     vehicleRepositoryProvider.overrideWithValue(vehicles),
     fuelPriceClientProvider.overrideWithValue(fuelPrices),
     marketRatesClientProvider.overrideWithValue(market),

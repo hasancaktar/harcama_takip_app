@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Hesap silme sırasında kullanıcıya ait tüm Firestore verilerini temizler.
 ///
 /// Silinenler: kullanıcının oluşturduğu harcamalar (kişisel + takım), taksit planları,
-/// otomatik ödemeler, kartlar, araçlar, kişisel bütçeler, gönderilen öneriler, cihaz
+/// otomatik ödemeler, kredi ve banka kartları, araçlar, kişisel bütçeler, gönderilen öneriler, cihaz
 /// kayıtları ve profil belgesi.
 /// Takımlar: sahibi olunan takımlar arşivlenir, üye olunan takımlardan ayrılınır.
 class FirestoreAccountDataRepository {
@@ -31,6 +31,9 @@ class FirestoreAccountDataRepository {
     );
     await _deleteQuery(
       _firestore.collection('creditCards').where('ownerUid', isEqualTo: uid),
+    );
+    await _deleteQuery(
+      _firestore.collection('debitCards').where('ownerUid', isEqualTo: uid),
     );
     await _deleteQuery(
       _firestore.collection('vehicles').where('ownerUid', isEqualTo: uid),

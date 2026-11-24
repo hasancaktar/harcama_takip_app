@@ -458,6 +458,30 @@ service cloud.firestore {
       allow delete: if verified() && existing().ownerUid == uid();
     }
 
+    // ---------------------------------------------------------------- Banka kartları
+
+    // Banka kartları yalnızca sahibine açıktır (takımla paylaşılmaz).
+    function validDebitCard(d, cardId) {
+      return d.keys().hasOnly(['id', 'ownerUid', 'name', 'bankName', 'last4Digits', 'colorHex',
+                               'isActive', 'createdAt', 'updatedAt'])
+        && d.id == cardId
+        && d.ownerUid == uid()
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 60
+        && d.bankName is string && d.bankName.size() > 0 && d.bankName.size() <= 60
+        && d.last4Digits is string && d.last4Digits.matches('^[0-9]{4}$')
+        && optionalString(d, 'colorHex', 9)
+        && d.isActive is bool;
+    }
+
+    match /debitCards/{cardId} {
+      allow read: if verified() && existing().ownerUid == uid();
+      allow create: if verified() && validDebitCard(incoming(), cardId);
+      allow update: if verified()
+        && existing().ownerUid == uid()
+        && validDebitCard(incoming(), cardId);
+      allow delete: if verified() && existing().ownerUid == uid();
+    }
+
     // ---------------------------------------------------------------- Taksit planları
 
     function validPlan(d, planId) {

@@ -11,6 +11,7 @@ import '../../domain/repositories/i_admin_repository.dart';
 import '../../data/repositories/firestore_account_data_repository.dart';
 import '../../data/repositories/firestore_budget_repository.dart';
 import '../../data/repositories/firestore_card_repository.dart';
+import '../../data/repositories/firestore_debit_card_repository.dart';
 import '../../data/repositories/firestore_expense_repository.dart';
 import '../../data/repositories/firestore_installment_repository.dart';
 import '../../data/repositories/firestore_recurring_payment_repository.dart';
@@ -20,6 +21,7 @@ import '../../data/repositories/firestore_vehicle_repository.dart';
 import '../../domain/repositories/i_auth_repository.dart';
 import '../../domain/repositories/i_budget_repository.dart';
 import '../../domain/repositories/i_card_repository.dart';
+import '../../domain/repositories/i_debit_card_repository.dart';
 import '../../domain/repositories/i_expense_repository.dart';
 import '../../domain/repositories/i_installment_repository.dart';
 import '../../domain/repositories/i_recurring_payment_repository.dart';
@@ -42,6 +44,9 @@ final expenseRepositoryProvider = Provider<IExpenseRepository>(
 );
 final cardRepositoryProvider = Provider<ICardRepository>(
   (ref) => FirestoreCardRepository(),
+);
+final debitCardRepositoryProvider = Provider<IDebitCardRepository>(
+  (ref) => FirestoreDebitCardRepository(),
 );
 final installmentRepositoryProvider = Provider<IInstallmentRepository>(
   (ref) => FirestoreInstallmentRepository(),

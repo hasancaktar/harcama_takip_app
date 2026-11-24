@@ -17,6 +17,7 @@ import '../screens/budgets/budgets_screen.dart';
 import '../screens/cards_installments/add_edit_card_screen.dart';
 import '../screens/cards_installments/add_installment_plan_screen.dart';
 import '../screens/cards_installments/card_statement_detail_screen.dart';
+import '../screens/cards_installments/debit_card_screens.dart';
 import '../screens/cards_installments/cards_installments_screen.dart';
 import '../screens/cards_installments/installment_plan_detail_screen.dart';
 import '../screens/cards_installments/recurring_payment_detail_screen.dart';
@@ -187,6 +188,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'edit',
             builder: (_, state) => HomeBackStack(
               child: AddEditCardScreen(cardId: state.pathParameters['id']),
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/debit-cards/new',
+        builder: (_, __) =>
+            const HomeBackStack(child: AddEditDebitCardScreen()),
+      ),
+      GoRoute(
+        path: '/debit-cards/:id',
+        builder: (_, state) => HomeBackStack(
+          child: DebitCardDetailScreen(cardId: state.pathParameters['id']!),
+        ),
+        routes: [
+          GoRoute(
+            path: 'edit',
+            builder: (_, state) => HomeBackStack(
+              child: AddEditDebitCardScreen(cardId: state.pathParameters['id']),
             ),
           ),
         ],

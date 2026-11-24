@@ -42,7 +42,8 @@ class ExpenseTile extends StatelessWidget {
       dateLabel,
       if (fuel != null && fuel.hasVolume)
         FuelMath.formatLiters(fuel.litersX100),
-      if (expense.cardLast4 != null && expense.isCreditCard)
+      if (expense.cardLast4 != null &&
+          (expense.isCreditCard || expense.paymentMethod == 'debit_card'))
         '•••• ${expense.cardLast4}'
       else
         payment.name,

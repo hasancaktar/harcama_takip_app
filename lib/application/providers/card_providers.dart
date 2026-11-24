@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/stream_utils.dart';
 import '../../domain/entities/credit_card.dart';
+import '../../domain/entities/debit_card.dart';
 import '../../domain/entities/expense.dart';
 import 'auth_providers.dart';
 import 'repository_providers.dart';
@@ -65,4 +66,26 @@ final cardStatementExpensesProvider = StreamProvider.autoDispose
         sharedTeamId: card.isSharedWithTeam ? card.teamId : null,
         period: key.period,
       );
+    });
+
+/// Kullanıcının banka kartları.
+final debitCardsProvider = StreamProvider<List<DebitCard>>((ref) {
+  final uid = ref.watch(currentUserIdProvider);
+  if (uid == null) return Stream.value(const []);
+  return ref.watch(debitCardRepositoryProvider).watchOwnCards(uid);
+});
+
+final debitCardByIdProvider = StreamProvider.autoDispose
+    .family<DebitCard?, String>(
+      (ref, id) => ref.watch(debitCardRepositoryProvider).watchCard(id),
+    );
+
+/// Bir banka kartından belirli ayda yapılan (kullanıcının kendi) harcamalar.
+final debitCardExpensesProvider = StreamProvider.autoDispose
+    .family<List<Expense>, CardStatementKey>((ref, key) {
+      final uid = ref.watch(currentUserIdProvider);
+      if (uid == null) return Stream.value(const []);
+      return ref
+          .watch(expenseRepositoryProvider)
+          .watchCardExpenses(cardId: key.cardId, uid: uid, period: key.period);
     });

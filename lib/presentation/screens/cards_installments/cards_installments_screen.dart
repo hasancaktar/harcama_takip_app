@@ -21,6 +21,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/common.dart';
 import '../../widgets/credit_card_visual.dart';
 import '../../widgets/state_views.dart';
+import 'debit_card_screens.dart';
 import '../../widgets/workspace_selector.dart';
 
 class CardsInstallmentsScreen extends ConsumerStatefulWidget {
@@ -75,7 +76,7 @@ class _CardsInstallmentsScreenState
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           tabs: [
-            Tab(text: 'Kredi kartları'.tr),
+            Tab(text: 'Kartlar'.tr),
             Tab(text: 'Taksit planları'.tr),
             Tab(text: 'Otomatik ödemeler'.tr),
           ],
@@ -83,7 +84,9 @@ class _CardsInstallmentsScreenState
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'fab-cards',
-        onPressed: () => context.push(route),
+        onPressed: () => _tabController.index == 0
+            ? showAddCardChooser(context)
+            : context.push(route),
         icon: Icon(icon),
         label: Text(label),
       ),
@@ -101,6 +104,7 @@ class _CardsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cardsAsync = ref.watch(availableCardsProvider);
+    final debitCards = ref.watch(debitCardsProvider).valueOrNull ?? const [];
     final uid = ref.watch(currentUserIdProvider);
     final isTeam = ref.watch(activeTeamProvider) != null;
 
@@ -109,15 +113,15 @@ class _CardsTab extends ConsumerWidget {
       loading: const SkeletonList(itemCount: 3, itemHeight: 180),
       onRetry: () => ref.invalidate(availableCardsProvider),
       data: (cards) {
-        if (cards.isEmpty) {
+        if (cards.isEmpty && debitCards.isEmpty) {
           return EmptyStateView(
             icon: Icons.credit_card_off_rounded,
             title: 'Henüz kart eklemediniz'.tr,
-            message: 'Kartınızın kesim gününü girin; harcamalar doğru ekstreye yazılsın, son ödeme tarihini kaçırmayın. Kart numarası istenmez.'
+            message: 'Kredi kartında kesim gününü girin; harcamalar doğru ekstreye yazılsın, son ödeme tarihini kaçırmayın. Banka kartlarınızı ekleyip harcamaları kart kart ayırın. Kart numarası istenmez.'
                 .tr,
             actionLabel: 'Kart ekle'.tr,
             actionIcon: Icons.add_card_rounded,
-            onAction: () => context.push('/cards/new'),
+            onAction: () => showAddCardChooser(context),
           );
         }
         final now = DateTime.now();
@@ -136,6 +140,11 @@ class _CardsTab extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.md),
             ],
+            if (cards.isNotEmpty && debitCards.isNotEmpty)
+              SectionHeader(
+                title: 'Kredi kartları'.tr,
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              ),
             for (final card in cards) ...[
               Builder(
                 builder: (context) {
@@ -151,24 +160,44 @@ class _CardsTab extends ConsumerWidget {
                   return CreditCardVisual(
                     card: card,
                     onTap: () => context.push('/cards/${card.id}'),
-                    footer: Text(
-                      [
-                        'Sonraki kesim {0} ({1})'.trArgs([
-                          DateFormats.dayShort(cutoff),
-                          DateFormats.daysUntil(cutoff, now: now),
-                        ]),
-                        'Son ödeme {0}'.trArgs([DateFormats.dayShort(due)]),
-                        if (card.ownerUid != uid) 'Takım kartı'.tr,
-                      ].join(' · '),
-                      style: context.textStyles.bodySmall?.copyWith(
-                        color: DefaultTextStyle.of(context).style.color
-                            ?.withValues(alpha: 0.85),
+                    // Renk kartın içindeki yazı renginden alınır (Builder);
+                    // dıştaki bağlam sayfanın koyu yazı rengini verirdi.
+                    footer: Builder(
+                      builder: (inner) => Text(
+                        [
+                          'Sonraki kesim {0} ({1})'.trArgs([
+                            DateFormats.dayShort(cutoff),
+                            DateFormats.daysUntil(cutoff, now: now),
+                          ]),
+                          'Son ödeme {0}'.trArgs([DateFormats.dayShort(due)]),
+                          if (card.ownerUid != uid) 'Takım kartı'.tr,
+                        ].join(' · '),
+                        style: inner.textStyles.bodySmall?.copyWith(
+                          color: DefaultTextStyle.of(inner).style.color
+                              ?.withValues(alpha: 0.85),
+                        ),
                       ),
                     ),
                   );
                 },
               ),
               const SizedBox(height: AppSpacing.md),
+            ],
+            if (debitCards.isNotEmpty) ...[
+              SectionHeader(
+                title: 'Banka kartları'.tr,
+                padding: EdgeInsets.only(
+                  top: cards.isEmpty ? 0 : AppSpacing.xs,
+                  bottom: AppSpacing.xs,
+                ),
+              ),
+              for (final card in debitCards) ...[
+                DebitCardVisual(
+                  card: card,
+                  onTap: () => context.push('/debit-cards/${card.id}'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
             ],
           ],
         );

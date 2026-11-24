@@ -857,3 +857,55 @@ describe('Yakıt takibi', () => {
     await assertFails(setDoc(doc(alice, 'vehicles/f'), vehicle('wrong-id', 'alice')));
   });
 });
+
+describe('Banka kartları', () => {
+  function debitCard(id, owner, overrides = {}) {
+    return {
+      id,
+      ownerUid: owner,
+      name: 'Bankkart',
+      bankName: 'Ziraat Bankası',
+      last4Digits: '4321',
+      colorHex: '#0F766E',
+      isActive: true,
+      createdAt: now(),
+      updatedAt: now(),
+      ...overrides,
+    };
+  }
+
+  test('banka kartı yalnızca sahibine açıktır; kaldırılabilir', async () => {
+    const alice = db(USERS.alice);
+    await assertSucceeds(setDoc(doc(alice, 'debitCards/d1'), debitCard('d1', 'alice')));
+    await assertSucceeds(getDocs(query(
+      collection(alice, 'debitCards'),
+      where('ownerUid', '==', 'alice'),
+      where('isActive', '==', true),
+    )));
+    await assertSucceeds(updateDoc(doc(alice, 'debitCards/d1'), { isActive: false, updatedAt: now() }));
+    await assertFails(getDocs(collection(alice, 'debitCards')));
+
+    const eve = db(USERS.eve);
+    await assertFails(getDoc(doc(eve, 'debitCards/d1')));
+    await assertFails(updateDoc(doc(eve, 'debitCards/d1'), { name: 'Benim' }));
+    await assertFails(deleteDoc(doc(eve, 'debitCards/d1')));
+    await assertFails(setDoc(doc(eve, 'debitCards/d9'), debitCard('d9', 'alice')));
+    await assertFails(updateDoc(doc(alice, 'debitCards/d1'), { ownerUid: 'eve' }));
+    await assertFails(setDoc(doc(db(USERS.alice, { verified: false }), 'debitCards/d2'), debitCard('d2', 'alice')));
+  });
+
+  test('geçersiz banka kartı reddedilir; kart numarası saklanamaz', async () => {
+    const alice = db(USERS.alice);
+    await assertFails(setDoc(doc(alice, 'debitCards/a'), debitCard('a', 'alice', { last4Digits: '12345' })));
+    await assertFails(setDoc(doc(alice, 'debitCards/b'), debitCard('b', 'alice', { name: '' })));
+    await assertFails(setDoc(doc(alice, 'debitCards/c'), debitCard('c', 'alice', { cardNumber: '4111111111111111' })));
+    await assertFails(setDoc(doc(alice, 'debitCards/d'), debitCard('wrong', 'alice')));
+  });
+
+  test('banka kartıyla ödenen harcama kart bilgisiyle kaydedilir', async () => {
+    const fs = db(USERS.alice);
+    await assertSucceeds(setDoc(doc(fs, 'expenses/x1'), expense('x1', 'alice', {
+      paymentMethod: 'debit_card', cardId: 'd1', cardLast4: '4321',
+    })));
+  });
+});
