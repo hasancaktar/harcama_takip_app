@@ -24,6 +24,8 @@ import 'package:harcama_takip/domain/entities/user_profile.dart';
 import 'package:harcama_takip/domain/entities/vehicle.dart';
 import 'package:harcama_takip/domain/entities/fuel_prices.dart';
 import 'package:harcama_takip/data/services/fuel_price_client.dart';
+import 'package:harcama_takip/data/services/app_update_checker.dart';
+import 'package:harcama_takip/application/providers/app_update_providers.dart';
 import 'package:harcama_takip/data/services/market_rates_client.dart';
 import 'package:harcama_takip/domain/entities/market_rates.dart';
 import 'package:harcama_takip/domain/repositories/i_admin_repository.dart';
@@ -364,6 +366,24 @@ class FakeMarketRatesClient implements IMarketRatesClient {
     if (fail || rates == null) throw Exception('servis yanıt vermedi');
     return rates!;
   }
+}
+
+/// Mağaza kontrolü yapmayan güncelleme denetleyicisi. Varsayılan: güncelleme yok.
+class FakeAppUpdateChecker implements IAppUpdateChecker {
+  AvailableUpdate? update;
+  bool fail = false;
+  int checks = 0;
+  int storeOpens = 0;
+
+  @override
+  Future<AvailableUpdate?> check() async {
+    checks++;
+    if (fail) throw Exception('Play Store yok');
+    return update;
+  }
+
+  @override
+  Future<void> openStore() async => storeOpens++;
 }
 
 class FakeVehicleRepository implements IVehicleRepository {
@@ -1002,6 +1022,7 @@ class TestBackend {
   final vehicles = FakeVehicleRepository();
   final fuelPrices = FakeFuelPriceClient();
   final market = FakeMarketRatesClient();
+  final appUpdates = FakeAppUpdateChecker();
   final installments = FakeInstallmentRepository();
   late final recurring = FakeRecurringPaymentRepository(expenses);
   final budgets = FakeBudgetRepository();
@@ -1020,6 +1041,7 @@ class TestBackend {
     vehicleRepositoryProvider.overrideWithValue(vehicles),
     fuelPriceClientProvider.overrideWithValue(fuelPrices),
     marketRatesClientProvider.overrideWithValue(market),
+    appUpdateCheckerProvider.overrideWithValue(appUpdates),
     installmentRepositoryProvider.overrideWithValue(installments),
     recurringPaymentRepositoryProvider.overrideWithValue(recurring),
     budgetRepositoryProvider.overrideWithValue(budgets),

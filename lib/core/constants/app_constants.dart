@@ -197,7 +197,7 @@ abstract class AppConstants {
   /// (test/unit/app_version_test.dart denetler). "Yenilikler" penceresi bu
   /// sürüme göre gösterilir.
   static const String appVersion = '1.3.0';
-  static const int appBuildNumber = 6;
+  static const int appBuildNumber = 7;
   static String get appVersionLabel => '$appVersion ($appBuildNumber)';
 
   /// Kullanıcıların ulaşabileceği iletişim adresi (mağaza girişiyle aynı).

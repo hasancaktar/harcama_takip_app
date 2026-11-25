@@ -941,4 +941,11 @@ const Map<String, String> translationsEn = {
   'Banka kartı ekle (isteğe bağlı)': 'Add a debit card (optional)',
   'Kart seçilmedi': 'No card selected',
   'Harcamalarınızı, kredi ve banka kartlarınızı, taksitlerinizi ve otomatik ödemelerinizi tek yerde toplar. Aylık bütçe belirleyebilir, ortak harcamaları ailenizle veya ev arkadaşlarınızla takımda paylaşabilir, yakıt giderlerinizi ve aracınızın tüketimini izleyebilirsiniz. Kayıtlarınızı yalnızca siz ve takım üyeleriniz görür; kart numaranız hiçbir zaman istenmez.': 'Brings your expenses, credit and debit cards, instalments and automatic payments together in one place. You can set a monthly budget, share common expenses with family or flatmates in a team, and track your fuel costs and your vehicle\'s consumption. Only you and your team members see your records; your card number is never asked for.',
+  'Yeni sürüm mevcut': 'A new version is available',
+  'Yeni özellikler ve düzeltmeler için uygulamayı güncelleyin.':
+      'Update the app to get new features and fixes.',
+  'Sonra': 'Later',
+  'Güncelle': 'Update',
+  'Güncelleme mevcut': 'Update available',
+  'Play Store\'dan yükleyin': 'Install from the Play Store',
 };

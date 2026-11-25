@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../application/providers/admin_providers.dart';
+import '../../../application/providers/app_update_providers.dart';
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/installment_providers.dart';
 import '../../../application/providers/recurring_payment_providers.dart';
@@ -18,6 +19,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/user_profile.dart';
 import '../../widgets/release_notes_dialog.dart';
+import '../../widgets/update_prompt.dart';
 import '../../../application/services/account_service.dart';
 
 class _Destination {
@@ -187,8 +189,34 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
       if (launchRoute != null) _openRoute(launchRoute);
     }
 
-    // 5) Güncellemeden sonraki ilk açılışta "Yenilikler" penceresi.
-    unawaited(_maybeShowReleaseNotes());
+    // 5) Güncellemeden sonraki ilk açılışta "Yenilikler" penceresi, ardından
+    //    mağazada yeni sürüm varsa (zorunlu olmayan) güncelleme penceresi.
+    unawaited(_showStartupDialogs());
+  }
+
+  Future<void> _showStartupDialogs() async {
+    await _maybeShowReleaseNotes();
+    await _maybeShowUpdatePrompt();
+  }
+
+  /// Mağazada yeni sürüm varsa sorar. Kontrol başarısız olursa hiçbir şey
+  /// gösterilmez; "Sonra" denirse aynı sürüm için aynı gün tekrar sorulmaz.
+  Future<void> _maybeShowUpdatePrompt() async {
+    try {
+      final update = await ref
+          .read(appUpdateProvider.future)
+          .timeout(const Duration(seconds: 15));
+      if (update == null || !mounted) return;
+      final prefs = ref.read(sharedPreferencesProvider);
+      final now = DateTime.now();
+      if (!UpdatePromptPolicy.shouldShow(prefs, update, now: now)) return;
+      final checker = ref.read(appUpdateCheckerProvider);
+      final accepted = await showUpdatePrompt(context);
+      await UpdatePromptPolicy.snooze(prefs, update, now: now);
+      if (accepted) await checker.openStore();
+    } catch (e) {
+      debugPrint('[Shell] Güncelleme kontrolü atlandı: $e');
+    }
   }
 
   Future<void> _signOutDisabled() async {

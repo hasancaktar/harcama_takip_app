@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../application/providers/app_update_providers.dart';
 import '../../../application/providers/admin_providers.dart';
 import '../../../application/providers/auth_providers.dart';
 import '../../../application/providers/settings_providers.dart';
@@ -237,6 +238,15 @@ class SettingsScreen extends ConsumerWidget {
           SectionHeader(title: 'Hakkında'.tr),
           _SettingsGroup(
             children: [
+              // Yalnızca mağazada yeni sürüm varsa görünür.
+              if (ref.watch(appUpdateProvider).valueOrNull != null)
+                _SettingsTile(
+                  icon: Icons.system_update_rounded,
+                  title: 'Güncelleme mevcut'.tr,
+                  subtitle: 'Play Store\'dan yükleyin'.tr,
+                  badge: 'Yeni'.tr,
+                  onTap: () => ref.read(appUpdateCheckerProvider).openStore(),
+                ),
               _SettingsTile(
                 icon: Icons.language_rounded,
                 title: 'Web sürümü'.tr,
