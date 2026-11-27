@@ -67,3 +67,6 @@ ui-debug.log
 .dev.vars
 .wrangler/
 notification-worker/dist/
+
+# graphify knowledge graph (local, rebuilt with `graphify update .`)
+graphify-out/
